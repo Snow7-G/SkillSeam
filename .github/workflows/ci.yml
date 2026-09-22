@@ -22,7 +22,7 @@ jobs:
       - name: Package sanity (pip install + entry point)
         run: |
           python -m pip install .
-          skill-atlas --version
+          skill-seam --version
 
   web-smoke:
     runs-on: ubuntu-latest
