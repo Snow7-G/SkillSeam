@@ -436,7 +436,19 @@ class TestReliabilityFixes(unittest.TestCase):
         """#4 折叠标量中的更深缩进行：明确报错（不支持），不静默误解。"""
         text = "---\nname: a-b\ndescription: >-\n  line one\n    deeply indented\n---\n\n正文\n"
         _, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
-        self.assertTrue(any("暂不支持" in i for i in issues))
+        self.assertTrue(any("[fatal]" in i for i in issues))
+
+    def test_fatal_blocks_evaluation(self):
+        """验收点 3：不支持语法必须阻止评测并返回 2，不能继续当有效描述。"""
+        with tempfile.TemporaryDirectory() as td:
+            sdir = Path(td) / "bad-skill"
+            (sdir / "bad-skill").mkdir(parents=True)
+            (sdir / "bad-skill" / "SKILL.md").write_text(
+                "---\nname: bad-skill\ndescription: >-\n  line one\n    deeply indented\n---\n\n正文\n",
+                encoding="utf-8")
+            r = run_cli([str(sdir), "--mock"])
+            self.assertEqual(r.returncode, 2)
+            self.assertIn("评测中止", r.stderr)
 
     def test_frontmatter_literal_scalar(self):
         """#4 `|`（clip）保留内容与一个末尾换行（YAML 1.2.2 §8.1.2）。"""

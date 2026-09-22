@@ -63,7 +63,6 @@ def load_config():
 
 
 # ---------------------------------------------------------------- scan (T2)
-FM_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?(.*)\Z", re.DOTALL)
 
 
 def _block_scalar(fm_lines, i, parent_indent):
@@ -127,6 +126,8 @@ def _block_scalar(fm_lines, i, parent_indent):
                     out.append("\n")  # 更深缩进行两侧不折叠
                 else:
                     out.append(" ")
+            elif blanks:
+                out.append("\n" * blanks)  # 开头空行按规范保留
             out.append(t)
             prev_more = more
             blanks = 0
@@ -135,23 +136,29 @@ def _block_scalar(fm_lines, i, parent_indent):
     if chomp == "-":
         value = core
     elif chomp == "+":
-        value = core + "\n" + "\n" * trailing_blanks if core else core
+        value = core + "\n" + "\n" * trailing_blanks if core else "\n" * trailing_blanks
     else:  # clip（默认）
-        value = core + "\n" if core else core
+        value = core + "\n" if core else ""
     return value, j, unsupported
 
 
 def parse_frontmatter(text, path):
     issues = []
     text = text.replace("\r\n", "\n")  # CRLF 归一化，防止 name/description 尾部带 \r
-    m = FM_RE.match(text)
-    if not m:
+    lines = text.split("\n")
+    # 按原始行边界提取 frontmatter：不丢空行（keep 语义依赖它们）
+    if not lines or lines[0].strip() != "---":
+        return None, ["缺少 frontmatter 或未闭合"]
+    end = None
+    for idx in range(1, len(lines)):
+        if lines[idx].strip() == "---":
+            end = idx
+            break
+    if end is None:
         return None, ["缺少 frontmatter 或未闭合"]
     fm = {}
-    fm_lines = m.group(1).splitlines()
-    # 非贪婪 FM_RE 会把 `---` 前的空行吞掉（其换行符被当作终止符）；
-    # group(1) 每多一个尾部 \n 就代表一个被吞掉的空行，补回来（keep 语义需要）
-    fm_lines += [""] * (len(m.group(1)) - len(m.group(1).rstrip("\n")))
+    fm_lines = lines[1:end]
+    body = "\n".join(lines[end + 1:]).strip()
     i = 0
     while i < len(fm_lines):
         line = fm_lines[i]
@@ -170,14 +177,13 @@ def parse_frontmatter(text, path):
             value, i_next, unsupported = _block_scalar(fm_lines, i, len(line) - len(line.lstrip(" ")))
             fm[k] = value
             if unsupported:
-                issues.append(f"{k} 折叠标量包含更深缩进的行，暂不支持（请改用 | 或统一缩进）")
+                issues.append("[fatal] " + f"{k} 折叠标量包含更深缩进的行，暂不支持（请改用 | 或统一缩进）")
             i = i_next
             continue
         fm[k] = v.strip('"').strip("'")
         i += 1
     name = fm.get("name", "")
     desc = fm.get("description", "")
-    body = m.group(2).strip()
     if not NAME_RE.match(name):
         issues.append(f"name 不符合规范: {name!r}")
     if name and path.parent.name != name:
@@ -194,16 +200,22 @@ def parse_frontmatter(text, path):
 
 
 def scan_skills(root: Path):
-    skills, all_issues = [], []
+    """返回 (skills, all_issues, rejected)。rejected 是含不可靠解析（[fatal]）的文件，
+    调用方必须阻止评测而不是静默跳过。"""
+    skills, all_issues, rejected = [], [], []
     for md in sorted(root.glob("*/SKILL.md")):
         skill, issues = parse_frontmatter(md.read_text(encoding="utf-8"), md)
+        fatal = [i for i in issues if i.startswith("[fatal]")]
+        if fatal:
+            rejected.append((md, [i.replace("[fatal] ", "") for i in fatal]))
+            continue
         if skill is None:
             all_issues.append((md, issues))
             continue
         skills.append(skill)
         if issues:
             all_issues.append((md, issues))
-    return skills, all_issues
+    return skills, all_issues, rejected
 
 
 def build_catalog(skills):
@@ -1002,7 +1014,13 @@ def cmd_harvest(argv):
         eprint("用法: skill-seam harvest <skills目录> [--claude] [--codex] [--label] [--out FILE]")
         return 2
     root = Path(paths[0])
-    skills, _ = scan_skills(root)
+    skills, _, rejected = scan_skills(root)
+    if rejected:
+        eprint("错误: 存在无法可靠解析的 SKILL.md，收割中止。")
+        for md, msgs in rejected:
+            for msg in msgs:
+                eprint(f"  {md}: {msg}")
+        return 2
     if len(skills) < 1:
         eprint(f"错误: {root} 下没有 SKILL.md")
         return 2
@@ -1095,7 +1113,13 @@ def cmd_export(argv):
     """skill-seam export <skills目录> —— 输出网页版可直接粘贴的 "name: description" 行。"""
     paths = [a for a in argv if not a.startswith("--")]
     root = Path(paths[0]) if paths else Path("./demo-skills")
-    skills, _ = scan_skills(root)
+    skills, _, rejected = scan_skills(root)
+    if rejected:
+        eprint("错误: 以下 SKILL.md 存在无法可靠解析的语法，export 拒绝输出：")
+        for md, msgs in rejected:
+            for msg in msgs:
+                eprint(f"  {md}: {msg}")
+        return 2
     if not skills:
         eprint(f"错误: {root} 下没有 SKILL.md")
         return 2
@@ -1185,7 +1209,13 @@ def main():
     n_pos = int_opt("--gen-positive", 5)
     k_pairs = int_opt("--gray-pairs", 2, minimum=0)  # 0 = 不生成灰区任务
 
-    skills, issues = scan_skills(root)
+    skills, issues, rejected = scan_skills(root)
+    if rejected:
+        for md, msgs in rejected:
+            for msg in msgs:
+                eprint(f"错误: {md}: {msg}")
+        eprint("错误: 存在无法可靠解析的 SKILL.md，评测中止（拒绝返回 0）。")
+        sys.exit(2)
     if not skills:
         eprint("错误: 未找到任何 SKILL.md")
         sys.exit(2)
