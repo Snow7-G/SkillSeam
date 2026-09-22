@@ -1,8 +1,22 @@
-# SkillSeam
+<p align="center">
+  <img src="assets/banner.svg" alt="SkillSeam — find the seam where your skills split" width="720">
+</p>
 
-English | [简体中文](README.zh-CN.md)
+<p align="center">
+  <strong>English</strong> ·
+  <a href="README.zh-CN.md">简体中文</a> ·
+  <a href="README.ja.md">日本語</a> ·
+  <a href="README.ko.md">한국어</a> ·
+  <a href="README.es.md">Español</a> ·
+  <a href="README.de.md">Deutsch</a>
+</p>
 
-[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-58%20passing-3b6d11.svg)](tests/test_atlas.py)
+<p align="center">
+  <a href="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml"><img src="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-0f6e56.svg" alt="License: MIT"></a>
+  <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg" alt="Python 3.10+"></a>
+  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-58%20passing-3b6d11.svg" alt="Tests: 58 passing"></a>
+</p>
 
 Simulate the way your agent picks skills, and find out which skill steals whose tasks. Before your users find out.
 
@@ -16,13 +30,14 @@ SkillSeam replays that selection process before you ship. On a 40-task demo with
 
 ## Quick start (web, no install)
 
-Open https://snow7-g.github.io/SkillSeam/ . Click the demo button, you get a real heatmap in ten seconds. Then paste your own skills, add an API key (it stays in your browser, requests go straight to your provider), and hit run.
+Open [https://snow7-g.github.io/SkillSeam/](https://snow7-g.github.io/SkillSeam/), click the demo button, and you get a real heatmap in ten seconds. Then paste your own skills, add an API key (it stays in your browser, requests go straight to your provider), and hit run.
 
 Your skills live as SKILL.md files? Print them in paste-ready form:
 
 ```bash
 python3 skill_seam.py export ~/.agents/skills
-# guahao-yuyue: 处理眼科门诊的预约挂号、改期与取消……
+# booking-desk: Handles clinic appointment booking, rescheduling and cancellations
+# report-reader: Interprets ophthalmology test reports and follow-up advice
 ```
 
 The web UI speaks Chinese for now. English UI is on the roadmap.
@@ -30,7 +45,7 @@ The web UI speaks Chinese for now. English UI is on the roadmap.
 ## CLI (local directories, CI gates)
 
 ```bash
-git clone https://github.com/Snow7-G/SkillSeam && cd skill-seam
+git clone https://github.com/Snow7-G/SkillSeam && cd SkillSeam
 echo '{"base_url": "https://.../v1", "api_key": "sk-...", "model": "..."}' > .atlasrc.json
 python3 skill_seam.py ~/.agents/skills
 open output/report.html
@@ -44,18 +59,16 @@ python3 skill_seam.py ./skills --tasks ci-tasks.json || echo "conflicts found, b
 
 ## Real queries beat generated ones
 
-This is the part that matters, so read it.
+One honest limitation first: the generated test tasks are biased. The model that writes them knows which skill should win, so they tend to pass. On our demo, generated tasks found 0 conflicts while real user questions found 4. Same skill set, same model. The only thing that changed was where the questions came from.
 
-SkillSeam can generate test tasks with an LLM, and those tasks are biased. The model that writes them knows which skill should win, so they tend to pass. On our demo, generated tasks found 0 conflicts while real user questions found 4. Same skill set, same model. The only thing that changed was where the questions came from.
-
-So the tool ships with three ways to collect real questions instead:
+SkillSeam ships with three ways to collect real questions instead:
 
 ```bash
 # One-time setup: every prompt you send to Claude Code gets logged locally, silently
 python3 skill_seam.py capture --install-claude
 
 # The moment you catch your agent picking the wrong skill, keep it forever
-python3 skill_seam.py mark "复诊的时候顺便查下会员积分" fuzhen-tixing
+python3 skill_seam.py mark "check my membership points at my follow-up visit" followup-reminder
 
 # Harvest logged prompts (or Codex session logs) into a labeled task draft
 python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
@@ -70,7 +83,7 @@ Generated tasks still have a use: smoke testing. Just don't trust them to prove 
 1. Scan the skill directory, parse each SKILL.md frontmatter, and lint the format.
 2. Build a task set: clear questions per skill, plus deliberately ambiguous ones at the boundaries where two skills overlap.
 3. Replay selection: the model sees only the names and descriptions, formatted the way agents inject them, and picks a skill for each task. Every task runs 5 times at temperature 0.7.
-4. Aggregate with majority vote. A task counts as a real conflict only when at least 4 of 5 runs agree on the wrong skill. Below that we mark it unstable, because that's model noise, not a bug.
+4. Aggregate with majority vote. A task counts as a real conflict only when at least 4 of 5 runs agree on the wrong skill. Below that we mark it unstable, because that's model noise and it would pollute the report.
 
 The report ships as a single self-contained HTML page with a confusion matrix. If conflicts exist, it also generates description rewrites (before and after) that you can apply and re-test.
 
@@ -87,7 +100,7 @@ These complement each other. Run lint and security scans per skill, then run Ski
 
 ## Caveats
 
-The simulation is faithful to the injection format but doesn't drive real agent processes. Cross-runtime differences (does Codex pick differently than Claude?) are on the roadmap. The Codex session parser is a lenient extractor, so tool outputs may sneak into harvest candidates. And the web UI speaks Chinese for now.
+The simulation is faithful to the injection format but doesn't drive real agent processes. Cross-runtime differences (does Codex pick differently than Claude?) are on the roadmap. The Codex session parser is a lenient extractor, so tool outputs may sneak into harvest candidates. The web UI speaks Chinese for now.
 
 ## The name
 
@@ -109,4 +122,8 @@ python3 tests/test_atlas.py   # 58 tests, stdlib only
 node tests/web_smoke.cjs      # 19 web assertions, node >= 18
 ```
 
-CI runs both on Python 3.10, 3.12 and 3.13. See CONTRIBUTING.md before opening a PR. MIT licensed.
+CI runs both on Python 3.10, 3.12 and 3.13. See CONTRIBUTING.md before opening a PR.
+
+## License
+
+MIT

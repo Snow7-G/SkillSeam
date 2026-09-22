@@ -1,6 +1,10 @@
 # SkillSeam
 
-English | [简体中文](README.zh-CN.md)
+[English](README.md) | **简体中文** | [日本語](README.ja.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Deutsch](README.de.md)
+
+<p align="center">
+  <img src="assets/banner.svg" alt="SkillSeam" width="720">
+</p>
 
 [![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-58%20passing-3b6d11.svg)](tests/test_atlas.py)
 

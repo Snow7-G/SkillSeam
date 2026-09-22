@@ -1,0 +1,38 @@
+<svg width="1200" height="300" viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SkillSeam">
+  <rect x="0" y="0" width="1200" height="300" rx="24" fill="#f5f4f0"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#0f6e56"/>
+
+  <!-- two skill blocks -->
+  <g font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace">
+    <rect x="90" y="70" width="240" height="150" rx="14" fill="#ffffff" stroke="#b4b2a9" stroke-width="1.5"/>
+    <rect x="90" y="70" width="240" height="34" rx="14" fill="#eaf3de"/>
+    <text x="210" y="93" font-size="18" fill="#27500a" text-anchor="middle" font-weight="bold">skill-a</text>
+    <text x="210" y="135" font-size="13" fill="#5f5e5a" text-anchor="middle">handles scheduling,</text>
+    <text x="210" y="156" font-size="13" fill="#5f5e5a" text-anchor="middle">reminders and follow-ups</text>
+    <text x="210" y="188" font-size="12" fill="#b4b2a9" text-anchor="middle">description</text>
+
+    <rect x="870" y="70" width="240" height="150" rx="14" fill="#ffffff" stroke="#b4b2a9" stroke-width="1.5"/>
+    <rect x="870" y="70" width="240" height="34" rx="14" fill="#fcebeb"/>
+    <text x="990" y="93" font-size="18" fill="#791f1f" text-anchor="middle" font-weight="bold">skill-b</text>
+    <text x="990" y="135" font-size="13" fill="#5f5e5a" text-anchor="middle">also mentions scheduling</text>
+    <text x="990" y="156" font-size="13" fill="#5f5e5a" text-anchor="middle">in its description</text>
+    <text x="990" y="188" font-size="12" fill="#b4b2a9" text-anchor="middle">description</text>
+  </g>
+
+  <!-- seam line with a tug -->
+  <path d="M 360 145 C 450 100, 520 190, 600 145 C 680 100, 750 190, 840 145"
+        fill="none" stroke="#e24b4a" stroke-width="3" stroke-dasharray="10 8" stroke-linecap="round"/>
+
+  <!-- needle and thread -->
+  <g transform="translate(600,145) rotate(-8)">
+    <line x1="-26" y1="0" x2="26" y2="0" stroke="#2c2c2a" stroke-width="5" stroke-linecap="round"/>
+    <ellipse cx="30" cy="0" rx="6" ry="4" fill="none" stroke="#2c2c2a" stroke-width="3"/>
+  </g>
+
+  <!-- title -->
+  <g font-family="-apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+    <text x="600" y="72" font-size="52" fill="#2c2c2a" text-anchor="middle" font-weight="700" letter-spacing="1">SkillSeam</text>
+    <text x="600" y="238" font-size="19" fill="#5f5e5a" text-anchor="middle">Find the seam where your skills split.</text>
+    <text x="600" y="264" font-size="14" fill="#888780" text-anchor="middle">Interference detection for agent skill sets</text>
+  </g>
+</svg>
