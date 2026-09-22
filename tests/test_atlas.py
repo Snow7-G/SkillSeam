@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """SkillSeam 全量测试。运行: python3 tests/test_atlas.py -v"""
+import io
 import json
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
@@ -436,6 +438,56 @@ def make_clean_fixture(base: Path):
 
 
 class TestCLIExitCodes(unittest.TestCase):
+    def test_real_evaluation_exit_codes(self):
+        cases = [
+            ("request_errors", OSError("endpoint unavailable"), OSError("endpoint unavailable"), 2),
+            ("invalid_responses", "not JSON", "not JSON", 2),
+            ("mixed_failures", OSError("endpoint unavailable"), "not JSON", 2),
+            ("correct", "tianqi-chaxun", "canting-yuding", 0),
+            ("conflict", "canting-yuding", "canting-yuding", 1),
+            ("none_is_valid", "NONE", "NONE", 1),
+            ("partial_failure", "tianqi-chaxun", OSError("endpoint unavailable"), 0),
+        ]
+        for name, first, second, expected_code in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                sdir, tfile = make_clean_fixture(Path(td))
+                tasks = json.loads(tfile.read_text(encoding="utf-8"))
+                tasks = [tasks[0], tasks[-1]]
+                tfile.write_text(json.dumps(tasks), encoding="utf-8")
+                responses = {tasks[0]["t"]: first, tasks[1]["t"]: second}
+
+                def chat_once(cfg, catalog, task_text):
+                    response = responses[task_text]
+                    if isinstance(response, Exception):
+                        raise response
+                    return response
+
+                cfg = {"base_url": "https://example.invalid/v1", "model": "test-model",
+                       "api_key": "YOUR_API_KEY_HERE"}
+                with patch.object(sys, "argv", [str(SCRIPT), str(sdir), "--tasks", str(tfile)]), \
+                        patch.object(ad, "__file__", str(Path(td) / "skill_seam.py")), \
+                        patch.object(ad, "TASKS", []), \
+                        patch.object(ad, "load_config", return_value=cfg), \
+                        patch.object(ad, "chat_once", side_effect=chat_once), \
+                        patch.object(ad.time, "sleep"), \
+                        patch.object(ad, "generate_fix_suggestions", return_value=[]), \
+                        patch.object(sys, "stdout", new_callable=io.StringIO), \
+                        patch.object(sys, "stderr", new_callable=io.StringIO) as stderr:
+                    with self.assertRaises(SystemExit) as result:
+                        ad.main()
+                    self.assertEqual(result.exception.code, expected_code)
+                    if expected_code == 2:
+                        self.assertIn("评测失败", stderr.getvalue())
+                    else:
+                        self.assertEqual(stderr.getvalue(), "")
+                results = json.loads((Path(td) / "output" / "results.json").read_text(encoding="utf-8"))
+                self.assertEqual(len(results["rows"]), 2)
+                for row, response in zip(results["rows"], (first, second)):
+                    vote = "ERROR" if isinstance(response, Exception) else ad.extract_chosen(
+                        response, ["tianqi-chaxun", "canting-yuding"])
+                    self.assertEqual(row["votes"], [vote] * ad.SAMPLES)
+                self.assertTrue((Path(td) / "output" / "report.html").exists())
+
     def test_missing_dir(self):
         self.assertEqual(run_cli(["/no/such/dir", "--mock"]).returncode, 2)
 
