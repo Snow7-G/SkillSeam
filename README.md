@@ -15,7 +15,7 @@
   <a href="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml"><img src="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-0f6e56.svg" alt="License: MIT"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg" alt="Python 3.10+"></a>
-  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-58%20passing-3b6d11.svg" alt="Tests: 58 passing"></a>
+  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-59%20passing-3b6d11.svg" alt="Tests: 59 passing"></a>
 </p>
 
 Simulate the way your agent picks skills, and find out which skill steals whose tasks. Before your users find out.
@@ -51,7 +51,11 @@ python3 skill_seam.py ~/.agents/skills
 open output/report.html
 ```
 
-Exit codes: 0 means no conflicts, 1 means conflicts found, 2 means you misconfigured something. That's a CI gate in one line:
+Exit codes: 0 means no stable conflicts, 1 means stable conflicts found, and 2 means a configuration/argument error or an evaluation with no valid samples (all requests failed or all responses were unparseable, including a mix of both).
+
+Failed evaluations still write diagnostic reports. Partial-failure handling is unchanged: if any valid sample exists, the existing conflict rules determine the exit code.
+
+That's a CI gate in one line:
 
 ```bash
 python3 skill_seam.py ./skills --tasks ci-tasks.json || echo "conflicts found, blocking merge"
@@ -118,7 +122,7 @@ Every description sings. Some songs lure your tasks onto the rocks.
 ## Development
 
 ```bash
-python3 tests/test_atlas.py   # 58 tests, stdlib only
+python3 tests/test_atlas.py   # 59 tests, stdlib only
 node tests/web_smoke.cjs      # 19 web assertions, node >= 18
 ```
 

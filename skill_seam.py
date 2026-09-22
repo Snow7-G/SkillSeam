@@ -1027,7 +1027,7 @@ HELP_TEXT = """SkillSeam {version} —— 模拟 agent 的 skill 选择过程，
   -V, --version          显示版本
 
 配置: .atlasrc.json（当前目录或脚本目录）→ 环境变量 DASHSCOPE_API_KEY / OPENAI_API_KEY
-退出码: 0 无冲突 · 1 有冲突 · 2 配置或参数错误
+退出码: 0 无冲突 · 1 有冲突 · 2 配置、参数或评测失败（无有效采样）
 文档: https://github.com/Snow7-G/SkillSeam"""
 
 
@@ -1208,6 +1208,9 @@ def main():
     for r in conflicts:
         print(f"  [截胡] 「{r['task'][:28]}…」应选 {r['expected']} → 实际 {r['chosen']} ({int(r['consistency'] * SAMPLES)}/{SAMPLES})")
     print(f"\n报告: {out / 'report.html'}")
+    if not any(v in valid_names or v == "NONE" for v in votes.values()):
+        eprint("错误: 评测失败，无有效采样（请求失败或响应不可解析）；不能判定为无冲突。")
+        sys.exit(2)
     sys.exit(1 if conflicts else 0)
 
 
