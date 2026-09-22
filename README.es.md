@@ -38,7 +38,7 @@ open output/report.html
 Códigos de salida: 0 sin conflictos, 1 conflictos encontrados, 2 configuración incorrecta. El gate de CI cabe en una línea:
 
 ```bash
-python3 skill_seam.py ./skills --tasks ci-tasks.json || echo "conflicts found, blocking merge"
+python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
 
 ## Las preguntas reales ganan a las generadas

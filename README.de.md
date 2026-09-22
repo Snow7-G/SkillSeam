@@ -38,7 +38,7 @@ open output/report.html
 Exit-Codes: 0 heißt keine Konflikte, 1 heißt Konflikte gefunden, 2 heißt Fehlkonfiguration. Das CI-Gate ist eine Zeile:
 
 ```bash
-python3 skill_seam.py ./skills --tasks ci-tasks.json || echo "conflicts found, blocking merge"
+python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
 
 ## Echte Fragen schlagen generierte

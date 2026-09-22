@@ -38,7 +38,7 @@ open output/report.html
 종료 코드: 0 충돌 없음, 1 충돌 발견, 2 설정 오류. CI 게이트는 한 줄입니다:
 
 ```bash
-python3 skill_seam.py ./skills --tasks ci-tasks.json || echo "conflicts found, blocking merge"
+python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
 
 ## 생성된 질문보다 실제 질문이 강합니다

@@ -174,10 +174,17 @@ $("provider").addEventListener("change", function() {
 $("key").addEventListener("input", saveCfg);
 $("model").addEventListener("input", saveCfg);
 $("base").addEventListener("input", saveCfg);
+$("remember").addEventListener("change", saveCfg);
 
 function saveCfg() {
-  if (!$("remember").checked) return;
-  try { localStorage.setItem("atlas_cfg", JSON.stringify(getCfg())); } catch (e) {}
+  try {
+    if (!$("remember").checked) {
+      // 取消记住 = 清掉已保存的配置和 Key，而不是只停止后续保存
+      localStorage.removeItem("atlas_cfg");
+      return;
+    }
+    localStorage.setItem("atlas_cfg", JSON.stringify(getCfg()));
+  } catch (e) {}
 }
 function loadSaved() {
   try {
@@ -616,6 +623,13 @@ function run() {
   });
 }
 
+function allSamplesInvalid(rows) {
+  // 评测里没有取得任何有效选择结果（与 CLI 的"评测失败"判定保持一致）
+  return rows.length > 0 && rows.every(function(r) {
+    return r.chosen === "ERROR" || r.chosen === "INVALID";
+  });
+}
+
 function majority(votes) {
   var c = {}, top = null, n = -1;
   votes.forEach(function(v) { c[v] = (c[v] || 0) + 1; });
@@ -696,6 +710,11 @@ function render(byTask, skills, samples, model) {
           Math.round(r.consistency * samples) + "/" + samples + ' 票）' +
           (badges ? "<br>截胡关键词：" + badges : "") + "</div>";
   });
+  // 与 CLI 一致：没有任何有效选择结果时，明确报告评测失败，不给"无冲突"结论
+  if (allSamplesInvalid(rows)) {
+    ch = '<div class="conflict">评测失败：没有取得任何有效的选择结果（请求失败或响应不可解析）。' +
+         '不能视为无冲突。请检查 Key、模型名或端点后重试。</div>';
+  }
   $("conflicts").innerHTML = ch ||
     '<div class="plain">标注任务中未发现稳定冲突。想暴露边界问题，多写几条两两语义交界的模糊问法（用 => 标注你认为是正确归属的一方）。</div>';
 

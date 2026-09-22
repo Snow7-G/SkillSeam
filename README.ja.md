@@ -38,7 +38,7 @@ open output/report.html
 終了コード: 0 は競合なし、1 は競合あり、2 は設定ミス。CI への組み込みは一行です:
 
 ```bash
-python3 skill_seam.py ./skills --tasks ci-tasks.json || echo "conflicts found, blocking merge"
+python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
 
 ## 本物の問い合わせは生成より強い

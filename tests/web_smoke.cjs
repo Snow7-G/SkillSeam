@@ -3,10 +3,19 @@
 const fs = require("fs");
 const path = require("path");
 
-global.document = { getElementById: () => ({ addEventListener() {}, value: "", style: {},
-  classList: { toggle() {}, remove() {}, add() {} }, innerHTML: "", textContent: "", disabled: false }),
-  querySelectorAll: () => [] };
-global.localStorage = { getItem: () => null, setItem() {} };
+const els = {};
+global.document = { getElementById: (id) => {
+    if (!els[id]) els[id] = { addEventListener() {}, value: "", checked: true, style: {},
+      classList: { toggle() {}, remove() {}, add() {} }, innerHTML: "", textContent: "", disabled: false };
+    return els[id];
+  }, querySelectorAll: () => [] };
+const store = {};
+const removedKeys = [];
+global.localStorage = {
+  getItem: (k) => (k in store ? store[k] : null),
+  setItem: (k, v) => { store[k] = String(v); },
+  removeItem: (k) => { removedKeys.push(k); delete store[k]; },
+};
 global.fetch = () => Promise.reject(new Error("no network"));
 
 const html = fs.readFileSync(path.join(__dirname, "..", "docs", "index.html"), "utf-8");
@@ -97,6 +106,25 @@ t("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   t("gen 灰区双向", gen.tasks.some(x => x.kind === "gray" && x.e === "a-b") &&
     gen.tasks.some(x => x.kind === "gray" && x.e === "c-d"));
   llmCall = savedLlm;
+
+  // #5: allSamplesInvalid 判定（与 CLI 的"评测失败"一致）
+  t("allSamplesInvalid 全无效", allSamplesInvalid(
+    [{ chosen: "INVALID" }, { chosen: "ERROR" }]) === true);
+  t("allSamplesInvalid 有有效值", allSamplesInvalid(
+    [{ chosen: "INVALID" }, { chosen: "a-b" }]) === false);
+  t("allSamplesInvalid 空集", allSamplesInvalid([]) === false);
+
+  // #7: 取消"记住配置" → 清除已保存配置
+  const savedLlm2 = llmCall;
+  llmCall = savedLlm;  // 保持引用一致（此处无实际调用）
+  els["remember"].checked = false;
+  els["provider"].value = "openai"; els["key"].value = "sk-x"; els["model"].value = "m"; els["base"].value = "http://x";
+  saveCfg();
+  t("saveCfg 取消勾选清除配置", removedKeys.indexOf("atlas_cfg") >= 0);
+  els["remember"].checked = true;
+  saveCfg();
+  t("saveCfg 勾选写入配置", store["atlas_cfg"] !== undefined && store["atlas_cfg"].indexOf("sk-x") >= 0);
+  llmCall = savedLlm2;
 
   console.log(`web smoke: ${pass + fail} 项，通过 ${pass}`);
   process.exit(fail ? 1 : 0);

@@ -58,7 +58,7 @@ Failed evaluations still write diagnostic reports. Partial-failure handling is u
 That's a CI gate in one line:
 
 ```bash
-python3 skill_seam.py ./skills --tasks ci-tasks.json || echo "conflicts found, blocking merge"
+python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
 
 ## Real queries beat generated ones
@@ -123,7 +123,7 @@ Every description sings. Some songs lure your tasks onto the rocks.
 
 ```bash
 python3 tests/test_atlas.py   # 59 tests, stdlib only
-node tests/web_smoke.cjs      # 19 web assertions, node >= 18
+node tests/web_smoke.cjs      # 24 web assertions, node >= 18
 ```
 
 CI runs both on Python 3.10, 3.12 and 3.13. See CONTRIBUTING.md before opening a PR.

@@ -73,10 +73,35 @@ def parse_frontmatter(text, path):
     if not m:
         return None, ["缺少 frontmatter 或未闭合"]
     fm = {}
-    for line in m.group(1).splitlines():
-        if ":" in line:
-            k, _, v = line.partition(":")
-            fm[k.strip()] = v.strip().strip('"').strip("'")
+    fm_lines = m.group(1).splitlines()
+    i = 0
+    while i < len(fm_lines):
+        line = fm_lines[i]
+        if not line.strip():
+            i += 1
+            continue
+        if ":" not in line:
+            issues.append(f"frontmatter 存在无法解析的行（是否使用了不支持的多行语法？）: {line.strip()[:40]}")
+            i += 1
+            continue
+        k, _, v = line.partition(":")
+        k = k.strip()
+        v = v.strip()
+        if v in (">", ">-", "|", "|-", "|+", ">+"):
+            # 手写支持 YAML 块标量子集（零依赖，不引入 PyYAML）
+            block = []
+            i += 1
+            while i < len(fm_lines) and (fm_lines[i].startswith((" ", "\t")) or not fm_lines[i].strip()):
+                block.append(fm_lines[i].strip())
+                i += 1
+            if not block:
+                issues.append(f"{k} 使用了多行语法但缺少缩进内容")
+                fm[k] = ""
+            else:
+                fm[k] = " ".join(block) if v.startswith(">") else "\n".join(block)
+            continue
+        fm[k] = v.strip('"').strip("'")
+        i += 1
     name = fm.get("name", "")
     desc = fm.get("description", "")
     body = m.group(2).strip()
@@ -1107,10 +1132,14 @@ def main():
         if not isinstance(loaded, list):
             eprint("错误: 任务文件必须是 JSON 数组（元素含 t/e/kind/pair 字段）")
             sys.exit(2)
-        bad = [t.get("e") for t in loaded
-               if not isinstance(t, dict) or not t.get("t") or not t.get("e")]
+        bad = []
+        for idx, item in enumerate(loaded):
+            if not isinstance(item, dict):
+                bad.append(f"第 {idx + 1} 条不是 JSON 对象")
+            elif not str(item.get("t", "")).strip() or not str(item.get("e", "")).strip():
+                bad.append(f"第 {idx + 1} 条缺少 t(任务文本) 或 e(应选技能)")
         if bad:
-            eprint(f"错误: 任务文件中 {len(bad)} 条任务缺少 t(任务文本) 或 e(应选技能) 字段")
+            eprint(f"错误: 任务文件存在 {len(bad)} 条无效条目: " + "; ".join(bad[:5]))
             sys.exit(2)
         TASKS.clear()
         TASKS.extend(loaded)
@@ -1169,9 +1198,11 @@ def main():
     print(f"扫描到 {len(skills)} 个 skill；任务来源: {task_source}，共 {len(TASKS)} 条 × {SAMPLES} 采样 = {len(TASKS) * SAMPLES} 次选择")
 
     cfg = None if mock else load_config()
-    if mock or cfg is None:
-        if cfg is None and not mock:
-            print("未探测到 provider 配置，自动降级为 --mock 模式（结果仅供流程验证）")
+    if cfg is None and not mock:
+        eprint("错误: 未检测到模型配置（.atlasrc.json 或环境变量 DASHSCOPE_API_KEY / OPENAI_API_KEY）。")
+        eprint("       若只想离线验证管线，请显式加 --mock。")
+        sys.exit(2)
+    if mock:
         t0 = time.time()
         votes = simulate_mock(skills, valid_names)
         mode_label, model = "MOCK 模式（离线关键词打分，非真实模型）", "keyword-mock"

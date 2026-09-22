@@ -6,7 +6,7 @@
   <img src="assets/banner.svg" alt="SkillSeam" width="720">
 </p>
 
-[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-58%20passing-3b6d11.svg)](tests/test_atlas.py)
+[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-67%20passing-3b6d11.svg)](tests/test_atlas.py)
 
 模拟 agent 真实挑选 skill 的过程，找出哪个 skill 抢了谁的活。在用户发现问题之前。
 
@@ -36,7 +36,7 @@ open output/report.html
 退出码：0 无冲突，1 有冲突，2 配置错了。接 CI 一行：
 
 ```bash
-python3 skill_seam.py ./skills --tasks ci-tasks.json || echo "有截胡冲突，禁止合并"
+python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
 
 ## 真实问法比生成的有用
@@ -102,8 +102,8 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 开发
 
 ```bash
-python3 tests/test_atlas.py   # 58 项测试，纯标准库
-node tests/web_smoke.cjs      # 19 项网页断言，node >= 18
+python3 tests/test_atlas.py   # 67 项测试，纯标准库
+node tests/web_smoke.cjs      # 24 项网页断言，node >= 18
 ```
 
 CI 覆盖 Python 3.10 / 3.12 / 3.13。提 PR 前看 CONTRIBUTING.md。MIT 许可证。

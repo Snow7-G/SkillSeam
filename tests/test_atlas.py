@@ -3,6 +3,7 @@
 """SkillSeam 全量测试。运行: python3 tests/test_atlas.py -v"""
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -340,6 +341,74 @@ class TestAdversarialPrompt(unittest.TestCase):
         self.assertTrue(any(t["t"] == "攻击性问法A" and t["e"] == "a-b" for t in tasks))
         self.assertTrue(any(t["t"] == "攻击性问法B" and t["e"] == "c-d" for t in tasks))
         self.assertTrue(all("a-b" not in t["t"] and "c-d" not in t["t"] for t in tasks))
+
+
+class TestReliabilityFixes(unittest.TestCase):
+    """GPT-6 静态审查发现的 7 个问题中本批修复的 6 个。"""
+
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory()
+        self.no_key_env = {k: v for k, v in os.environ.items()
+                           if k not in ("DASHSCOPE_API_KEY", "OPENAI_API_KEY")}
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def test_no_config_requires_explicit_mock(self):
+        """#1 无配置且无 --mock → 退出 2 并提示 --mock，不再静默降级。"""
+        env = dict(self.no_key_env)
+        r = subprocess.run([sys.executable, str(SCRIPT), str(ROOT / "demo-skills")],
+                           capture_output=True, text=True, cwd=self.td.name, env=env)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--mock", r.stderr)
+
+    def test_explicit_mock_still_works(self):
+        """#1 回归：显式 --mock 不受影响。"""
+        r = subprocess.run([sys.executable, str(SCRIPT), str(ROOT / "demo-skills"),
+                           "--demo-tasks", "--mock"],
+                           capture_output=True, text=True, cwd=self.td.name, env=self.no_key_env)
+        self.assertEqual(r.returncode, 1)  # demo 任务有冲突
+
+    def _tasks_file(self, payload):
+        tf = Path(self.td.name) / "tasks.json"
+        tf.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        return str(tf)
+
+    def test_tasks_null_item(self):
+        """#3 [null] → 退出 2 并指明条目位置，不再 AttributeError。"""
+        r = run_cli(["./demo-skills", "--tasks", self._tasks_file([None]), "--mock"])
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("第 1 条不是 JSON 对象", r.stderr)
+
+    def test_tasks_string_item(self):
+        r = run_cli(["./demo-skills", "--tasks", self._tasks_file(["hello"]), "--mock"])
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("第 1 条不是 JSON 对象", r.stderr)
+
+    def test_tasks_missing_fields(self):
+        r = run_cli(["./demo-skills", "--tasks", self._tasks_file([{"t": "只有任务"}]), "--mock"])
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("缺少 t(任务文本) 或 e(应选技能)", r.stderr)
+
+    def test_frontmatter_folded_scalar(self):
+        """#4 `>-` 折行拼接为单行，不再静默解析成 ">-"。"""
+        text = "---\nname: a-b\ndescription: >-\n  Explain weather\n  forecasts for users\n---\n\n正文\n"
+        s, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
+        self.assertEqual(issues, [])
+        self.assertEqual(s["description"], "Explain weather forecasts for users")
+
+    def test_frontmatter_literal_scalar(self):
+        """#4 `|` 保留换行。"""
+        text = "---\nname: a-b\ndescription: |\n  line one\n  line two\n---\n\n正文\n"
+        s, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
+        self.assertEqual(issues, [])
+        self.assertEqual(s["description"], "line one\nline two")
+
+    def test_frontmatter_stray_line_warns(self):
+        """#4 无法解析的游离行产生警告而不是静默丢弃。"""
+        text = "---\nname: a-b\ndescription: d\nsome stray line\n---\n\n正文\n"
+        _, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
+        self.assertTrue(any("无法解析的行" in i for i in issues))
 
 
 class TestExport(unittest.TestCase):
