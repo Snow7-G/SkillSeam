@@ -1,5 +1,7 @@
 # SkillSeam
 
+English | [简体中文](README.zh-CN.md)
+
 [![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-58%20passing-3b6d11.svg)](tests/test_atlas.py)
 
 Simulate the way your agent picks skills, and find out which skill steals whose tasks. Before your users find out.
