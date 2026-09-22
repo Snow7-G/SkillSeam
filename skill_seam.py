@@ -97,8 +97,10 @@ def parse_frontmatter(text, path):
             if not block:
                 issues.append(f"{k} 使用了多行语法但缺少缩进内容")
                 fm[k] = ""
+            elif v.startswith(">"):
+                fm[k] = " ".join(x for x in block if x)  # 折叠：空行不产生双空格
             else:
-                fm[k] = " ".join(block) if v.startswith(">") else "\n".join(block)
+                fm[k] = "\n".join(block).rstrip("\n")    # 字面：保留段内换行，去尾部空行
             continue
         fm[k] = v.strip('"').strip("'")
         i += 1

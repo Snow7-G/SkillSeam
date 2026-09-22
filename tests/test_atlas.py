@@ -397,6 +397,20 @@ class TestReliabilityFixes(unittest.TestCase):
         self.assertEqual(issues, [])
         self.assertEqual(s["description"], "Explain weather forecasts for users")
 
+    def test_frontmatter_folded_blank_line(self):
+        """#4 折叠模式中块内空行不产生双空格。"""
+        text = "---\nname: a-b\ndescription: >-\n  line one\n\n  line two\n---\n\n正文\n"
+        s, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
+        self.assertEqual(issues, [])
+        self.assertEqual(s["description"], "line one line two")
+
+    def test_frontmatter_literal_trailing_blank(self):
+        """#4 字面模式中尾部空行被去掉，段内换行保留。"""
+        text = "---\nname: a-b\ndescription: |\n  line one\n\n  line two\n\n---\n\n正文\n"
+        s, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
+        self.assertEqual(issues, [])
+        self.assertEqual(s["description"], "line one\n\nline two")
+
     def test_frontmatter_literal_scalar(self):
         """#4 `|` 保留换行。"""
         text = "---\nname: a-b\ndescription: |\n  line one\n  line two\n---\n\n正文\n"
