@@ -14,7 +14,7 @@ SkillSeam replays that selection process before you ship. On a 40-task demo with
 
 ## Quick start (web, no install)
 
-Open https://snow7g.github.io/SkillSeam/ . Click the demo button, you get a real heatmap in ten seconds. Then paste your own skills, add an API key (it stays in your browser, requests go straight to your provider), and hit run.
+Open https://snow7-g.github.io/SkillSeam/ . Click the demo button, you get a real heatmap in ten seconds. Then paste your own skills, add an API key (it stays in your browser, requests go straight to your provider), and hit run.
 
 Your skills live as SKILL.md files? Print them in paste-ready form:
 
