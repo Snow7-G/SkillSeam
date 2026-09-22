@@ -66,6 +66,81 @@ def load_config():
 FM_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?(.*)\Z", re.DOTALL)
 
 
+def _block_scalar(fm_lines, i, parent_indent):
+    """解析 YAML 块标量（YAML 1.2.2 §6.5 折行规则 / §8.1.2 收尾规则）。
+
+    fm_lines[i] 是头行（如 "description: >-"）。返回 (value, next_i, unsupported)。
+    - 折叠(>)：相邻非空行折叠为空格；连续空行每个产生一个换行；
+      更深缩进的行会破坏折行语义 → unsupported（调用方明确报错）。
+    - 字面(|)：保留块内全部换行与额外缩进。
+    - 收尾：clip(默认)保留一个末尾换行；strip(-)不保留；keep(+)保留全部。
+    """
+    header = fm_lines[i]
+    ind_part = header.partition(":")[2].strip()
+    style = ind_part[0]
+    chomp = ind_part[1:]
+    header_indent = len(header) - len(header.lstrip(" "))
+
+    content = []          # (text, indent)；text 为 "" 表示空行
+    j = i + 1
+    block_indent = None
+    unsupported = False
+    while j < len(fm_lines):
+        line = fm_lines[j]
+        if not line.strip():
+            content.append(("", 0))
+            j += 1
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if indent <= header_indent:
+            break  # 缩进回退到键层级，块结束
+        if block_indent is None:
+            block_indent = indent
+        if indent < block_indent:
+            break  # 缩进小于块缩进，块结束
+        text = line[block_indent:]
+        if style == ">" and text.startswith(" "):
+            unsupported = True  # 折叠标量不支持更深缩进（规范 §6.5 的 more-indented 行）
+        content.append((text, indent))
+        j += 1
+
+    trailing_blanks = 0
+    while content and content[-1][0] == "":
+        content.pop()
+        trailing_blanks += 1
+
+    if style == "|":
+        core = "\n".join(t for t, _ in content)
+    else:
+        out = []
+        blanks = 0
+        prev_more = False
+        for t, _ in content:
+            if t == "":
+                blanks += 1
+                continue
+            more = t.startswith(" ")
+            if out:
+                if blanks:
+                    out.append("\n" * blanks)
+                elif more or prev_more:
+                    out.append("\n")  # 更深缩进行两侧不折叠
+                else:
+                    out.append(" ")
+            out.append(t)
+            prev_more = more
+            blanks = 0
+        core = "".join(out)
+
+    if chomp == "-":
+        value = core
+    elif chomp == "+":
+        value = core + "\n" + "\n" * trailing_blanks if core else core
+    else:  # clip（默认）
+        value = core + "\n" if core else core
+    return value, j, unsupported
+
+
 def parse_frontmatter(text, path):
     issues = []
     text = text.replace("\r\n", "\n")  # CRLF 归一化，防止 name/description 尾部带 \r
@@ -74,6 +149,9 @@ def parse_frontmatter(text, path):
         return None, ["缺少 frontmatter 或未闭合"]
     fm = {}
     fm_lines = m.group(1).splitlines()
+    # 非贪婪 FM_RE 会把 `---` 前的空行吞掉（其换行符被当作终止符）；
+    # group(1) 每多一个尾部 \n 就代表一个被吞掉的空行，补回来（keep 语义需要）
+    fm_lines += [""] * (len(m.group(1)) - len(m.group(1).rstrip("\n")))
     i = 0
     while i < len(fm_lines):
         line = fm_lines[i]
@@ -87,20 +165,13 @@ def parse_frontmatter(text, path):
         k, _, v = line.partition(":")
         k = k.strip()
         v = v.strip()
-        if v in (">", ">-", "|", "|-", "|+", ">+"):
-            # 手写支持 YAML 块标量子集（零依赖，不引入 PyYAML）
-            block = []
-            i += 1
-            while i < len(fm_lines) and (fm_lines[i].startswith((" ", "\t")) or not fm_lines[i].strip()):
-                block.append(fm_lines[i].strip())
-                i += 1
-            if not block:
-                issues.append(f"{k} 使用了多行语法但缺少缩进内容")
-                fm[k] = ""
-            elif v.startswith(">"):
-                fm[k] = " ".join(x for x in block if x)  # 折叠：空行不产生双空格
-            else:
-                fm[k] = "\n".join(block).rstrip("\n")    # 字面：保留段内换行，去尾部空行
+        if v and v[0] in (">", "|") and v[1:] in ("", "-", "+"):
+            # YAML 块标量（YAML 1.2.2 §8.1）：折行与收尾规则符合规范
+            value, i_next, unsupported = _block_scalar(fm_lines, i, len(line) - len(line.lstrip(" ")))
+            fm[k] = value
+            if unsupported:
+                issues.append(f"{k} 折叠标量包含更深缩进的行，暂不支持（请改用 | 或统一缩进）")
+            i = i_next
             continue
         fm[k] = v.strip('"').strip("'")
         i += 1

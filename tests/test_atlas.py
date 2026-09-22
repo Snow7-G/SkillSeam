@@ -398,25 +398,52 @@ class TestReliabilityFixes(unittest.TestCase):
         self.assertEqual(s["description"], "Explain weather forecasts for users")
 
     def test_frontmatter_folded_blank_line(self):
-        """#4 折叠模式中块内空行不产生双空格。"""
+        """#4 折叠模式：段间空行按规范产生换行（YAML 1.2.2 §6.5）。"""
         text = "---\nname: a-b\ndescription: >-\n  line one\n\n  line two\n---\n\n正文\n"
         s, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
         self.assertEqual(issues, [])
-        self.assertEqual(s["description"], "line one line two")
+        self.assertEqual(s["description"], "line one\nline two")
 
     def test_frontmatter_literal_trailing_blank(self):
-        """#4 字面模式中尾部空行被去掉，段内换行保留。"""
+        """#4 `|`（clip）尾随空行剥离为单个末尾换行。"""
         text = "---\nname: a-b\ndescription: |\n  line one\n\n  line two\n\n---\n\n正文\n"
         s, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
         self.assertEqual(issues, [])
-        self.assertEqual(s["description"], "line one\n\nline two")
+        self.assertEqual(s["description"], "line one\n\nline two\n")
 
-    def test_frontmatter_literal_scalar(self):
-        """#4 `|` 保留换行。"""
-        text = "---\nname: a-b\ndescription: |\n  line one\n  line two\n---\n\n正文\n"
+    def test_frontmatter_strip_chomping(self):
+        """#4 `|-` 无末尾换行。"""
+        text = "---\nname: a-b\ndescription: |-\n  line one\n  line two\n---\n\n正文\n"
         s, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
         self.assertEqual(issues, [])
         self.assertEqual(s["description"], "line one\nline two")
+
+    def test_frontmatter_keep_chomping(self):
+        """#4 `|+` 保留末尾换行与空行。"""
+        text = "---\nname: a-b\ndescription: |+\n  line one\n\n---\n\n正文\n"
+        s, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
+        self.assertEqual(issues, [])
+        self.assertEqual(s["description"], "line one\n\n")
+
+    def test_frontmatter_literal_preserves_extra_indent(self):
+        """#4 字面标量保留块内额外缩进。"""
+        text = "---\nname: a-b\ndescription: |-\n  line one\n    deeply indented\n---\n\n正文\n"
+        s, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
+        self.assertEqual(issues, [])
+        self.assertEqual(s["description"], "line one\n  deeply indented")
+
+    def test_frontmatter_folded_more_indent_unsupported(self):
+        """#4 折叠标量中的更深缩进行：明确报错（不支持），不静默误解。"""
+        text = "---\nname: a-b\ndescription: >-\n  line one\n    deeply indented\n---\n\n正文\n"
+        _, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
+        self.assertTrue(any("暂不支持" in i for i in issues))
+
+    def test_frontmatter_literal_scalar(self):
+        """#4 `|`（clip）保留内容与一个末尾换行（YAML 1.2.2 §8.1.2）。"""
+        text = "---\nname: a-b\ndescription: |\n  line one\n  line two\n---\n\n正文\n"
+        s, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
+        self.assertEqual(issues, [])
+        self.assertEqual(s["description"], "line one\nline two\n")
 
     def test_frontmatter_stray_line_warns(self):
         """#4 无法解析的游离行产生警告而不是静默丢弃。"""
