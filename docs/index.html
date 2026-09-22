@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SkillSeam · find the seam where your skills split</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+       background: #f5f4f0; color: #2c2c2a; padding: 28px 16px; line-height: 1.6; }
+.wrap { max-width: 960px; margin: 0 auto; }
+h1 { font-size: 22px; font-weight: 500; }
+h1 .em { color: #0f6e56; }
+.sub { color: #5f5e5a; font-size: 13px; margin: 6px 0 20px; }
+.card { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+h2 { font-size: 15px; font-weight: 500; margin-bottom: 10px; }
+label { font-size: 12.5px; color: #444441; display: block; margin: 8px 0 3px; }
+textarea, input[type=text], input[type=password], select {
+  width: 100%; border: 0.5px solid #b4b2a9; border-radius: 8px; padding: 8px 10px;
+  font: 13px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; background: #fff; color: #2c2c2a; }
+textarea { resize: vertical; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.grid3 { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 0 14px; }
+@media (max-width: 640px) {
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+  body { padding: 18px 10px; }
+  .cards { gap: 8px; }
+  .stat { min-width: 100px; padding: 10px 12px; }
+}
+button { background: #0f6e56; color: #fff; border: 0; border-radius: 8px;
+         padding: 10px 22px; font-size: 14px; cursor: pointer; margin-top: 12px; }
+button.ghost { background: #fff; color: #0f6e56; border: 0.5px solid #0f6e56; margin-right: 8px; }
+button:disabled { opacity: .45; cursor: default; }
+.hint { font-size: 12px; color: #888780; margin-top: 6px; }
+.errbox { background: #fcebeb; color: #791f1f; border-radius: 8px; padding: 8px 12px;
+          font-size: 13px; margin-top: 10px; display: none; white-space: pre-wrap; }
+.bar { height: 8px; background: #e5e3dd; border-radius: 4px; margin-top: 12px; overflow: hidden; display: none; }
+.bar div { height: 100%; background: #0f6e56; width: 0; transition: width .3s; }
+.cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.stat { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; padding: 12px 16px; min-width: 120px; }
+.stat .num { font-size: 24px; font-weight: 500; }
+.stat .lbl { font-size: 12px; color: #5f5e5a; }
+.stat.red .num { color: #a32d2d; } .stat.green .num { color: #3b6d11; }
+.conflict { border-left: 3px solid #e24b4a; padding: 8px 12px; background: #fcebeb;
+            border-radius: 0 8px 8px 0; margin-bottom: 8px; font-size: 13px; }
+.plain { border-left: 3px solid #b4b2a9; padding: 8px 12px; background: #f8f7f3;
+         border-radius: 0 8px 8px 0; margin-bottom: 8px; font-size: 13px; }
+.badge { display: inline-block; background: #f7c1c1; color: #791f1f; border-radius: 4px;
+         padding: 0 6px; font-size: 12px; margin: 0 2px; }
+.fix { border-left: 3px solid #3b6d11; padding: 8px 12px; background: #eaf3de;
+       border-radius: 0 8px 8px 0; margin-bottom: 10px; font-size: 13px; }
+.fixold { background: #fcebeb; border: 0.5px solid #f7c1c1; border-radius: 6px;
+          padding: 5px 10px; margin: 4px 0; color: #791f1f; }
+.fixnew { background: #fff; border: 0.5px solid #c0dd97; border-radius: 6px;
+          padding: 5px 10px; margin: 4px 0; color: #27500a; }
+.fixreason { color: #5f5e5a; font-size: 12px; margin-top: 3px; }
+svg text { font-family: inherit; }
+.hidden { display: none; }
+code { background: #efede7; border-radius: 4px; padding: 0 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SkillSeam <span class="em">· find the seam where your skills split</span></h1>
+  <div class="sub">模拟 agent 挑选 skill 的真实过程，找出你整套 skill 里「谁抢了谁的活」。
+    纯静态页面：API key 只存在你的浏览器 localStorage，请求从浏览器直达模型端点，不经过任何服务器。</div>
+
+  <div class="card">
+    <h2>1 · 输入</h2>
+    <label>技能清单（每行一个，格式 <code>name: description</code>，至少 2 个）</label>
+    <textarea id="skills" rows="6" placeholder="guahao-yuyue: 处理眼科门诊的预约挂号、改期与取消
+baogao-jiedu: 解读眼科检查报告，涵盖视力、眼压、OCT 等指标含义
+fuzhen-tixing: 为术后与慢病患者制定复诊计划、发送复查提醒"></textarea>
+    <label>测试任务（每行一条。可加 <code>=&gt; skill-name</code> 标注应选技能参与冲突判定；不标注则只做一致性分析）</label>
+    <textarea id="tasks" rows="6" placeholder="我上周查的视力报告，能帮我看一下吗？ => baogao-jiedu
+我想预约下周三上午的眼科门诊 => guahao-yuyue
+复诊的时候顺便帮我查下会员积分余额 => fuzhen-tixing
+帮我看看最近有什么会员活动"></textarea>
+    <div class="hint">冲突判定需要「应选技能」标注；没标注的任务 agent 会给出选择与一致率，由你人工判断选得对不对。</div>
+  </div>
+
+  <div class="card">
+    <h2>2 · 模型端点（BYOK）</h2>
+    <div class="grid3">
+      <div>
+        <label>Provider</label>
+        <select id="provider">
+          <option value="demo">演示模式（内置真实数据，无需 key）</option>
+          <option value="openai">OpenAI-compatible</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="gemini">Gemini</option>
+          <option value="anthropic">Anthropic (Claude)</option>
+        </select>
+      </div>
+      <div>
+        <label>API Key</label>
+        <input type="password" id="key" placeholder="sk-...（只存你的浏览器）">
+      </div>
+      <div>
+        <label>模型</label>
+        <input type="text" id="model" placeholder="gpt-4o-mini / claude-sonnet-4-5 / ...">
+      </div>
+    </div>
+    <div id="baseRow" class="hidden">
+      <label>Base URL（OpenAI-compatible 端点地址）</label>
+      <input type="text" id="base" placeholder="https://api.openai.com/v1 或任意兼容端点">
+    </div>
+    <div class="grid2">
+      <div>
+        <label>每任务采样次数</label>
+        <select id="samples"><option>3</option><option selected>5</option></select>
+      </div>
+      <div>
+        <label>记住配置（含 key，存 localStorage）</label>
+        <input type="checkbox" id="remember" checked style="width:auto">
+      </div>
+    </div>
+    <div class="grid2">
+      <div>
+        <label>自动生成：每技能正向任务数</label>
+        <select id="genPos"><option>3</option><option selected>5</option><option>8</option></select>
+      </div>
+      <div>
+        <label>自动生成：灰区技能对数（按语义重叠挑）</label>
+        <select id="grayPairs"><option>0</option><option selected>2</option><option>3</option></select>
+      </div>
+    </div>
+    <button id="demoBtn" class="ghost" onclick="loadDemo()">看演示数据</button>
+    <button id="genBtn" class="ghost" onclick="genTasks()">自动生成任务</button>
+    <button id="runBtn" onclick="run()">开始模拟</button>
+    <div class="bar" id="bar"><div id="barfill"></div></div>
+    <div class="errbox" id="errbox"></div>
+    <div class="hint">采样次数越多结论越稳，费用与耗时线性增加。判定规则：5 次采样至少 4 次同结果为「稳定」；应选标注的任务若稳定选中其他技能即「截胡」。自动生成会先让模型挑出最易混淆的技能对，再为每对双向生成边界问法——生成后建议人工过一遍再模拟。</div>
+  </div>
+
+  <div id="result" class="hidden">
+    <div class="cards">
+      <div class="stat green"><div class="num" id="s-hit">-</div><div class="lbl">标注任务命中</div></div>
+      <div class="stat red"><div class="num" id="s-conf">-</div><div class="lbl">稳定冲突（截胡）</div></div>
+      <div class="stat"><div class="num" id="s-unstable">-</div><div class="lbl">不稳定（未达一致率）</div></div>
+      <div class="stat"><div class="num" id="s-total">-</div><div class="lbl">任务总数</div></div>
+    </div>
+    <div class="card"><h2>选择混淆矩阵</h2><div id="matrix"></div>
+      <div class="hint">行 = 应选技能，列 = agent 实际选中。对角线 = 正确命中；红色 = 被截胡，颜色越深次数越多。未标注的任务不进矩阵。</div></div>
+    <div class="card"><h2>冲突明细</h2><div id="conflicts"></div></div>
+    <div class="card hidden" id="fixCard"><h2>修复建议（AI 生成，改后请重跑验证）</h2><div id="fixes"></div></div>
+    <div class="card"><h2>未标注任务的选择结果（请人工确认）</h2><div id="plains"></div></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var DEMO = {"skills": [{"name": "baogao-jiedu", "desc": "解读眼科检查报告，涵盖视力、眼压、OCT、视野、眼底"}, {"name": "fuzhen-tixing", "desc": "为术后与慢病患者制定复诊计划、发送复查提醒，并解答会"}, {"name": "guahao-yuyue", "desc": "处理眼科门诊的预约挂号、改期与取消，受理视力检查、报"}, {"name": "huiyuan-yingxiao", "desc": "管理会员等级、积分兑换与专属活动报名，处理会员身份核"}, {"name": "shuqian-xuzhi", "desc": "说明白内障、近视激光等眼科手术的术前准备、禁食要求、"}, {"name": "tousu-shouli", "desc": "受理患者对就诊体验、服务质量与收费的投诉，登记工单并"}], "matrix": [[8, 0, 2, 0, 0, 0, 0, 0], [0, 7, 0, 1, 0, 0, 0, 0], [0, 0, 5, 0, 0, 0, 0, 0], [0, 2, 0, 5, 0, 0, 0, 0], [0, 0, 0, 0, 5, 0, 0, 0], [0, 0, 0, 0, 0, 5, 0, 0]], "cols": ["baogao-jiedu", "fuzhen-tixing", "guahao-yuyue", "huiyuan-yingxiao", "shuqian-xuzhi", "tousu-shouli", "NONE", "其他"], "conflicts": [{"task": "视力下降了，之前的报告还在吗？帮我查查。", "expected": "baogao-jiedu", "chosen": "guahao-yuyue", "votes": "5/5"}, {"task": "报告咨询窗口怎么走？我要问一下报告结果。", "expected": "baogao-jiedu", "chosen": "guahao-yuyue", "votes": "5/5"}, {"task": "我是黄金会员，复诊有折扣吗？", "expected": "huiyuan-yingxiao", "chosen": "fuzhen-tixing", "votes": "5/5"}, {"task": "复诊的时候顺便帮我查下会员积分余额。", "expected": "fuzhen-tixing", "chosen": "huiyuan-yingxiao", "votes": "5/5"}], "meta": {"total": 40, "hits": 35, "unstable": 1, "model": "qwen3.8-flash", "note": "数据来自 SkillSeam CLI 对 6 个眼科客服 skill 的真实模拟（埋有 2 处撞车）"}};
+
+var $ = function(id) { return document.getElementById(id); };
+var PROVIDER_BASE = { openrouter: "https://openrouter.ai/api/v1",
+                      gemini: "https://generativelanguage.googleapis.com/v1beta/openai",
+                      anthropic: "https://api.anthropic.com/v1" };
+var NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+var STOPWORDS = { "相关": 1, "处理": 1, "包括": 1, "以及": 1, "问题": 1, "使用": 1,
+                  "进行": 1, "通过": 1, "对应": 1, "完成": 1, "说明": 1, "解答": 1, "受理": 1 };
+
+function showErr(msg) { var e = $("errbox"); e.style.background = ""; e.style.color = "";
+  e.textContent = msg; e.style.display = "block"; }
+function hideErr() { $("errbox").style.display = "none"; }
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+$("provider").addEventListener("change", function() {
+  $("baseRow").classList.toggle("hidden", this.value !== "openai");
+  saveCfg();
+});
+$("key").addEventListener("input", saveCfg);
+$("model").addEventListener("input", saveCfg);
+$("base").addEventListener("input", saveCfg);
+
+function saveCfg() {
+  if (!$("remember").checked) return;
+  try { localStorage.setItem("atlas_cfg", JSON.stringify(getCfg())); } catch (e) {}
+}
+function loadSaved() {
+  try {
+    var c = JSON.parse(localStorage.getItem("atlas_cfg") || "null");
+    if (!c) return;
+    if (c.provider && c.provider !== "demo") $("provider").value = c.provider;
+    if (c.key) $("key").value = c.key;
+    if (c.model) $("model").value = c.model;
+    if (c.base) $("base").value = c.base;
+    $("baseRow").classList.toggle("hidden", $("provider").value !== "openai");
+  } catch (e) {}
+}
+
+function getCfg() {
+  return { provider: $("provider").value, key: $("key").value.trim(),
+           model: $("model").value.trim(), base: $("base").value.trim() };
+}
+
+function parseSkills(text) {
+  var out = [], errs = [], seen = {};
+  text.split("\n").forEach(function(line, i) {
+    line = line.trim();
+    if (!line) return;
+    var sep = line.search(/[:：|｜]/);
+    if (sep < 1) { errs.push("技能第 " + (i + 1) + " 行缺少分隔符（应为 name: description）"); return; }
+    var name = line.slice(0, sep).trim(), desc = line.slice(sep + 1).trim();
+    if (!NAME_RE.test(name)) { errs.push("技能第 " + (i + 1) + " 行 name 不合规（小写字母/数字/连字符）: " + name); return; }
+    if (!desc) { errs.push("技能第 " + (i + 1) + " 行 description 为空"); return; }
+    if (seen[name]) { errs.push("重复的 name: " + name); return; }
+    seen[name] = 1;
+    out.push({ name: name, description: desc });
+  });
+  return { skills: out, errs: errs };
+}
+
+function parseTasks(text) {
+  var out = [], errs = [];
+  text.split("\n").forEach(function(line, i) {
+    line = line.trim();
+    if (!line) return;
+    var m = line.match(/^(.*?)\s*=>\s*([a-z0-9-]+)\s*$/);
+    if (m) out.push({ task: m[1].trim(), expected: m[2] });
+    else out.push({ task: line, expected: null });
+    if (m && !m[2]) errs.push("任务第 " + (i + 1) + " 行 => 后为空");
+  });
+  return { tasks: out, errs: errs };
+}
+
+function buildCatalog(skills) {
+  return skills.map(function(s, i) {
+    return (i + 1) + ". name: " + s.name + "\n   description: " + s.description;
+  }).join("\n");
+}
+
+// 规则同步警告：本文件的 SYSTEM_PROMPT、CONSISTENCY_MIN(0.8)、冲突判定规则
+// 与 skill_seam.py（CLI 版）保持一致，任何一边修改必须同步另一边。
+var SYSTEM_PROMPT = "你是客服 agent 的技能选择器。下面给出可用技能列表（仅名称与描述）。" +
+  "收到用户任务后，选出最合适的一个技能名称；若没有任何技能合适，输出 NONE。" +
+  '只输出 JSON：{"chosen": "<name|NONE>"}，不要输出其他内容。';
+var CONSISTENCY_MIN = 0.8;
+
+function extractChosen(content, names) {
+  var m = content.match(/"chosen"\s*:\s*"([^"]+)"/);
+  if (m) { var v = m[1].trim();
+    if (v === "NONE" || names.indexOf(v) >= 0) return v; }
+  var s = content.trim();
+  if (s === "NONE" || names.indexOf(s) >= 0) return s;
+  var m2 = content.match(/chosen['"]?\s*[:=]\s*['"]?([A-Za-z0-9-]+)/);
+  if (m2 && (m2[1] === "NONE" || names.indexOf(m2[1]) >= 0)) return m2[1];
+  return "INVALID";
+}
+
+function llmCall(cfg, base, messages, maxTokens) {
+  var system = "", userMsgs = [];
+  messages.forEach(function(m) {
+    if (m.role === "system") system = m.content;
+    else userMsgs.push(m);
+  });
+  if (cfg.provider === "anthropic") {
+    // Anthropic Messages API：system 独立传参，需特殊头才允许浏览器直连
+    return fetch(base.replace(/\/+$/, "") + "/messages", {
+      method: "POST",
+      headers: { "x-api-key": cfg.key, "anthropic-version": "2023-06-01",
+                 "anthropic-dangerous-direct-browser-access": "true",
+                 "Content-Type": "application/json" },
+      body: JSON.stringify({ model: cfg.model, temperature: 0.7, max_tokens: maxTokens,
+        system: system, messages: userMsgs })
+    }).then(function(r) {
+      if (!r.ok) return r.text().then(function(t) {
+        throw new Error("HTTP " + r.status + ": " + t.slice(0, 160)); });
+      return r.json();
+    }).then(function(d) {
+      var part = (d.content || []).filter(function(c) { return c.type === "text"; })[0];
+      return part ? part.text : "";
+    });
+  }
+  return fetch(base.replace(/\/+$/, "") + "/chat/completions", {
+    method: "POST",
+    headers: { "Authorization": "Bearer " + cfg.key, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: cfg.model, temperature: 0.7, max_tokens: maxTokens,
+      messages: messages })
+  }).then(function(r) {
+    if (!r.ok) return r.text().then(function(t) {
+      throw new Error("HTTP " + r.status + ": " + t.slice(0, 160)); });
+    return r.json();
+  }).then(function(d) { return d.choices[0].message.content; });
+}
+
+function chatCall(cfg, base, catalog, task) {
+  return llmCall(cfg, base, [
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: "可用技能：\n" + catalog + "\n\n用户任务：" + task }
+  ], 60);
+}
+
+function parseJSONLoose(content) {
+  try { return JSON.parse(content); } catch (e) {}
+  var m = content.match(/\[[\s\S]*\]|\{[\s\S]*\}/);  // 不用 /s 标志，兼容老版 Safari
+  if (m) { try { return JSON.parse(m[0]); } catch (e) {} }
+  return null;
+}
+
+// ---------------- 任务自动生成（与 skill_seam.py 的 generate_tasks_real 保持一致） ----------------
+var GEN_POS_PROMPT = "根据技能的名称与描述，写 {n} 条真实用户可能提出的任务问法。" +
+  "要求：第一人称、口语化、句式多样、长短不一；不要出现技能名称本身；不要任何解释。" +
+  '只输出 JSON 数组：["任务1", "任务2", ...]';
+var GEN_GRAY_PROMPT = "红队任务：下面两个技能的职责存在语义重叠。你的目标是写出最刁钻的用户问法——" +
+  "让 agent 极难判断该归 A 还是 B、甚至干脆选错的那种。" +
+  "问法要像真实用户的随意口吻：可以夹杂场景细节、模糊指代，两个技能的关键词各带一点。" +
+  "请写 {n} 组边界问法：每组两条，第一条正确答案应归技能A，第二条应归技能B，" +
+  "组内两条要高度相似以形成边界测试。" +
+  '只输出 JSON：{"first": ["偏向A的问法"...], "second": ["偏向B的问法"...]}';
+
+function llmPickPairs(cfg, base, skills, k) {
+  var byName = {}, listing = [];
+  skills.forEach(function(s) { byName[s.name] = s; listing.push("- " + s.name + ": " + s.description); });
+  var prompt = "以下是 " + skills.length + " 个客服 agent 技能的名称与描述：\n" + listing.join("\n") +
+    "\n\n请找出职责最容易互相重叠、用户任务容易混淆的 " + k + " 对技能（按混淆可能性从高到低）。" +
+    '只输出 JSON：{"pairs": [["技能名1", "技能名2"], ...]}';
+  return llmCall(cfg, base, [
+    { role: "system", content: "你是测试用例生成器，只输出 JSON。" }, { role: "user", content: prompt }], 500)
+    .then(function(content) {
+      var obj = parseJSONLoose(content) || {};
+      var pairs = [], seen = {};
+      (obj.pairs || []).forEach(function(p) {
+        if (Array.isArray(p) && p.length === 2 && byName[p[0]] && byName[p[1]] && p[0] !== p[1]) {
+          var key = [p[0], p[1]].sort().join("|");
+          if (!seen[key]) { seen[key] = 1; pairs.push([byName[p[0]], byName[p[1]]]); }
+        }
+      });
+      return pairs.slice(0, k);
+    }).catch(function() { return []; });
+}
+
+function genTasksAuto(cfg, base, skills, nPos, kPairs) {
+  var warnings = [];
+  var allNames = skills.map(function(s) { return s.name; });
+  var seenText = {};
+  function genPositive(s) {
+    var prompt = "技能名称：" + s.name + "\n技能描述：" + s.description + "\n\n" +
+      GEN_POS_PROMPT.replace("{n}", nPos);
+    return llmCall(cfg, base, [
+      { role: "system", content: "你是测试用例生成器，只输出 JSON。" }, { role: "user", content: prompt }], 800)
+      .then(function(content) {
+        var arr = parseJSONLoose(content);
+        if (!Array.isArray(arr)) return [];
+        // 泄题过滤：任务文本含任何技能名都会让选择器作弊；全局去重防一题两属
+        var clean = arr.map(String).map(function(t) { return t.trim(); })
+          .filter(function(t) {
+            if (!t || seenText[t]) return false;
+            var leaks = allNames.some(function(n) { return t.indexOf(n) >= 0; });
+            if (!leaks) seenText[t] = 1;
+            return !leaks;
+          });
+        return clean.slice(0, nPos).map(function(t) {
+          return { t: t, e: s.name, kind: "positive" };
+        });
+      }).catch(function() {
+        warnings.push(s.name + " 正向任务生成失败，已跳过");
+        return [];
+      });
+  }
+  function genGray(a, b) {
+    var prompt = GEN_GRAY_PROMPT.replace("{n}", 3);
+    var body = "技能A：" + a.name + "\n描述A：" + a.description +
+               "\n\n技能B：" + b.name + "\n描述B：" + b.description;
+    return llmCall(cfg, base, [
+      { role: "system", content: "你是测试用例生成器，只输出 JSON。" }, { role: "user", content: body + "\n\n" + prompt }], 900)
+      .then(function(content) {
+        var obj = parseJSONLoose(content);
+        if (!obj || typeof obj !== "object") return [];
+        var pair = a.name + "↔" + b.name, out = [];
+        function add(t, e) {
+          t = String(t).trim();
+          if (!t || seenText[t]) return;
+          if (allNames.some(function(n) { return t.indexOf(n) >= 0; })) return;
+          seenText[t] = 1;
+          out.push({ t: t, e: e, kind: "gray", pair: pair });
+        }
+        (obj.first || []).slice(0, 3).forEach(function(t) { add(t, a.name); });
+        (obj.second || []).slice(0, 3).forEach(function(t) { add(t, b.name); });
+        return out;
+      }).catch(function() {
+        warnings.push(a.name + "↔" + b.name + " 灰区任务生成失败，已跳过");
+        return [];
+      });
+  }
+  return llmPickPairs(cfg, base, skills, kPairs).then(function(pairs) {
+    var jobs = skills.map(function(s) { return genPositive(s); });
+    pairs.forEach(function(p) { jobs.push(genGray(p[0], p[1])); });
+    return Promise.all(jobs).then(function(groups) {
+      var tasks = [];
+      groups.forEach(function(g) { tasks = tasks.concat(g); });
+      return { tasks: tasks, warnings: warnings };
+    });
+  });
+}
+
+function genTasks() {
+  hideErr();
+  var ps = parseSkills($("skills").value);
+  if (ps.errs.length) { showErr(ps.errs.join("\n")); return; }
+  if (ps.skills.length < 2) { showErr("至少需要 2 个技能"); return; }
+  var cfg = getCfg();
+  if (cfg.provider === "demo") { showErr("自动生成需要真实模型端点：请选择 Provider 并填写 Key"); return; }
+  if (!cfg.key) { showErr("请填写 API Key"); return; }
+  if (cfg.provider === "openai" && !cfg.base) { showErr("OpenAI-compatible 需要填写 Base URL"); return; }
+  if (!cfg.model) { showErr("请填写模型名"); return; }
+  saveCfg();
+  var base = cfg.provider === "openai" ? cfg.base : PROVIDER_BASE[cfg.provider];
+  var nPos = parseInt($("genPos").value, 10);
+  var kPairs = parseInt($("grayPairs").value, 10);
+  setRunning(true);
+  showStatus("正在生成任务（" + ps.skills.length + " 技能 × " + nPos + " 正向 + " + kPairs + " 对灰区）...");
+  genTasksAuto(cfg, base, ps.skills, nPos, kPairs).then(function(r) {
+    setRunning(false);
+    hideStatus();
+    if (!r.tasks.length) { showErr("任务生成结果为空" + (r.warnings.length ? "：" + r.warnings.join("；") : "")); return; }
+    // 追加而非覆盖：用户可能已手写任务
+    var generated = r.tasks.map(function(t) {
+      return t.t + " => " + t.e;
+    }).join("\n");
+    var existing = $("tasks").value.trim();
+    $("tasks").value = existing ? existing + "\n" + generated : generated;
+    if (r.warnings.length) showErr("部分生成跳过：" + r.warnings.join("；") + "。已追加 " + r.tasks.length + " 条到任务框。");
+    else showStatus("已生成 " + r.tasks.length + " 条任务并追加到任务框（可编辑后点「开始模拟」）。注意：生成任务存在「生成者偏见」（出题模型知道意图），冲突结论请以真实用户问法为准。");
+  });
+}
+
+function showStatus(msg) {
+  var e = $("errbox");
+  e.style.background = "#eaf3de"; e.style.color = "#27500a";
+  e.style.display = "block";
+  e.textContent = msg;
+}
+function hideStatus() {
+  var e = $("errbox");
+  e.style.background = ""; e.style.color = "";
+}
+
+// ---------------- 修复建议（与 skill_seam.py 的 generate_fix_suggestions 保持一致） ----------------
+var FIX_PROMPT = "你是 prompt 工程专家。技能 {thief} 的 description 截胡了本应属于技能 {victim} 的用户任务。\n\n" +
+  "技能 {victim}（应选）：\n{vdesc}\n\n技能 {thief}（实际被选中）：\n{tdesc}\n\n" +
+  "被截胡的任务：\n{tasks}\n\n" +
+  "请给出改写建议（1-2 条），通过修改其中一个或两个技能的 description 使边界清晰、截胡消失。" +
+  "优先改截胡方（加'仅限/不含'等边界词）。new_description 必须是完整可替换的 description，" +
+  "长度不超过 1024 字符，除边界外不得删减原职责。" +
+  '只输出 JSON：{"changes": [{"skill": "技能名", "new_description": "改写后的完整描述", "reason": "一句话理由"}]}';
+
+function genFixes(cfg, base, rows, skillsByName) {
+  var pairs = {}, order = [];
+  rows.forEach(function(r) {
+    if (!r.conflict || !skillsByName[r.chosen]) return;
+    var key = r.expected + "→" + r.chosen;
+    if (!pairs[key]) { pairs[key] = []; order.push(key); }
+    pairs[key].push(r);
+  });
+  var jobs = order.slice(0, 5).map(function(key) {
+    var parts = key.split("→"), victim = parts[0], thief = parts[1];
+    var v = skillsByName[victim], t = skillsByName[thief];
+    var rs = pairs[key];
+    var taskList = rs.slice(0, 5).map(function(r) { return "- " + r.task; }).join("\n");
+    var prompt = FIX_PROMPT.replace("{thief}", thief).replace("{victim}", victim)
+      .replace("{vdesc}", v.description).replace("{tdesc}", t.description)
+      .replace("{tasks}", taskList);
+    return llmCall(cfg, base, [
+      { role: "system", content: "你是 prompt 工程专家，只输出 JSON。" }, { role: "user", content: prompt }], 900)
+      .then(function(content) {
+        var obj = parseJSONLoose(content) || {};
+        var valid = [];
+        (obj.changes || []).forEach(function(c) {
+          if (c && (c.skill === victim || c.skill === thief) && c.new_description &&
+              String(c.new_description).length <= 1024) {
+            valid.push({ skill: c.skill, new_description: String(c.new_description).trim(),
+                         reason: String(c.reason || "").trim() });
+          }
+        });
+        return valid.length ? { victim: victim, thief: thief,
+          conflict_tasks: rs.slice(0, 3).map(function(r) { return r.task; }), changes: valid } : null;
+      }).catch(function() { return null; });
+  });
+  return Promise.all(jobs).then(function(list) {
+    return list.filter(function(x) { return x; });
+  });
+}
+
+function renderFixes(suggestions, skills) {
+  var byName = {};
+  skills.forEach(function(s) { byName[s.name] = s; });
+  var html = "";
+  suggestions.forEach(function(s) {
+    s.changes.forEach(function(c) {
+      var oldDesc = byName[c.skill] ? byName[c.skill].description : "";
+      html += '<div class="fix"><div class="fixhead">修改 ' + esc(c.skill) +
+        '<span class="fixreason">（冲突：' + esc(s.victim) + ' 被 ' + esc(s.thief) + ' 截胡）</span></div>' +
+        '<div class="fixold"><b>改前</b>：' + esc(oldDesc) + '</div>' +
+        '<div class="fixnew"><b>改后</b>：' + esc(c.new_description) + '</div>' +
+        '<div class="fixreason">理由：' + esc(c.reason) + '</div></div>';
+    });
+  });
+  if (!html) {
+    html = '<div class="hint">未能自动生成建议。可按冲突明细里的截胡关键词手动改 description：给截胡方加"仅限/不含"边界词。</div>';
+  }
+  $("fixes").innerHTML = html;
+  $("fixCard").classList.remove("hidden");
+}
+
+function pool(jobs, n, onProgress) {
+  var i = 0, completed = 0;
+  var results = new Array(jobs.length);
+  function worker() {
+    if (i >= jobs.length) return Promise.resolve();
+    var cur = i++;
+    return Promise.resolve().then(jobs[cur])
+      .then(function(v) { results[cur] = { value: v }; })
+      .catch(function(e) { results[cur] = { error: String((e && e.message) || e) }; })
+      .then(function() {
+        completed++;
+        onProgress(completed);
+        return worker();
+      });
+  }
+  return Promise.all(Array.from({ length: Math.min(n, jobs.length) }, worker))
+    .then(function() { return results; });
+}
+
+function setRunning(on) {
+  $("runBtn").disabled = on; $("demoBtn").disabled = on; $("genBtn").disabled = on;
+}
+
+function run() {
+  hideErr();
+  var ps = parseSkills($("skills").value);
+  var pt = parseTasks($("tasks").value);
+  var errs = ps.errs.concat(pt.errs);
+  if (ps.skills.length < 2) errs.push("至少需要 2 个技能");
+  if (!pt.tasks.length) errs.push("至少需要 1 条测试任务");
+  if (errs.length) { showErr(errs.join("\n")); return; }
+
+  var cfg = getCfg();
+  var samples = parseInt($("samples").value, 10);
+  if (cfg.provider === "demo") { renderDemo(); return; }
+  if (!cfg.key) { showErr("请填写 API Key（或先选「演示模式」看效果）"); return; }
+  if (cfg.provider === "openai" && !cfg.base) { showErr("OpenAI-compatible 需要填写 Base URL"); return; }
+  if (!cfg.model) { showErr("请填写模型名"); return; }
+  saveCfg();
+
+  var names = ps.skills.map(function(s) { return s.name; });
+  var nameSet = {};
+  names.forEach(function(n) { nameSet[n] = 1; });
+  var badTag = pt.tasks.filter(function(t) { return t.expected && !nameSet[t.expected]; });
+  if (badTag.length) {
+    showErr("有 " + badTag.length + " 条任务的 => 标注指向不存在的技能，例如: " +
+            esc(badTag[0].task.slice(0, 20)) + " => " + badTag[0].expected);
+    return;
+  }
+
+  var catalog = buildCatalog(ps.skills);
+  var base = cfg.provider === "openai" ? cfg.base : PROVIDER_BASE[cfg.provider];
+  var jobs = [];
+  pt.tasks.forEach(function(t) {
+    for (var j = 0; j < samples; j++) {
+      jobs.push(function(task) {
+        return function() { return chatCall(cfg, base, catalog, task); };
+      }(t.task));
+    }
+  });
+
+  setRunning(true);
+  $("bar").style.display = "block";
+  var done = 0;
+  pool(jobs, 4, function(n) {
+    done = n;
+    $("barfill").style.width = (100 * n / jobs.length).toFixed(1) + "%";
+  }).then(function(results) {
+    setRunning(false);
+    $("bar").style.display = "none";
+    var byTask = [], k = 0, fatal = 0, firstErr = "";
+    pt.tasks.forEach(function(t) {
+      var votes = [];
+      for (var j = 0; j < samples; j++) {
+        var r = results[k++];
+        if (r && !r.error) votes.push(extractChosen(String(r.value), names));
+        else { votes.push("ERROR"); fatal++; if (!firstErr) firstErr = r ? r.error : "未知错误"; }
+      }
+      byTask.push({ task: t.task, expected: t.expected, votes: votes });
+    });
+    if (fatal === results.length) {
+      showErr("全部请求失败。常见原因：key 无效、端点不允许浏览器直连（CORS）、模型名错误。\n" + firstErr);
+      return;
+    }
+    if (fatal > 0) {
+      showErr("注意：" + fatal + " 个请求失败（已计为 ERROR）。首个错误：" + firstErr);
+    }
+    render(byTask, ps.skills, samples, cfg.model);
+    // 有稳定冲突时自动生成修复建议（BYOK 模式专属能力）
+    var conflicts = byTask.filter(function(t) { return t.expected; })
+      .map(function(t) {
+        var maj = majority(t.votes);
+        var stable = maj.consistency >= CONSISTENCY_MIN && maj.chosen !== "ERROR" && maj.chosen !== "INVALID";
+        return { task: t.task, expected: t.expected, chosen: maj.chosen, stable: stable,
+                 conflict: !!(stable && maj.chosen !== t.expected) };
+      }).filter(function(r) { return r.conflict; });
+    if (conflicts.length) {
+      showStatus("发现 " + conflicts.length + " 个稳定冲突，正在生成修复建议...");
+      var byName = {};
+      ps.skills.forEach(function(s) { byName[s.name] = s; });
+      genFixes(cfg, base, conflicts, byName).then(function(suggestions) {
+        hideStatus();
+        renderFixes(suggestions, ps.skills);
+      });
+    } else {
+      hideStatus();
+      $("fixCard").classList.add("hidden");
+    }
+  });
+}
+
+function majority(votes) {
+  var c = {}, top = null, n = -1;
+  votes.forEach(function(v) { c[v] = (c[v] || 0) + 1; });
+  Object.keys(c).forEach(function(k) { if (c[k] > n) { top = k; n = c[k]; } });
+  return { chosen: top, consistency: n / votes.length };
+}
+
+function longestHit(phrase, task) {
+  var best = "";
+  for (var i = 0; i + 2 <= phrase.length; i++) {
+    for (var j = i + 2; j <= phrase.length; j++) {
+      var sub = phrase.slice(i, j);
+      if (sub.length > best.length && task.indexOf(sub) >= 0) best = sub;
+    }
+  }
+  return best;
+}
+
+function conflictReason(chosenDesc, task) {
+  var out = [];
+  chosenDesc.split(/[，、。；：/（）\s]/).forEach(function(phrase) {
+    if (phrase.length < 2 || STOPWORDS[phrase]) return;
+    var best = longestHit(phrase, task);
+    if (best && out.indexOf(best) < 0) out.push(best);
+  });
+  return out.slice(0, 6);
+}
+
+function render(byTask, skills, samples, model) {
+  var names = skills.map(function(s) { return s.name; });
+  var byName = {};
+  skills.forEach(function(s) { byName[s.name] = s; });
+  var CONS_MIN = 0.8;
+
+  var rows = byTask.map(function(bt) {
+    var maj = majority(bt.votes);
+    var stable = maj.consistency >= CONS_MIN && maj.chosen !== "ERROR" && maj.chosen !== "INVALID";
+    return { task: bt.task, expected: bt.expected, chosen: maj.chosen,
+             consistency: maj.consistency, stable: stable,
+             conflict: !!(bt.expected && stable && maj.chosen !== bt.expected) };
+  });
+  var tagged = rows.filter(function(r) { return r.expected; });
+  var conflicts = tagged.filter(function(r) { return r.conflict; });
+  var hits = tagged.filter(function(r) { return r.chosen === r.expected; }).length;
+  var unstable = rows.filter(function(r) { return !r.stable; }).length;
+
+  $("s-hit").textContent = hits + "/" + tagged.length;
+  $("s-conf").textContent = conflicts.length;
+  $("s-unstable").textContent = unstable;
+  $("s-total").textContent = rows.length;
+
+  var expNames = [];
+  tagged.forEach(function(r) { if (expNames.indexOf(r.expected) < 0) expNames.push(r.expected); });
+  var cols = expNames.concat(names.filter(function(n) { return expNames.indexOf(n) < 0; }))
+                     .concat(["NONE", "其他"]);
+  var mat = expNames.map(function() { return cols.map(function() { return 0; }); });
+  var rowIdx = {};
+  expNames.forEach(function(n, i) { rowIdx[n] = i; });
+  tagged.forEach(function(r) {
+    var ci = cols.indexOf(r.chosen);
+    if (ci < 0) ci = cols.indexOf("其他");
+    mat[rowIdx[r.expected]][ci]++;
+  });
+  var matSkills = expNames.map(function(n) {
+    return { name: n, description: byName[n] ? byName[n].description : n };
+  });
+  $("matrix").innerHTML = matrixSvg(mat, matSkills, cols);
+
+  var ch = "";
+  conflicts.forEach(function(r) {
+    var badges = "";
+    if (byName[r.chosen]) {
+      badges = conflictReason(byName[r.chosen].description, r.task)
+        .map(function(t) { return '<span class="badge">' + esc(t) + "</span>"; }).join("");
+    }
+    ch += '<div class="conflict">「' + esc(r.task) + '」<br>应选 <b>' + esc(r.expected) +
+          '</b>，实际被 <b style="color:#a32d2d">' + esc(r.chosen) + '</b> 截胡（' +
+          Math.round(r.consistency * samples) + "/" + samples + ' 票）' +
+          (badges ? "<br>截胡关键词：" + badges : "") + "</div>";
+  });
+  $("conflicts").innerHTML = ch ||
+    '<div class="plain">标注任务中未发现稳定冲突。想暴露边界问题，多写几条两两语义交界的模糊问法（用 => 标注你认为是正确归属的一方）。</div>';
+
+  var pl = "";
+  rows.forEach(function(r) {
+    if (r.expected) return;
+    var cls = r.stable ? "" : "（不稳定 " + Math.round(r.consistency * samples) + "/" + samples + " 票，仅供参考）";
+    pl += '<div class="plain">「' + esc(r.task) + '」→ agent 选中 <b>' + esc(r.chosen) +
+          "</b> " + cls + "</div>";
+  });
+  $("plains").innerHTML = pl ||
+    '<div class="plain">没有未标注任务。给部分任务去掉 => 标注，可以看看 agent 的自然选择。</div>';
+
+  $("result").classList.remove("hidden");
+  $("result").scrollIntoView({ behavior: "smooth" });
+}
+
+function renderDemo() {
+  hideErr();
+  var D = DEMO;
+  $("skills").value = D.skills.map(function(s) { return s.name + ": " + s.desc; }).join("\n");
+  $("fixCard").classList.add("hidden");  // 演示模式无修复建议，清掉 BYOK 运行残留
+  var skills = D.skills.map(function(s) { return { name: s.name, description: s.desc }; });
+  var svg = matrixSvg(D.matrix, skills, D.cols);
+  $("s-hit").textContent = D.meta.hits + "/" + D.meta.total;
+  $("s-conf").textContent = D.conflicts.length;
+  $("s-unstable").textContent = D.meta.unstable;
+  $("s-total").textContent = D.meta.total;
+  $("matrix").innerHTML = svg;
+  var ch = "";
+  D.conflicts.forEach(function(c) {
+    ch += '<div class="conflict">「' + esc(c.task) + '」<br>应选 <b>' + esc(c.expected) +
+          '</b>，实际被 <b style="color:#a32d2d">' + esc(c.chosen) + '</b> 截胡（' +
+          esc(c.votes) + ' 票）</div>';
+  });
+  $("conflicts").innerHTML = ch;
+  $("plains").innerHTML = '<div class="plain">演示数据来自 CLI 版对 6 个眼科客服 skill 的真实模拟（qwen3.8-flash，40 任务 × 5 采样，埋有 2 处撞车）。</div>';
+  $("result").classList.remove("hidden");
+  $("result").scrollIntoView({ behavior: "smooth" });
+}
+
+function matrixSvg(mat, skills, cols) {
+  var cellW = 86, cellH = 52, labW = 190, topH = 30;
+  var W = labW + cellW * cols.length + 20;
+  var H = topH + cellH * skills.length + 56;
+  var svg = ['<svg viewBox="0 0 ' + W + " " + H + '" width="100%" xmlns="http://www.w3.org/2000/svg">'];
+  svg.push('<text x="' + labW + '" y="14" font-size="12" fill="#5f5e5a">列 = agent 实际选中 →（行 = 应选技能）</text>');
+  cols.forEach(function(c, ci) {
+    var x = labW + ci * cellW;
+    svg.push('<text x="' + (x + cellW / 2) + '" y="' + (topH - 8) +
+      '" font-size="11" fill="#444441" text-anchor="middle">' + esc(c) + "</text>");
+  });
+  skills.forEach(function(s, ri) {
+    var y = topH + ri * cellH;
+    var m = s.description.match(/[\u4e00-\u9fff]+/);
+    var lab = m ? m[0].slice(0, 8) : s.name;
+    svg.push('<text x="' + (labW - 8) + '" y="' + (y + cellH / 2) +
+      '" font-size="11.5" fill="#444441" text-anchor="end">' + esc(s.name) + "·" + esc(lab) + "</text>");
+    cols.forEach(function(c, ci) {
+      var x = labW + ci * cellW, v = mat[ri][ci];
+      var fill, tcol;
+      if (ri === ci) { fill = v ? "#c0dd97" : "#f1efe8"; tcol = "#27500a"; }
+      else if (ci < skills.length) {
+        fill = v ? "rgba(226,75,74," + Math.min(0.12 + v * 0.16, 0.88).toFixed(2) + ")" : "#f1efe8";
+        tcol = v ? "#501313" : "#b4b2a9";
+      } else { fill = v ? "#d3d1c7" : "#f1efe8"; tcol = "#444441"; }
+      svg.push('<rect x="' + x + '" y="' + y + '" width="' + (cellW - 4) + '" height="' +
+        (cellH - 4) + '" rx="6" fill="' + fill + '" stroke="#b4b2a9" stroke-width="0.5"/>');
+      if (v) svg.push('<text x="' + (x + (cellW - 4) / 2) + '" y="' + (y + (cellH - 4) / 2 + 4) +
+        '" font-size="13" fill="' + tcol + '" text-anchor="middle">' + v + "</text>");
+    });
+  });
+  svg.push("</svg>");
+  return svg.join("\n");
+}
+
+loadSaved();
+</script>
+</body>
+</html>

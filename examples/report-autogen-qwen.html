@@ -1,0 +1,114 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>skill-atlas 干扰报告</title><style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+       background: #f5f4f0; color: #2c2c2a; padding: 32px 16px; }
+.wrap { max-width: 900px; margin: 0 auto; }
+h1 { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+.sub { color: #5f5e5a; font-size: 13px; margin-bottom: 24px; }
+.cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+.card { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; padding: 14px 18px; min-width: 130px; }
+.card .num { font-size: 26px; font-weight: 500; }
+.card .lbl { font-size: 12px; color: #5f5e5a; margin-top: 2px; }
+.card.red .num { color: #a32d2d; }
+.card.green .num { color: #3b6d11; }
+section { background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+h2 { font-size: 15px; font-weight: 500; margin-bottom: 12px; }
+.conflict { border-left: 3px solid #e24b4a; padding: 10px 12px; background: #fcebeb;
+            border-radius: 0 8px 8px 0; margin-bottom: 10px; font-size: 13px; line-height: 1.7; }
+.conflict b.bad { color: #a32d2d; }
+.badge { display: inline-block; background: #f7c1c1; color: #791f1f; border-radius: 4px;
+         padding: 0 6px; font-size: 12px; margin: 0 2px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 0.5px solid #e5e3dd; }
+th { color: #5f5e5a; font-weight: 400; }
+td.ok { color: #3b6d11; } td.bad { color: #a32d2d; } td.warn { color: #854f0b; }
+details summary { cursor: pointer; font-size: 13px; color: #185fa5; }
+.note { font-size: 12px; color: #888780; margin-top: 16px; line-height: 1.6; }
+</style></head><body><div class="wrap">
+<h1>skill-atlas 选择干扰报告</h1>
+<div class="sub">真实 LLM 模拟 · 模型 qwen3.8-flash · 42 任务 × 5 采样 · 2026-09-21 16:19</div>
+<div class="cards">
+<div class="card green"><div class="num">42/42</div><div class="lbl">任务命中预期技能</div></div>
+<div class="card red"><div class="num">0</div><div class="lbl">稳定冲突（截胡）</div></div>
+<div class="card"><div class="num">0</div><div class="lbl">不稳定（未达一致率）</div></div>
+<div class="card"><div class="num">6</div><div class="lbl">参与技能数</div></div>
+</div>
+<section><h2>选择混淆矩阵</h2><svg viewBox="0 0 876 398" width="100%" xmlns="http://www.w3.org/2000/svg" role="img">
+<text x="168" y="14" font-size="12" fill="#5f5e5a">列 = agent 实际选中 →（行 = 应选技能）</text>
+<text x="211.0" y="22" font-size="11" fill="#444441" text-anchor="middle">baogao-jiedu</text>
+<text x="297.0" y="22" font-size="11" fill="#444441" text-anchor="middle">fuzhen-tixing</text>
+<text x="383.0" y="22" font-size="11" fill="#444441" text-anchor="middle">guahao-yuyue</text>
+<text x="469.0" y="22" font-size="11" fill="#444441" text-anchor="middle">huiyuan-yingxiao</text>
+<text x="555.0" y="22" font-size="11" fill="#444441" text-anchor="middle">shuqian-xuzhi</text>
+<text x="641.0" y="22" font-size="11" fill="#444441" text-anchor="middle">tousu-shouli</text>
+<text x="727.0" y="22" font-size="11" fill="#444441" text-anchor="middle">NONE</text>
+<text x="813.0" y="22" font-size="11" fill="#444441" text-anchor="middle">其他</text>
+<text x="160" y="56.0" font-size="11.5" fill="#444441" text-anchor="end">baogao-jiedu·解读眼科检查报告</text>
+<rect x="168" y="30" width="82" height="48" rx="6" fill="#c0dd97" stroke="#b4b2a9" stroke-width="0.5"/>
+<text x="209.0" y="58.0" font-size="13" fill="#27500a" text-anchor="middle">8</text>
+<rect x="254" y="30" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="340" y="30" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="426" y="30" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="512" y="30" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="598" y="30" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="684" y="30" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="770" y="30" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<text x="160" y="108.0" font-size="11.5" fill="#444441" text-anchor="end">fuzhen-tixing·为术后与慢病患者</text>
+<rect x="168" y="82" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="254" y="82" width="82" height="48" rx="6" fill="#c0dd97" stroke="#b4b2a9" stroke-width="0.5"/>
+<text x="295.0" y="110.0" font-size="13" fill="#27500a" text-anchor="middle">8</text>
+<rect x="340" y="82" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="426" y="82" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="512" y="82" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="598" y="82" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="684" y="82" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="770" y="82" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<text x="160" y="160.0" font-size="11.5" fill="#444441" text-anchor="end">guahao-yuyue·处理眼科门诊的预</text>
+<rect x="168" y="134" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="254" y="134" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="340" y="134" width="82" height="48" rx="6" fill="#c0dd97" stroke="#b4b2a9" stroke-width="0.5"/>
+<text x="381.0" y="162.0" font-size="13" fill="#27500a" text-anchor="middle">11</text>
+<rect x="426" y="134" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="512" y="134" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="598" y="134" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="684" y="134" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="770" y="134" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<text x="160" y="212.0" font-size="11.5" fill="#444441" text-anchor="end">huiyuan-yingxiao·管理会员等级</text>
+<rect x="168" y="186" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="254" y="186" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="340" y="186" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="426" y="186" width="82" height="48" rx="6" fill="#c0dd97" stroke="#b4b2a9" stroke-width="0.5"/>
+<text x="467.0" y="214.0" font-size="13" fill="#27500a" text-anchor="middle">5</text>
+<rect x="512" y="186" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="598" y="186" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="684" y="186" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="770" y="186" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<text x="160" y="264.0" font-size="11.5" fill="#444441" text-anchor="end">shuqian-xuzhi·说明白内障</text>
+<rect x="168" y="238" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="254" y="238" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="340" y="238" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="426" y="238" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="512" y="238" width="82" height="48" rx="6" fill="#c0dd97" stroke="#b4b2a9" stroke-width="0.5"/>
+<text x="553.0" y="266.0" font-size="13" fill="#27500a" text-anchor="middle">5</text>
+<rect x="598" y="238" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="684" y="238" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="770" y="238" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<text x="160" y="316.0" font-size="11.5" fill="#444441" text-anchor="end">tousu-shouli·受理患者对就诊体</text>
+<rect x="168" y="290" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="254" y="290" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="340" y="290" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="426" y="290" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="512" y="290" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="598" y="290" width="82" height="48" rx="6" fill="#c0dd97" stroke="#b4b2a9" stroke-width="0.5"/>
+<text x="639.0" y="318.0" font-size="13" fill="#27500a" text-anchor="middle">5</text>
+<rect x="684" y="290" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+<rect x="770" y="290" width="82" height="48" rx="6" fill="#f1efe8" stroke="#b4b2a9" stroke-width="0.5"/>
+</svg>
+<div class="note">对角线 = 应选技能被正确选中；红色 = 被其他技能截胡，颜色越深次数越多。</div></section>
+<section><h2>冲突明细</h2><div class="conflict" style="border-color:#3b6d11;background:#eaf3de">未发现稳定冲突。</div></section>
+<section><details><summary>全部 42 条任务的模拟明细</summary>
+<table><tr><th>任务</th><th>应选</th><th>实际选中</th><th>结果</th></tr><tr><td>我刚做完眼科检查，报告上那些箭头和数值看得我头疼，能帮我解释一下吗？</td><td>baogao-jiedu</td><td class="ok">baogao-jiedu</td><td class="ok">命中（5/5）</td></tr><tr><td>我体检的眼底照相写了有渗出，这严重吗？</td><td>baogao-jiedu</td><td class="ok">baogao-jiedu</td><td class="ok">命中（5/5）</td></tr><tr><td>最近眼睛有点胀，测了眼压19mmHg，这个数正常不？</td><td>baogao-jiedu</td><td class="ok">baogao-jiedu</td><td class="ok">命中（5/5）</td></tr><tr><td>我的OCT报告说神经纤维层变薄，视野也有缺损，医生让我随访，你能不能告诉我到底啥意思、平时该注意什么？</td><td>baogao-jiedu</td><td class="ok">baogao-jiedu</td><td class="ok">命中（5/5）</td></tr><tr><td>视力左眼4.8右眼5.0，是不是近视了？</td><td>baogao-jiedu</td><td class="ok">baogao-jiedu</td><td class="ok">命中（5/5）</td></tr><tr><td>我刚做完手术，医生说要三个月后复查，能不能帮我安排下复诊提醒？</td><td>fuzhen-tixing</td><td class="ok">fuzhen-tixing</td><td class="ok">命中（5/5）</td></tr><tr><td>我血压比较高，最近总忘记去医院，给我做个长期慢病复诊计划吧。</td><td>fuzhen-tixing</td><td class="ok">fuzhen-tixing</td><td class="ok">命中（5/5）</td></tr><tr><td>会员权益里的复诊服务怎么用在复查上？</td><td>fuzhen-tixing</td><td class="ok">fuzhen-tixing</td><td class="ok">命中（5/5）</td></tr><tr><td>下周要复查，我想提前一天提醒我带报告。</td><td>fuzhen-tixing</td><td class="ok">fuzhen-tixing</td><td class="ok">命中（5/5）</td></tr><tr><td>我术后快一个月了，帮我看看下次该挂什么科、什么时候去。</td><td>fuzhen-tixing</td><td class="ok">fuzhen-tixing</td><td class="ok">命中（5/5）</td></tr><tr><td>我明天想去做个视力检查，能帮我约个号吗？</td><td>guahao-yuyue</td><td class="ok">guahao-yuyue</td><td class="ok">命中（5/5）</td></tr><tr><td>之前约的眼科门诊突然去不了，能不能改到周末？</td><td>guahao-yuyue</td><td class="ok">guahao-yuyue</td><td class="ok">命中（5/5）</td></tr><tr><td>我的检查报告还没出来，想问下一般多久能拿，能转给工作人员看看吗？</td><td>guahao-yuyue</td><td class="ok">guahao-yuyue</td><td class="ok">命中（5/5）</td></tr><tr><td>第一次去眼科门诊，需要提前准备啥？比如要停戴隐形眼镜吗？</td><td>guahao-yuyue</td><td class="ok">guahao-yuyue</td><td class="ok">命中（5/5）</td></tr><tr><td>帮我把下午的眼科号取消了吧，我有点事来不了。</td><td>guahao-yuyue</td><td class="ok">guahao-yuyue</td><td class="ok">命中（5/5）</td></tr><tr><td>帮我查一下我现在的会员等级是不是升了，怎么权益还没变？</td><td>huiyuan-yingxiao</td><td class="ok">huiyuan-yingxiao</td><td class="ok">命中（5/5）</td></tr><tr><td>我积分够了，能不能兑换点实用的东西？</td><td>huiyuan-yingxiao</td><td class="ok">huiyuan-yingxiao</td><td class="ok">命中（5/5）</td></tr><tr><td>这个会员专属活动我想报名，你帮我弄一下。</td><td>huiyuan-yingxiao</td><td class="ok">huiyuan-yingxiao</td><td class="ok">命中（5/5）</td></tr><tr><td>我身份核验一直过不去，权益都用不了，怎么办？</td><td>huiyuan-yingxiao</td><td class="ok">huiyuan-yingxiao</td><td class="ok">命中（5/5）</td></tr><tr><td>刚才兑换的权益没到账，能帮我看下问题出在哪吗？</td><td>huiyuan-yingxiao</td><td class="ok">huiyuan-yingxiao</td><td class="ok">命中（5/5）</td></tr><tr><td>我下周要做白内障手术，需要提前准备些什么？</td><td>shuqian-xuzhi</td><td class="ok">shuqian-xuzhi</td><td class="ok">命中（5/5）</td></tr><tr><td>近视激光手术当天能不能吃东西啊，有禁食要求吗？</td><td>shuqian-xuzhi</td><td class="ok">shuqian-xuzhi</td><td class="ok">命中（5/5）</td></tr><tr><td>我要去做眼科手术，平时吃的药需要停几天？</td><td>shuqian-xuzhi</td><td class="ok">shuqian-xuzhi</td><td class="ok">命中（5/5）</td></tr><tr><td>第一次去医院做白内障手术，到院后流程是怎么走的？</td><td>shuqian-xuzhi</td><td class="ok">shuqian-xuzhi</td><td class="ok">命中（5/5）</td></tr><tr><td>我明天做近视手术，今晚要注意啥，几点到院？</td><td>shuqian-xuzhi</td><td class="ok">shuqian-xuzhi</td><td class="ok">命中（5/5）</td></tr><tr><td>我昨天在门诊被多收了费，能帮我登记投诉吗？</td><td>tousu-shouli</td><td class="ok">tousu-shouli</td><td class="ok">命中（5/5）</td></tr><tr><td>这次就诊体验太差了，我想投诉一下，顺便帮我看看处理进度。</td><td>tousu-shouli</td><td class="ok">tousu-shouli</td><td class="ok">命中（5/5）</td></tr><tr><td>帮我提个工单，反映你们医护人员服务态度有问题。</td><td>tousu-shouli</td><td class="ok">tousu-shouli</td><td class="ok">命中（5/5）</td></tr><tr><td>收费明细看着不对劲，投诉一下，处理完告诉我。</td><td>tousu-shouli</td><td class="ok">tousu-shouli</td><td class="ok">命中（5/5）</td></tr><tr><td>我之前投诉过，现在到底跟进到哪一步了？</td><td>tousu-shouli</td><td class="ok">tousu-shouli</td><td class="ok">命中（5/5）</td></tr><tr><td>我下周眼科门诊的号还没去，报告好像出来了，能先约个号让医生看看报告吗？</td><td>guahao-yuyue</td><td class="ok">guahao-yuyue</td><td class="ok">命中（5/5）</td></tr><tr><td>医生让我复查眼压，我想把号改到报告出来那天，怎么操作？</td><td>guahao-yuyue</td><td class="ok">guahao-yuyue</td><td class="ok">命中（5/5）</td></tr><tr><td>视力检查报告我看不懂，想登记一下让眼科医生帮我看看，需要怎么预约？</td><td>guahao-yuyue</td><td class="ok">guahao-yuyue</td><td class="ok">命中（5/5）</td></tr><tr><td>我下周眼科门诊还没去，报告出来了，能帮我看看报告指标是什么意思吗？</td><td>baogao-jiedu</td><td class="ok">baogao-jiedu</td><td class="ok">命中（5/5）</td></tr><tr><td>复查眼压的报告出来了，眼压数值18算正常吗？</td><td>baogao-jiedu</td><td class="ok">baogao-jiedu</td><td class="ok">命中（5/5）</td></tr><tr><td>视力检查报告我看不懂，能直接给我讲讲裸眼视力和矫正视力指标吗？</td><td>baogao-jiedu</td><td class="ok">baogao-jiedu</td><td class="ok">命中（5/5）</td></tr><tr><td>我上周做了眼科小手术，医生让一个月后复诊，能帮我定个复查提醒顺便看看会员权益能用吗？</td><td>fuzhen-tixing</td><td class="ok">fuzhen-tixing</td><td class="ok">命中（5/5）</td></tr><tr><td>我爸是青光眼慢病，之前说三个月回来看一次，能按复诊计划给我设置提醒吗，权益能抵扣吗？</td><td>fuzhen-tixing</td><td class="ok">fuzhen-tixing</td><td class="ok">命中（5/5）</td></tr><tr><td>我近视手术快到期要复查了，麻烦安排复诊提醒，还有会员权益在复查时怎么用？</td><td>fuzhen-tixing</td><td class="ok">fuzhen-tixing</td><td class="ok">命中（5/5）</td></tr><tr><td>我上周做了眼科小手术，现在要挂一个月后的复诊号，需要怎么预约和准备？</td><td>guahao-yuyue</td><td class="ok">guahao-yuyue</td><td class="ok">命中（5/5）</td></tr><tr><td>我爸是青光眼慢病，三个月后要回眼科门诊复查，能不能帮我预约号，并登记一下视力检查报告咨询？</td><td>guahao-yuyue</td><td class="ok">guahao-yuyue</td><td class="ok">命中（5/5）</td></tr><tr><td>我近视手术快到期要复查了，想挂眼科门诊复查号，顺便问下检查报告怎么取、就诊前要准备什么？</td><td>guahao-yuyue</td><td class="ok">guahao-yuyue</td><td class="ok">命中（5/5）</td></tr></table></details></section>
+<div class="note">skill-atlas demo · 仅注入 name+description 模拟 agent 技能选择 · 退出码 0(无冲突)</div>
+</div></body></html>

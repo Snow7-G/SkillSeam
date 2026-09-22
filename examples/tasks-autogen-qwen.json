@@ -1,0 +1,224 @@
+[
+  {
+    "t": "我刚做完眼科检查，报告上那些箭头和数值看得我头疼，能帮我解释一下吗？",
+    "e": "baogao-jiedu",
+    "kind": "positive"
+  },
+  {
+    "t": "我体检的眼底照相写了有渗出，这严重吗？",
+    "e": "baogao-jiedu",
+    "kind": "positive"
+  },
+  {
+    "t": "最近眼睛有点胀，测了眼压19mmHg，这个数正常不？",
+    "e": "baogao-jiedu",
+    "kind": "positive"
+  },
+  {
+    "t": "我的OCT报告说神经纤维层变薄，视野也有缺损，医生让我随访，你能不能告诉我到底啥意思、平时该注意什么？",
+    "e": "baogao-jiedu",
+    "kind": "positive"
+  },
+  {
+    "t": "视力左眼4.8右眼5.0，是不是近视了？",
+    "e": "baogao-jiedu",
+    "kind": "positive"
+  },
+  {
+    "t": "我刚做完手术，医生说要三个月后复查，能不能帮我安排下复诊提醒？",
+    "e": "fuzhen-tixing",
+    "kind": "positive"
+  },
+  {
+    "t": "我血压比较高，最近总忘记去医院，给我做个长期慢病复诊计划吧。",
+    "e": "fuzhen-tixing",
+    "kind": "positive"
+  },
+  {
+    "t": "会员权益里的复诊服务怎么用在复查上？",
+    "e": "fuzhen-tixing",
+    "kind": "positive"
+  },
+  {
+    "t": "下周要复查，我想提前一天提醒我带报告。",
+    "e": "fuzhen-tixing",
+    "kind": "positive"
+  },
+  {
+    "t": "我术后快一个月了，帮我看看下次该挂什么科、什么时候去。",
+    "e": "fuzhen-tixing",
+    "kind": "positive"
+  },
+  {
+    "t": "我明天想去做个视力检查，能帮我约个号吗？",
+    "e": "guahao-yuyue",
+    "kind": "positive"
+  },
+  {
+    "t": "之前约的眼科门诊突然去不了，能不能改到周末？",
+    "e": "guahao-yuyue",
+    "kind": "positive"
+  },
+  {
+    "t": "我的检查报告还没出来，想问下一般多久能拿，能转给工作人员看看吗？",
+    "e": "guahao-yuyue",
+    "kind": "positive"
+  },
+  {
+    "t": "第一次去眼科门诊，需要提前准备啥？比如要停戴隐形眼镜吗？",
+    "e": "guahao-yuyue",
+    "kind": "positive"
+  },
+  {
+    "t": "帮我把下午的眼科号取消了吧，我有点事来不了。",
+    "e": "guahao-yuyue",
+    "kind": "positive"
+  },
+  {
+    "t": "帮我查一下我现在的会员等级是不是升了，怎么权益还没变？",
+    "e": "huiyuan-yingxiao",
+    "kind": "positive"
+  },
+  {
+    "t": "我积分够了，能不能兑换点实用的东西？",
+    "e": "huiyuan-yingxiao",
+    "kind": "positive"
+  },
+  {
+    "t": "这个会员专属活动我想报名，你帮我弄一下。",
+    "e": "huiyuan-yingxiao",
+    "kind": "positive"
+  },
+  {
+    "t": "我身份核验一直过不去，权益都用不了，怎么办？",
+    "e": "huiyuan-yingxiao",
+    "kind": "positive"
+  },
+  {
+    "t": "刚才兑换的权益没到账，能帮我看下问题出在哪吗？",
+    "e": "huiyuan-yingxiao",
+    "kind": "positive"
+  },
+  {
+    "t": "我下周要做白内障手术，需要提前准备些什么？",
+    "e": "shuqian-xuzhi",
+    "kind": "positive"
+  },
+  {
+    "t": "近视激光手术当天能不能吃东西啊，有禁食要求吗？",
+    "e": "shuqian-xuzhi",
+    "kind": "positive"
+  },
+  {
+    "t": "我要去做眼科手术，平时吃的药需要停几天？",
+    "e": "shuqian-xuzhi",
+    "kind": "positive"
+  },
+  {
+    "t": "第一次去医院做白内障手术，到院后流程是怎么走的？",
+    "e": "shuqian-xuzhi",
+    "kind": "positive"
+  },
+  {
+    "t": "我明天做近视手术，今晚要注意啥，几点到院？",
+    "e": "shuqian-xuzhi",
+    "kind": "positive"
+  },
+  {
+    "t": "我昨天在门诊被多收了费，能帮我登记投诉吗？",
+    "e": "tousu-shouli",
+    "kind": "positive"
+  },
+  {
+    "t": "这次就诊体验太差了，我想投诉一下，顺便帮我看看处理进度。",
+    "e": "tousu-shouli",
+    "kind": "positive"
+  },
+  {
+    "t": "帮我提个工单，反映你们医护人员服务态度有问题。",
+    "e": "tousu-shouli",
+    "kind": "positive"
+  },
+  {
+    "t": "收费明细看着不对劲，投诉一下，处理完告诉我。",
+    "e": "tousu-shouli",
+    "kind": "positive"
+  },
+  {
+    "t": "我之前投诉过，现在到底跟进到哪一步了？",
+    "e": "tousu-shouli",
+    "kind": "positive"
+  },
+  {
+    "t": "我下周眼科门诊的号还没去，报告好像出来了，能先约个号让医生看看报告吗？",
+    "e": "guahao-yuyue",
+    "kind": "gray",
+    "pair": "guahao-yuyue↔baogao-jiedu"
+  },
+  {
+    "t": "医生让我复查眼压，我想把号改到报告出来那天，怎么操作？",
+    "e": "guahao-yuyue",
+    "kind": "gray",
+    "pair": "guahao-yuyue↔baogao-jiedu"
+  },
+  {
+    "t": "视力检查报告我看不懂，想登记一下让眼科医生帮我看看，需要怎么预约？",
+    "e": "guahao-yuyue",
+    "kind": "gray",
+    "pair": "guahao-yuyue↔baogao-jiedu"
+  },
+  {
+    "t": "我下周眼科门诊还没去，报告出来了，能帮我看看报告指标是什么意思吗？",
+    "e": "baogao-jiedu",
+    "kind": "gray",
+    "pair": "guahao-yuyue↔baogao-jiedu"
+  },
+  {
+    "t": "复查眼压的报告出来了，眼压数值18算正常吗？",
+    "e": "baogao-jiedu",
+    "kind": "gray",
+    "pair": "guahao-yuyue↔baogao-jiedu"
+  },
+  {
+    "t": "视力检查报告我看不懂，能直接给我讲讲裸眼视力和矫正视力指标吗？",
+    "e": "baogao-jiedu",
+    "kind": "gray",
+    "pair": "guahao-yuyue↔baogao-jiedu"
+  },
+  {
+    "t": "我上周做了眼科小手术，医生让一个月后复诊，能帮我定个复查提醒顺便看看会员权益能用吗？",
+    "e": "fuzhen-tixing",
+    "kind": "gray",
+    "pair": "fuzhen-tixing↔guahao-yuyue"
+  },
+  {
+    "t": "我爸是青光眼慢病，之前说三个月回来看一次，能按复诊计划给我设置提醒吗，权益能抵扣吗？",
+    "e": "fuzhen-tixing",
+    "kind": "gray",
+    "pair": "fuzhen-tixing↔guahao-yuyue"
+  },
+  {
+    "t": "我近视手术快到期要复查了，麻烦安排复诊提醒，还有会员权益在复查时怎么用？",
+    "e": "fuzhen-tixing",
+    "kind": "gray",
+    "pair": "fuzhen-tixing↔guahao-yuyue"
+  },
+  {
+    "t": "我上周做了眼科小手术，现在要挂一个月后的复诊号，需要怎么预约和准备？",
+    "e": "guahao-yuyue",
+    "kind": "gray",
+    "pair": "fuzhen-tixing↔guahao-yuyue"
+  },
+  {
+    "t": "我爸是青光眼慢病，三个月后要回眼科门诊复查，能不能帮我预约号，并登记一下视力检查报告咨询？",
+    "e": "guahao-yuyue",
+    "kind": "gray",
+    "pair": "fuzhen-tixing↔guahao-yuyue"
+  },
+  {
+    "t": "我近视手术快到期要复查了，想挂眼科门诊复查号，顺便问下检查报告怎么取、就诊前要准备什么？",
+    "e": "guahao-yuyue",
+    "kind": "gray",
+    "pair": "fuzhen-tixing↔guahao-yuyue"
+  }
+]

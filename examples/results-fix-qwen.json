@@ -1,0 +1,1026 @@
+{
+  "meta": {
+    "mode_label": "真实 LLM 模拟",
+    "model": "qwen3.8-flash",
+    "samples": 5,
+    "consistency_min": 0.8,
+    "skills": [
+      {
+        "name": "baogao-jiedu",
+        "description": "解读眼科检查报告，涵盖视力、眼压、OCT、视野、眼底照相等项目的指标含义与随访建议。",
+        "body_lines": 5
+      },
+      {
+        "name": "fuzhen-tixing",
+        "description": "为术后与慢病患者制定复诊计划、发送复查提醒，并解答会员权益在复诊场景下的使用问题。",
+        "body_lines": 5
+      },
+      {
+        "name": "guahao-yuyue",
+        "description": "处理眼科门诊的预约挂号、改期与取消，受理视力检查、报告相关咨询的登记与转接，引导患者完成就诊前准备。",
+        "body_lines": 6
+      },
+      {
+        "name": "huiyuan-yingxiao",
+        "description": "管理会员等级、积分兑换与专属活动报名，处理会员身份核验与权益使用问题。",
+        "body_lines": 5
+      },
+      {
+        "name": "shuqian-xuzhi",
+        "description": "说明白内障、近视激光等眼科手术的术前准备、禁食要求、停药事项与到院流程。",
+        "body_lines": 5
+      },
+      {
+        "name": "tousu-shouli",
+        "description": "受理患者对就诊体验、服务质量与收费的投诉，登记工单并跟进处理进度。",
+        "body_lines": 5
+      }
+    ],
+    "task_source": "内置 demo",
+    "fix_suggestions": [
+      {
+        "victim": "baogao-jiedu",
+        "thief": "guahao-yuyue",
+        "conflict_tasks": [
+          "视力下降了，之前的报告还在吗？帮我查查。",
+          "报告咨询窗口怎么走？我要问一下报告结果。"
+        ],
+        "changes": [
+          {
+            "skill": "guahao-yuyue",
+            "new_description": "处理眼科门诊的预约挂号、改期与取消，引导患者完成就诊前准备；受理视力检查、报告相关咨询的登记与转接仅限就诊流程、窗口位置、预约状态等非报告内容事项，不含查询或调取既往报告、询问报告结果、解释指标含义、判断异常与提供随访建议；涉及报告内容、结果或指标含义时应交由报告解读类技能处理。",
+            "reason": "限定报告咨询仅为流程转接，排除报告查询与解读，避免截胡 baogao-jiedu。"
+          },
+          {
+            "skill": "baogao-jiedu",
+            "new_description": "解读眼科检查报告，涵盖视力、眼压、OCT、视野、眼底照相等项目的指标含义与随访建议；支持围绕既往眼科报告的是否可查、查询调取、结果咨询、指标解释、异常判断及视力下降场景下的报告解读。",
+            "reason": "补充报告查询与结果咨询边界，使查报告和问结果归入报告解读技能。"
+          }
+        ]
+      },
+      {
+        "victim": "huiyuan-yingxiao",
+        "thief": "fuzhen-tixing",
+        "conflict_tasks": [
+          "我是黄金会员，复诊有折扣吗？"
+        ],
+        "changes": [
+          {
+            "skill": "fuzhen-tixing",
+            "new_description": "为术后与慢病患者制定复诊计划、发送复查提醒，并解答会员权益在复诊场景下的使用问题；仅限复诊计划制定、复查提醒发送及相关操作咨询，不含会员身份核验、会员等级/积分/折扣权益咨询与权益使用规则解答。",
+            "reason": "将截胡方限定在复诊计划与提醒操作，排除会员权益咨询边界。"
+          },
+          {
+            "skill": "huiyuan-yingxiao",
+            "new_description": "管理会员等级、积分兑换与专属活动报名，处理会员身份核验与权益使用问题，包括复诊折扣等会员权益咨询；不负责复诊计划制定与复查提醒发送。",
+            "reason": "明确会员权益及复诊折扣咨询归属，同时不抢复诊计划职责。"
+          }
+        ]
+      },
+      {
+        "victim": "fuzhen-tixing",
+        "thief": "huiyuan-yingxiao",
+        "conflict_tasks": [
+          "复诊的时候顺便帮我查下会员积分余额。"
+        ],
+        "changes": [
+          {
+            "skill": "huiyuan-yingxiao",
+            "new_description": "管理会员等级、积分兑换与专属活动报名，处理会员身份核验与权益使用问题；仅限常规会员运营场景，不含复诊计划、复查提醒及复诊场景下的会员权益使用或查询（如复诊时查会员积分余额）。",
+            "reason": "为截胡方增加仅限非复诊场景的不含边界，避免复诊时查询积分余额被误路由。"
+          },
+          {
+            "skill": "fuzhen-tixing",
+            "new_description": "为术后与慢病患者制定复诊计划、发送复查提醒，并解答会员权益在复诊场景下的使用问题；包含复诊时查询会员积分余额、权益状态及说明相关权益使用。",
+            "reason": "明确应选技能覆盖复诊场景下的会员积分余额查询，强化边界归属。"
+          }
+        ]
+      }
+    ],
+    "generated_at": "2026-09-21T16:45:36.090340"
+  },
+  "tasks": [
+    {
+      "text": "我想预约下周三上午的眼科门诊。",
+      "expected": "guahao-yuyue",
+      "kind": "positive"
+    },
+    {
+      "text": "帮我取消明天的挂号，改约到周五。",
+      "expected": "guahao-yuyue",
+      "kind": "positive"
+    },
+    {
+      "text": "周六还有专家号吗？帮我挂一个。",
+      "expected": "guahao-yuyue",
+      "kind": "positive"
+    },
+    {
+      "text": "我预约错了时间，想改到下周二下午。",
+      "expected": "guahao-yuyue",
+      "kind": "positive"
+    },
+    {
+      "text": "帮我查一下我预约的就诊时间和地点。",
+      "expected": "guahao-yuyue",
+      "kind": "positive"
+    },
+    {
+      "text": "我的 OCT 检查报告显示神经上皮层变薄，这严重吗？",
+      "expected": "baogao-jiedu",
+      "kind": "positive"
+    },
+    {
+      "text": "帮我解读一下眼压检查的数值。",
+      "expected": "baogao-jiedu",
+      "kind": "positive"
+    },
+    {
+      "text": "视野检查报告上有几个暗点是什么意思？",
+      "expected": "baogao-jiedu",
+      "kind": "positive"
+    },
+    {
+      "text": "验光单上的球镜柱镜数值是什么意思？",
+      "expected": "baogao-jiedu",
+      "kind": "positive"
+    },
+    {
+      "text": "医生说我的眼底照片有病变，帮我解释一下报告内容。",
+      "expected": "baogao-jiedu",
+      "kind": "positive"
+    },
+    {
+      "text": "我做完白内障手术一个月了，该什么时候复查？",
+      "expected": "fuzhen-tixing",
+      "kind": "positive"
+    },
+    {
+      "text": "帮我安排下周的复诊时间。",
+      "expected": "fuzhen-tixing",
+      "kind": "positive"
+    },
+    {
+      "text": "复诊提醒能提前两天通知我吗？",
+      "expected": "fuzhen-tixing",
+      "kind": "positive"
+    },
+    {
+      "text": "我这次术后复查需要做哪些项目？",
+      "expected": "fuzhen-tixing",
+      "kind": "positive"
+    },
+    {
+      "text": "慢性青光眼多久需要复诊一次？",
+      "expected": "fuzhen-tixing",
+      "kind": "positive"
+    },
+    {
+      "text": "后天做近视激光手术，术前有什么注意事项？",
+      "expected": "shuqian-xuzhi",
+      "kind": "positive"
+    },
+    {
+      "text": "白内障手术前需要禁食吗？禁食几小时？",
+      "expected": "shuqian-xuzhi",
+      "kind": "positive"
+    },
+    {
+      "text": "手术当天几点到院？需要带什么材料？",
+      "expected": "shuqian-xuzhi",
+      "kind": "positive"
+    },
+    {
+      "text": "术前可以戴隐形眼镜吗？",
+      "expected": "shuqian-xuzhi",
+      "kind": "positive"
+    },
+    {
+      "text": "做手术前需要停用哪些眼药水？",
+      "expected": "shuqian-xuzhi",
+      "kind": "positive"
+    },
+    {
+      "text": "我的会员积分怎么兑换检查套餐？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "positive"
+    },
+    {
+      "text": "黄金会员有什么专属权益？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "positive"
+    },
+    {
+      "text": "帮我报名本月的会员免费眼底拍摄活动。",
+      "expected": "huiyuan-yingxiao",
+      "kind": "positive"
+    },
+    {
+      "text": "我的会员等级怎么升级？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "positive"
+    },
+    {
+      "text": "积分有效期到什么时候？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "positive"
+    },
+    {
+      "text": "我要投诉昨天就诊时护士的态度。",
+      "expected": "tousu-shouli",
+      "kind": "positive"
+    },
+    {
+      "text": "你们医院收费有问题，我要投诉。",
+      "expected": "tousu-shouli",
+      "kind": "positive"
+    },
+    {
+      "text": "投诉之后多久会有处理结果？",
+      "expected": "tousu-shouli",
+      "kind": "positive"
+    },
+    {
+      "text": "医生误诊了，我要正式投诉他。",
+      "expected": "tousu-shouli",
+      "kind": "positive"
+    },
+    {
+      "text": "投诉流程是怎么走的？需要准备什么？",
+      "expected": "tousu-shouli",
+      "kind": "positive"
+    },
+    {
+      "text": "我上周查的视力报告，你们能帮我看一下吗？",
+      "expected": "baogao-jiedu",
+      "kind": "gray"
+    },
+    {
+      "text": "把我的检查报告发我一下，顺便说说有什么问题。",
+      "expected": "baogao-jiedu",
+      "kind": "gray"
+    },
+    {
+      "text": "视力下降了，之前的报告还在吗？帮我查查。",
+      "expected": "baogao-jiedu",
+      "kind": "gray"
+    },
+    {
+      "text": "我想咨询一下报告里写的视网膜问题。",
+      "expected": "baogao-jiedu",
+      "kind": "gray"
+    },
+    {
+      "text": "报告咨询窗口怎么走？我要问一下报告结果。",
+      "expected": "baogao-jiedu",
+      "kind": "gray"
+    },
+    {
+      "text": "我术后复诊可以用会员积分抵扣吗？",
+      "expected": "fuzhen-tixing",
+      "kind": "gray"
+    },
+    {
+      "text": "会员的免费复查活动怎么预约？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "gray"
+    },
+    {
+      "text": "复诊提醒可以发到我的会员小程序里吗？",
+      "expected": "fuzhen-tixing",
+      "kind": "gray"
+    },
+    {
+      "text": "我是黄金会员，复诊有折扣吗？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "gray"
+    },
+    {
+      "text": "复诊的时候顺便帮我查下会员积分余额。",
+      "expected": "fuzhen-tixing",
+      "kind": "gray"
+    }
+  ],
+  "rows": [
+    {
+      "id": 0,
+      "task": "我想预约下周三上午的眼科门诊。",
+      "expected": "guahao-yuyue",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue"
+      ],
+      "chosen": "guahao-yuyue",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 1,
+      "task": "帮我取消明天的挂号，改约到周五。",
+      "expected": "guahao-yuyue",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue"
+      ],
+      "chosen": "guahao-yuyue",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 2,
+      "task": "周六还有专家号吗？帮我挂一个。",
+      "expected": "guahao-yuyue",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue"
+      ],
+      "chosen": "guahao-yuyue",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 3,
+      "task": "我预约错了时间，想改到下周二下午。",
+      "expected": "guahao-yuyue",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue"
+      ],
+      "chosen": "guahao-yuyue",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 4,
+      "task": "帮我查一下我预约的就诊时间和地点。",
+      "expected": "guahao-yuyue",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue"
+      ],
+      "chosen": "guahao-yuyue",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 5,
+      "task": "我的 OCT 检查报告显示神经上皮层变薄，这严重吗？",
+      "expected": "baogao-jiedu",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu"
+      ],
+      "chosen": "baogao-jiedu",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 6,
+      "task": "帮我解读一下眼压检查的数值。",
+      "expected": "baogao-jiedu",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu"
+      ],
+      "chosen": "baogao-jiedu",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 7,
+      "task": "视野检查报告上有几个暗点是什么意思？",
+      "expected": "baogao-jiedu",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu"
+      ],
+      "chosen": "baogao-jiedu",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 8,
+      "task": "验光单上的球镜柱镜数值是什么意思？",
+      "expected": "baogao-jiedu",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu"
+      ],
+      "chosen": "baogao-jiedu",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 9,
+      "task": "医生说我的眼底照片有病变，帮我解释一下报告内容。",
+      "expected": "baogao-jiedu",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu"
+      ],
+      "chosen": "baogao-jiedu",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 10,
+      "task": "我做完白内障手术一个月了，该什么时候复查？",
+      "expected": "fuzhen-tixing",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing"
+      ],
+      "chosen": "fuzhen-tixing",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 11,
+      "task": "帮我安排下周的复诊时间。",
+      "expected": "fuzhen-tixing",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing"
+      ],
+      "chosen": "fuzhen-tixing",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 12,
+      "task": "复诊提醒能提前两天通知我吗？",
+      "expected": "fuzhen-tixing",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing"
+      ],
+      "chosen": "fuzhen-tixing",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 13,
+      "task": "我这次术后复查需要做哪些项目？",
+      "expected": "fuzhen-tixing",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing"
+      ],
+      "chosen": "fuzhen-tixing",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 14,
+      "task": "慢性青光眼多久需要复诊一次？",
+      "expected": "fuzhen-tixing",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing"
+      ],
+      "chosen": "fuzhen-tixing",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 15,
+      "task": "后天做近视激光手术，术前有什么注意事项？",
+      "expected": "shuqian-xuzhi",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi"
+      ],
+      "chosen": "shuqian-xuzhi",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 16,
+      "task": "白内障手术前需要禁食吗？禁食几小时？",
+      "expected": "shuqian-xuzhi",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi"
+      ],
+      "chosen": "shuqian-xuzhi",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 17,
+      "task": "手术当天几点到院？需要带什么材料？",
+      "expected": "shuqian-xuzhi",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi"
+      ],
+      "chosen": "shuqian-xuzhi",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 18,
+      "task": "术前可以戴隐形眼镜吗？",
+      "expected": "shuqian-xuzhi",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi"
+      ],
+      "chosen": "shuqian-xuzhi",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 19,
+      "task": "做手术前需要停用哪些眼药水？",
+      "expected": "shuqian-xuzhi",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi",
+        "shuqian-xuzhi"
+      ],
+      "chosen": "shuqian-xuzhi",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 20,
+      "task": "我的会员积分怎么兑换检查套餐？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao"
+      ],
+      "chosen": "huiyuan-yingxiao",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 21,
+      "task": "黄金会员有什么专属权益？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao"
+      ],
+      "chosen": "huiyuan-yingxiao",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 22,
+      "task": "帮我报名本月的会员免费眼底拍摄活动。",
+      "expected": "huiyuan-yingxiao",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao"
+      ],
+      "chosen": "huiyuan-yingxiao",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 23,
+      "task": "我的会员等级怎么升级？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao"
+      ],
+      "chosen": "huiyuan-yingxiao",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 24,
+      "task": "积分有效期到什么时候？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao"
+      ],
+      "chosen": "huiyuan-yingxiao",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 25,
+      "task": "我要投诉昨天就诊时护士的态度。",
+      "expected": "tousu-shouli",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli"
+      ],
+      "chosen": "tousu-shouli",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 26,
+      "task": "你们医院收费有问题，我要投诉。",
+      "expected": "tousu-shouli",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli"
+      ],
+      "chosen": "tousu-shouli",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 27,
+      "task": "投诉之后多久会有处理结果？",
+      "expected": "tousu-shouli",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli"
+      ],
+      "chosen": "tousu-shouli",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 28,
+      "task": "医生误诊了，我要正式投诉他。",
+      "expected": "tousu-shouli",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli"
+      ],
+      "chosen": "tousu-shouli",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 29,
+      "task": "投诉流程是怎么走的？需要准备什么？",
+      "expected": "tousu-shouli",
+      "kind": "positive",
+      "pair": "",
+      "votes": [
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli",
+        "tousu-shouli"
+      ],
+      "chosen": "tousu-shouli",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 30,
+      "task": "我上周查的视力报告，你们能帮我看一下吗？",
+      "expected": "baogao-jiedu",
+      "kind": "gray",
+      "pair": "guahao↔baogao",
+      "votes": [
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu"
+      ],
+      "chosen": "baogao-jiedu",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 31,
+      "task": "把我的检查报告发我一下，顺便说说有什么问题。",
+      "expected": "baogao-jiedu",
+      "kind": "gray",
+      "pair": "guahao↔baogao",
+      "votes": [
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu"
+      ],
+      "chosen": "baogao-jiedu",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 32,
+      "task": "视力下降了，之前的报告还在吗？帮我查查。",
+      "expected": "baogao-jiedu",
+      "kind": "gray",
+      "pair": "guahao↔baogao",
+      "votes": [
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue"
+      ],
+      "chosen": "guahao-yuyue",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": true
+    },
+    {
+      "id": 33,
+      "task": "我想咨询一下报告里写的视网膜问题。",
+      "expected": "baogao-jiedu",
+      "kind": "gray",
+      "pair": "guahao↔baogao",
+      "votes": [
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu",
+        "baogao-jiedu"
+      ],
+      "chosen": "baogao-jiedu",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 34,
+      "task": "报告咨询窗口怎么走？我要问一下报告结果。",
+      "expected": "baogao-jiedu",
+      "kind": "gray",
+      "pair": "guahao↔baogao",
+      "votes": [
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue",
+        "guahao-yuyue"
+      ],
+      "chosen": "guahao-yuyue",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": true
+    },
+    {
+      "id": 35,
+      "task": "我术后复诊可以用会员积分抵扣吗？",
+      "expected": "fuzhen-tixing",
+      "kind": "gray",
+      "pair": "fuzhen↔huiyuan",
+      "votes": [
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing"
+      ],
+      "chosen": "fuzhen-tixing",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 36,
+      "task": "会员的免费复查活动怎么预约？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "gray",
+      "pair": "fuzhen↔huiyuan",
+      "votes": [
+        "fuzhen-tixing",
+        "huiyuan-yingxiao",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "huiyuan-yingxiao"
+      ],
+      "chosen": "fuzhen-tixing",
+      "consistency": 0.6,
+      "stable": false,
+      "conflict": false
+    },
+    {
+      "id": 37,
+      "task": "复诊提醒可以发到我的会员小程序里吗？",
+      "expected": "fuzhen-tixing",
+      "kind": "gray",
+      "pair": "fuzhen↔huiyuan",
+      "votes": [
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing"
+      ],
+      "chosen": "fuzhen-tixing",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": false
+    },
+    {
+      "id": 38,
+      "task": "我是黄金会员，复诊有折扣吗？",
+      "expected": "huiyuan-yingxiao",
+      "kind": "gray",
+      "pair": "fuzhen↔huiyuan",
+      "votes": [
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing",
+        "fuzhen-tixing"
+      ],
+      "chosen": "fuzhen-tixing",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": true
+    },
+    {
+      "id": 39,
+      "task": "复诊的时候顺便帮我查下会员积分余额。",
+      "expected": "fuzhen-tixing",
+      "kind": "gray",
+      "pair": "fuzhen↔huiyuan",
+      "votes": [
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao",
+        "huiyuan-yingxiao"
+      ],
+      "chosen": "huiyuan-yingxiao",
+      "consistency": 1.0,
+      "stable": true,
+      "conflict": true
+    }
+  ]
+}
