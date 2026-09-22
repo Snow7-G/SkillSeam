@@ -438,6 +438,13 @@ class TestReliabilityFixes(unittest.TestCase):
         _, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
         self.assertTrue(any("[fatal]" in i for i in issues))
 
+    def test_frontmatter_tab_line_fatal(self):
+        """frontmatter 中 Tab 开头的行 → fatal（YAML 禁止 Tab 缩进）。"""
+        text = "---\nname: a-b\ndescription: d\n\tstray\n---\n\n正文\n"
+        s, issues = ad.parse_frontmatter(text, Path("/x/a-b/SKILL.md"))
+        self.assertIsNone(s)
+        self.assertTrue(any("[fatal]" in i and "Tab" in i for i in issues))
+
     def test_fatal_blocks_evaluation(self):
         """验收点 3：不支持语法必须阻止评测并返回 2，不能继续当有效描述。"""
         with tempfile.TemporaryDirectory() as td:

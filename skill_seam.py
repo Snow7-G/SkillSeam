@@ -80,12 +80,17 @@ def _block_scalar(fm_lines, i, parent_indent):
     chomp = ind_part[1:]
     header_indent = len(header) - len(header.lstrip(" "))
 
-    content = []          # (text, indent)；text 为 "" 表示空行
+    content = []          # (text, indent)；text 为 "" 表示真空行
     j = i + 1
     block_indent = None
     unsupported = False
     while j < len(fm_lines):
         line = fm_lines[j]
+        if block_indent is not None and line.strip() == "" and len(line) > block_indent:
+            # 纯空白但超出块缩进的部分属于内容（字面标量必须保留）
+            content.append((" " * (len(line) - block_indent), 0))
+            j += 1
+            continue
         if not line.strip():
             content.append(("", 0))
             j += 1
@@ -98,13 +103,13 @@ def _block_scalar(fm_lines, i, parent_indent):
         if indent < block_indent:
             break  # 缩进小于块缩进，块结束
         text = line[block_indent:]
-        if style == ">" and text.startswith(" "):
-            unsupported = True  # 折叠标量不支持更深缩进（规范 §6.5 的 more-indented 行）
+        if style == ">" and text.startswith((" ", "\t")):
+            unsupported = True  # 折叠标量不支持更深缩进（规范 §6.5 的 more-indented 行，含 Tab）
         content.append((text, indent))
         j += 1
 
     trailing_blanks = 0
-    while content and content[-1][0] == "":
+    while content and content[-1][0].strip() == "":
         content.pop()
         trailing_blanks += 1
 
@@ -113,16 +118,26 @@ def _block_scalar(fm_lines, i, parent_indent):
     else:
         out = []
         blanks = 0
-        prev_more = False
+        prev_break = False  # 上一行是内容行但两侧不折叠（更深缩进/纯空白超缩进行）
         for t, _ in content:
             if t == "":
                 blanks += 1
                 continue
-            more = t.startswith(" ")
+            if t.strip() == "":
+                # 纯空白超缩进行：作为内容行保留，两侧连接用换行
+                if out:
+                    out.append("\n" * max(blanks, 1))
+                out.append(t)
+                blanks = 0
+                prev_break = True
+                continue
+            more = t.startswith((" ", "\t"))
+            if more:
+                unsupported = True
             if out:
                 if blanks:
                     out.append("\n" * blanks)
-                elif more or prev_more:
+                elif more or prev_more or prev_break:
                     out.append("\n")  # 更深缩进行两侧不折叠
                 else:
                     out.append(" ")
@@ -130,6 +145,7 @@ def _block_scalar(fm_lines, i, parent_indent):
                 out.append("\n" * blanks)  # 开头空行按规范保留
             out.append(t)
             prev_more = more
+            prev_break = False
             blanks = 0
         core = "".join(out)
 
@@ -146,12 +162,13 @@ def parse_frontmatter(text, path):
     issues = []
     text = text.replace("\r\n", "\n")  # CRLF 归一化，防止 name/description 尾部带 \r
     lines = text.split("\n")
-    # 按原始行边界提取 frontmatter：不丢空行（keep 语义依赖它们）
-    if not lines or lines[0].strip() != "---":
+    # 按原始行边界提取 frontmatter：不丢空行（keep 语义依赖它们）；
+    # 闭合围栏必须在行首（列 0），块标量内容里的缩进 "---" 不是围栏
+    if not lines or lines[0].rstrip() != "---":
         return None, ["缺少 frontmatter 或未闭合"]
     end = None
     for idx in range(1, len(lines)):
-        if lines[idx].strip() == "---":
+        if lines[idx].rstrip() == "---":
             end = idx
             break
     if end is None:
@@ -162,6 +179,9 @@ def parse_frontmatter(text, path):
     i = 0
     while i < len(fm_lines):
         line = fm_lines[i]
+        if line.startswith("\t"):
+            issues.append("[fatal] " + f"frontmatter 含 Tab 开头的行（YAML 不允许 Tab 缩进）: {line.strip()[:40]}")
+            return None, issues
         if not line.strip():
             i += 1
             continue
@@ -172,7 +192,12 @@ def parse_frontmatter(text, path):
         k, _, v = line.partition(":")
         k = k.strip()
         v = v.strip()
-        if v and v[0] in (">", "|") and v[1:] in ("", "-", "+"):
+        if v and v[0] in (">", "|"):
+            if v[1:] not in ("", "-", "+"):
+                # 头行形态不支持（行内注释、显式缩进指示符等）→ 拒绝整个文件
+                issues.append("[fatal] " + f"{k} 使用了暂不支持的块标量头 {v!r}"
+                              + "（行内注释 / 显式缩进指示符）。请改用 >、>-、| 或 |-。")
+                return None, issues
             # YAML 块标量（YAML 1.2.2 §8.1）：折行与收尾规则符合规范
             value, i_next, unsupported = _block_scalar(fm_lines, i, len(line) - len(line.lstrip(" ")))
             fm[k] = value
