@@ -6,6 +6,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- 修复建议提示词补齐两条硬性约束：**保持原描述语言**（此前会把英文 description 整段翻译成中文，造成多语言项目描述混语）与**最小改动优先**（追加边界短句而非整段重写，便于人工 review 与 diff）。
+
 ### Added
 - 证书校验失败（`CERTIFICATE_VERIFY_FAILED`）时给出针对性指引：这是本机 Python 根证书问题，换 key / 换 provider 都无效，需运行 `Install Certificates.command` 或设置 `SSL_CERT_FILE`。
 

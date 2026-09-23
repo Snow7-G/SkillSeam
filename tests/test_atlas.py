@@ -783,6 +783,11 @@ class TestCLIExitCodes(unittest.TestCase):
             finally:
                 os.chdir(old_cwd)
 
+    def test_fix_prompt_requires_same_language_and_minimal_edit(self):
+        """建议提示词必须要求保持原语言 + 最小改动（实跑发现模型会翻译英文描述）。"""
+        self.assertIn("语言必须与原描述一致", ad.FIX_PROMPT)
+        self.assertIn("最小改动", ad.FIX_PROMPT)
+
     def test_ssl_cert_failure_gets_specific_hint(self):
         """证书校验失败要给出针对性指引（换 key/换 provider 都没用）。"""
         import urllib.error
