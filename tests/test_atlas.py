@@ -374,6 +374,66 @@ class TestReliabilityFixes(unittest.TestCase):
         tf.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         return str(tf)
 
+    def test_tasks_t_null(self):
+        """t=null 不再被 str() 放过：指出条目与字段，退出 2。"""
+        r = run_cli(["./demo-skills", "--tasks", self._tasks_file([{"t": None, "e": "tianqi-chaxun"}]), "--mock"])
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("t(任务文本) 必须是非空字符串", r.stderr)
+
+    def test_tasks_e_array(self):
+        """e 为数组 → 退出 2。"""
+        r = run_cli(["./demo-skills", "--tasks", self._tasks_file([{"t": "任务", "e": ["a"]}]), "--mock"])
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("e(应选技能) 必须是非空字符串", r.stderr)
+
+    def test_config_missing_fields(self):
+        """配置只有 model → 一次性列出缺失字段，退出 2。"""
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / ".atlasrc.json").write_text(json.dumps({"model": "m"}), encoding="utf-8")
+            env = {k: v for k, v in os.environ.items()
+                   if k not in ("DASHSCOPE_API_KEY", "OPENAI_API_KEY")}
+            r = subprocess.run([sys.executable, str(SCRIPT), str(ROOT / "demo-skills")],
+                               capture_output=True, text=True, cwd=td, env=env)
+            self.assertEqual(r.returncode, 2)
+            self.assertIn("base_url", r.stderr)
+            self.assertIn("api_key", r.stderr)
+
+    def test_config_not_object(self):
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("DASHSCOPE_API_KEY", "OPENAI_API_KEY")}
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / ".atlasrc.json").write_text("[1,2]", encoding="utf-8")
+            r = subprocess.run([sys.executable, str(SCRIPT), str(ROOT / "demo-skills")],
+                               capture_output=True, text=True, cwd=td, env=env)
+            self.assertEqual(r.returncode, 2)
+            self.assertIn("JSON 对象", r.stderr)
+
+    def test_out_dir_custom(self):
+        """--out 把报告写到指定目录（与安装位置无关）。"""
+        with tempfile.TemporaryDirectory() as td:
+            outdir = Path(td) / "rep"
+            r = run_cli(["./demo-skills", "--demo-tasks", "--mock", "--out", str(outdir)])
+            self.assertEqual(r.returncode, 1)  # demo 任务含冲突：--out 生效的证明
+            self.assertTrue((outdir / "report.html").exists())
+            self.assertTrue((outdir / "results.json").exists())
+
+    def test_none_expected_allowed(self):
+        """e=NONE 是合法预期值，不被 unknown 校验拒绝。"""
+        r = run_cli(["./demo-skills", "--tasks",
+                     self._tasks_file([{"t": "zzzqqq", "e": "NONE"}]), "--mock"])
+        self.assertEqual(r.returncode, 0, msg=r.stderr)
+
+    def test_aggregate_none_expected(self):
+        """预期 NONE：稳定选中某技能 = 过度接管冲突；选中 NONE = 正确。"""
+        tasks = [{"t": "无关任务一", "e": "NONE", "kind": "positive"}]
+        with patch.object(ad, "TASKS", tasks):
+            votes = {(0, si): "baogao-jiedu" for si in range(ad.SAMPLES)}
+            rows = ad.aggregate(votes, ["baogao-jiedu"])
+            self.assertTrue(rows[0]["conflict"])
+            votes = {(0, si): "NONE" for si in range(ad.SAMPLES)}
+            rows = ad.aggregate(votes, ["baogao-jiedu"])
+            self.assertFalse(rows[0]["conflict"])
+
     def test_tasks_null_item(self):
         """#3 [null] → 退出 2 并指明条目位置，不再 AttributeError。"""
         r = run_cli(["./demo-skills", "--tasks", self._tasks_file([None]), "--mock"])
@@ -388,7 +448,7 @@ class TestReliabilityFixes(unittest.TestCase):
     def test_tasks_missing_fields(self):
         r = run_cli(["./demo-skills", "--tasks", self._tasks_file([{"t": "只有任务"}]), "--mock"])
         self.assertEqual(r.returncode, 2)
-        self.assertIn("缺少 t(任务文本) 或 e(应选技能)", r.stderr)
+        self.assertIn("e(应选技能) 必须是非空字符串", r.stderr)
 
     def test_frontmatter_folded_scalar(self):
         """#4 `>-` 折行拼接为单行，不再静默解析成 ">-"。"""
@@ -595,6 +655,7 @@ class TestCLIExitCodes(unittest.TestCase):
                        "api_key": "YOUR_API_KEY_HERE"}
                 with patch.object(sys, "argv", [str(SCRIPT), str(sdir), "--tasks", str(tfile)]), \
                         patch.object(ad, "__file__", str(Path(td) / "skill_seam.py")), \
+                        patch.object(os, "getcwd", return_value=str(td)), \
                         patch.object(ad, "TASKS", []), \
                         patch.object(ad, "load_config", return_value=cfg), \
                         patch.object(ad, "chat_once", side_effect=chat_once), \

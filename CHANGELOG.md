@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+### Added
+- 任务预期值支持 `NONE`（量化"过度接管"：无关任务被哪个 skill 错误接管）；混淆矩阵新增 NONE 行；网页同步支持 `=> NONE`（issue #3）。
+- 网页单请求 90 秒应用层超时（AbortController），新增「停止评测」按钮，停止后结果明确标记不完整。
+- CLI `--out` 选项：报告输出目录可指定，默认当前工作目录的 `output/`（不再写入安装位置）。
+- CI 新增块标量差分 job（PyYAML 作 oracle，dev-only，运行时零依赖不变）。
+
+### Fixed
+- 任务字段与模型配置按类型校验：`t: null`、`e: []`、配置缺 `base_url` 等一律退出 2 并列出明细，不再 `AttributeError`/`KeyError` 后以退出码 1 混入冲突信号。
+
 ### Fixed
 - 缺少模型配置时不再静默降级为 mock：无配置且未显式指定 `--mock` 时退出码 2 并提示（避免 CI 误判通过）。
 - 任务文件元素类型校验：`[null]` 等非法条目返回退出码 2 并指明条目位置，不再抛 `AttributeError`。

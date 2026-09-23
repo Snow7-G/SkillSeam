@@ -128,6 +128,7 @@ fuzhen-tixing: 为术后与慢病患者制定复诊计划、发送复查提醒">
     <button id="demoBtn" class="ghost" onclick="loadDemo()">看演示数据</button>
     <button id="genBtn" class="ghost" onclick="genTasks()">自动生成任务</button>
     <button id="runBtn" onclick="run()">开始模拟</button>
+    <button id="stopBtn" class="ghost hidden" onclick="stopEval()">停止评测</button>
     <div class="bar" id="bar"><div id="barfill"></div></div>
     <div class="errbox" id="errbox"></div>
     <div class="hint">采样次数越多结论越稳，费用与耗时线性增加。判定规则：5 次采样至少 4 次同结果为「稳定」；应选标注的任务若稳定选中其他技能即「截胡」。自动生成会先让模型挑出最易混淆的技能对，再为每对双向生成边界问法——生成后建议人工过一遍再模拟。</div>
@@ -225,7 +226,7 @@ function parseTasks(text) {
   text.split("\n").forEach(function(line, i) {
     line = line.trim();
     if (!line) return;
-    var m = line.match(/^(.*?)\s*=>\s*([a-z0-9-]+)\s*$/);
+    var m = line.match(/^(.*?)\s*=>\s*([a-zA-Z0-9-]+)\s*$/);  // NONE 为大写合法预期值
     if (m) out.push({ task: m[1].trim(), expected: m[2] });
     else out.push({ task: line, expected: null });
     if (m && !m[2]) errs.push("任务第 " + (i + 1) + " 行 => 后为空");
@@ -257,7 +258,11 @@ function extractChosen(content, names) {
   return "INVALID";
 }
 
+var EVAL_TIMEOUT_MS = 90000;  // 单请求应用层超时
+
 function llmCall(cfg, base, messages, maxTokens) {
+  var ctrl = new AbortController();
+  var timer = setTimeout(function() { ctrl.abort(); }, EVAL_TIMEOUT_MS);
   var system = "", userMsgs = [];
   messages.forEach(function(m) {
     if (m.role === "system") system = m.content;
@@ -270,9 +275,11 @@ function llmCall(cfg, base, messages, maxTokens) {
       headers: { "x-api-key": cfg.key, "anthropic-version": "2023-06-01",
                  "anthropic-dangerous-direct-browser-access": "true",
                  "Content-Type": "application/json" },
+      signal: ctrl.signal,
       body: JSON.stringify({ model: cfg.model, temperature: 0.7, max_tokens: maxTokens,
         system: system, messages: userMsgs })
     }).then(function(r) {
+      clearTimeout(timer);
       if (!r.ok) return r.text().then(function(t) {
         throw new Error("HTTP " + r.status + ": " + t.slice(0, 160)); });
       return r.json();
@@ -284,9 +291,11 @@ function llmCall(cfg, base, messages, maxTokens) {
   return fetch(base.replace(/\/+$/, "") + "/chat/completions", {
     method: "POST",
     headers: { "Authorization": "Bearer " + cfg.key, "Content-Type": "application/json" },
+    signal: ctrl.signal,
     body: JSON.stringify({ model: cfg.model, temperature: 0.7, max_tokens: maxTokens,
       messages: messages })
   }).then(function(r) {
+    clearTimeout(timer);
     if (!r.ok) return r.text().then(function(t) {
       throw new Error("HTTP " + r.status + ": " + t.slice(0, 160)); });
     return r.json();
@@ -531,8 +540,14 @@ function pool(jobs, n, onProgress) {
     .then(function() { return results; });
 }
 
+var evalStopped = false;
+function stopEval() { evalStopped = true; }
+
 function setRunning(on) {
   $("runBtn").disabled = on; $("demoBtn").disabled = on; $("genBtn").disabled = on;
+  var sb = $("stopBtn");
+  sb.classList.toggle("hidden", !on);
+  sb.disabled = false;
 }
 
 function run() {
@@ -555,7 +570,7 @@ function run() {
   var names = ps.skills.map(function(s) { return s.name; });
   var nameSet = {};
   names.forEach(function(n) { nameSet[n] = 1; });
-  var badTag = pt.tasks.filter(function(t) { return t.expected && !nameSet[t.expected]; });
+  var badTag = pt.tasks.filter(function(t) { return t.expected && t.expected !== "NONE" && !nameSet[t.expected]; });
   if (badTag.length) {
     showErr("有 " + badTag.length + " 条任务的 => 标注指向不存在的技能，例如: " +
             esc(badTag[0].task.slice(0, 20)) + " => " + badTag[0].expected);
@@ -568,11 +583,15 @@ function run() {
   pt.tasks.forEach(function(t) {
     for (var j = 0; j < samples; j++) {
       jobs.push(function(task) {
-        return function() { return chatCall(cfg, base, catalog, task); };
+        return function() {
+          if (evalStopped) return { error: "评测已停止" };
+          return chatCall(cfg, base, catalog, task);
+        };
       }(t.task));
     }
   });
 
+  evalStopped = false;
   setRunning(true);
   $("bar").style.display = "block";
   var done = 0;
@@ -582,7 +601,7 @@ function run() {
   }).then(function(results) {
     setRunning(false);
     $("bar").style.display = "none";
-    var byTask = [], k = 0, fatal = 0, firstErr = "";
+    var byTask = [], k = 0, fatal = 0, firstErr = "", stopped = evalStopped;
     pt.tasks.forEach(function(t) {
       var votes = [];
       for (var j = 0; j < samples; j++) {
@@ -600,6 +619,10 @@ function run() {
       showErr("注意：" + fatal + " 个请求失败（已计为 ERROR）。首个错误：" + firstErr);
     }
     render(byTask, ps.skills, samples, cfg.model);
+    if (stopped) {
+      showErr("评测已停止，结果不完整（已完成的请求已计入）。");
+      return;
+    }
     // 有稳定冲突时自动生成修复建议（BYOK 模式专属能力）
     var conflicts = byTask.filter(function(t) { return t.expected; })
       .map(function(t) {
@@ -608,11 +631,12 @@ function run() {
         return { task: t.task, expected: t.expected, chosen: maj.chosen, stable: stable,
                  conflict: !!(stable && maj.chosen !== t.expected) };
       }).filter(function(r) { return r.conflict; });
-    if (conflicts.length) {
+    var fixable = conflicts.filter(function(r) { return byName[r.expected]; });
+    if (fixable.length) {
       showStatus("发现 " + conflicts.length + " 个稳定冲突，正在生成修复建议...");
       var byName = {};
       ps.skills.forEach(function(s) { byName[s.name] = s; });
-      genFixes(cfg, base, conflicts, byName).then(function(suggestions) {
+      genFixes(cfg, base, fixable, byName).then(function(suggestions) {
         hideStatus();
         renderFixes(suggestions, ps.skills);
       });
@@ -683,8 +707,10 @@ function render(byTask, skills, samples, model) {
 
   var expNames = [];
   tagged.forEach(function(r) { if (expNames.indexOf(r.expected) < 0) expNames.push(r.expected); });
-  var cols = expNames.concat(names.filter(function(n) { return expNames.indexOf(n) < 0; }))
-                     .concat(["NONE", "其他"]);
+  var cols = expNames.slice();
+  names.forEach(function(n) { if (cols.indexOf(n) < 0 && n !== "NONE") cols.push(n); });
+  if (cols.indexOf("NONE") < 0) cols.push("NONE");
+  cols.push("其他");
   var mat = expNames.map(function() { return cols.map(function() { return 0; }); });
   var rowIdx = {};
   expNames.forEach(function(n, i) { rowIdx[n] = i; });
@@ -694,7 +720,8 @@ function render(byTask, skills, samples, model) {
     mat[rowIdx[r.expected]][ci]++;
   });
   var matSkills = expNames.map(function(n) {
-    return { name: n, description: byName[n] ? byName[n].description : n };
+    if (byName[n]) return { name: n, description: byName[n].description };
+    return { name: n, description: n === "NONE" ? "不应触发任何技能" : n };
   });
   $("matrix").innerHTML = matrixSvg(mat, matSkills, cols);
 
@@ -705,8 +732,10 @@ function render(byTask, skills, samples, model) {
       badges = conflictReason(byName[r.chosen].description, r.task)
         .map(function(t) { return '<span class="badge">' + esc(t) + "</span>"; }).join("");
     }
-    ch += '<div class="conflict">「' + esc(r.task) + '」<br>应选 <b>' + esc(r.expected) +
-          '</b>，实际被 <b style="color:#a32d2d">' + esc(r.chosen) + '</b> 截胡（' +
+    var expectLabel = r.expected === "NONE"
+      ? '应<b>不触发任何技能</b>，却被 <b style="color:#a32d2d">' + esc(r.chosen) + '</b> 接管'
+      : '应选 <b>' + esc(r.expected) + '</b>，实际被 <b style="color:#a32d2d">' + esc(r.chosen) + '</b> 截胡';
+    ch += '<div class="conflict">「' + esc(r.task) + '」<br>' + expectLabel + '（' +
           Math.round(r.consistency * samples) + "/" + samples + ' 票）' +
           (badges ? "<br>截胡关键词：" + badges : "") + "</div>";
   });

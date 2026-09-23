@@ -24,6 +24,17 @@ jobs:
           python -m pip install .
           skill-seam --version
 
+  yaml-differential:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Block scalar differential vs PyYAML (dev-only oracle)
+        run: python tests/differential_yaml.py
+
   web-smoke:
     runs-on: ubuntu-latest
     steps:

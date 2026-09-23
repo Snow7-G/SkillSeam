@@ -107,6 +107,23 @@ t("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
     gen.tasks.some(x => x.kind === "gray" && x.e === "c-d"));
   llmCall = savedLlm;
 
+  // #6: 预期 NONE
+  const pn = parseTasks("无关任务 => NONE");
+  t("parseTasks NONE", pn.tasks[0].expected === "NONE" && pn.errs.length === 0);
+
+  // #5: llmCall 带 abort signal
+  const savedLlmSig = global.fetch;
+  let sigOpts = null;
+  global.fetch = function(url, opts) {
+    sigOpts = opts;
+    return Promise.resolve({ ok: true, json: () => Promise.resolve(
+      { content: [{ type: "text", text: "{}" }] }) });
+  };
+  llmCall({ provider: "anthropic", key: "k", model: "m" }, "https://x/v1",
+    [{ role: "user", content: "t" }], 10);
+  t("llmCall 传入 abort signal", !!sigOpts && !!sigOpts.signal);
+  global.fetch = savedLlmSig;
+
   // #5: allSamplesInvalid 判定（与 CLI 的"评测失败"一致）
   t("allSamplesInvalid 全无效", allSamplesInvalid(
     [{ chosen: "INVALID" }, { chosen: "ERROR" }]) === true);

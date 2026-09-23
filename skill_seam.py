@@ -46,20 +46,37 @@ STOPWORDS = {"相关", "处理", "包括", "以及", "问题", "使用", "进行
 
 # ---------------------------------------------------------------- config
 def load_config():
+    cfg = None
     for p in (Path.cwd() / ".atlasrc.json", Path(__file__).parent / ".atlasrc.json"):
         if p.exists():
-            return json.loads(p.read_text(encoding="utf-8"))
-    if os.environ.get("DASHSCOPE_API_KEY"):
-        return {"mode": "real",
-                "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                "api_key": os.environ["DASHSCOPE_API_KEY"],
-                "model": os.environ.get("ATLAS_MODEL", "qwen3.8-flash")}
-    if os.environ.get("OPENAI_API_KEY"):
-        return {"mode": "real",
-                "base_url": os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-                "api_key": os.environ["OPENAI_API_KEY"],
-                "model": os.environ.get("ATLAS_MODEL", "gpt-4o-mini")}
-    return None
+            try:
+                cfg = json.loads(p.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                eprint(f"错误: {p} 不是合法 JSON: {e}")
+                sys.exit(2)
+            break
+    if cfg is None:
+        if os.environ.get("DASHSCOPE_API_KEY"):
+            return {"mode": "real",
+                    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                    "api_key": os.environ["DASHSCOPE_API_KEY"],
+                    "model": os.environ.get("ATLAS_MODEL", "qwen3.8-flash")}
+        if os.environ.get("OPENAI_API_KEY"):
+            return {"mode": "real",
+                    "base_url": os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+                    "api_key": os.environ["OPENAI_API_KEY"],
+                    "model": os.environ.get("ATLAS_MODEL", "gpt-4o-mini")}
+        return None
+    if not isinstance(cfg, dict):
+        eprint("错误: .atlasrc.json 顶层必须是 JSON 对象")
+        sys.exit(2)
+    missing = [k for k in ("base_url", "api_key", "model")
+               if not isinstance(cfg.get(k), str) or not cfg[k].strip()]
+    if missing:
+        eprint("错误: 模型配置缺少或存在无效字段: " + ", ".join(missing)
+               + "（需要 base_url / api_key / model 三个字符串字段）")
+        sys.exit(2)
+    return cfg
 
 
 # ---------------------------------------------------------------- scan (T2)
@@ -86,9 +103,13 @@ def _block_scalar(fm_lines, i, parent_indent):
     unsupported = False
     while j < len(fm_lines):
         line = fm_lines[j]
+        if "\t" in line:
+            unsupported = True  # Tab 在块标量中：声明不支持（Tab 不能用于缩进，字面保留场景过于边缘）
         if block_indent is not None and line.strip() == "" and len(line) > block_indent:
-            # 纯空白但超出块缩进的部分属于内容（字面标量必须保留）
-            content.append((" " * (len(line) - block_indent), 0))
+            # 超出块缩进的纯空白行：字面标量按原样保留；折叠标量按 more-indented 处理 → 不支持
+            if style == ">":
+                unsupported = True
+            content.append((line[block_indent:], 0))
             j += 1
             continue
         if not line.strip():
@@ -104,12 +125,12 @@ def _block_scalar(fm_lines, i, parent_indent):
             break  # 缩进小于块缩进，块结束
         text = line[block_indent:]
         if style == ">" and text.startswith((" ", "\t")):
-            unsupported = True  # 折叠标量不支持更深缩进（规范 §6.5 的 more-indented 行，含 Tab）
+            unsupported = True  # 折叠标量不支持更深缩进行（规范 §6.5 more-indented）
         content.append((text, indent))
         j += 1
 
     trailing_blanks = 0
-    while content and content[-1][0].strip() == "":
+    while content and content[-1][0] == "":
         content.pop()
         trailing_blanks += 1
 
@@ -742,25 +763,27 @@ def render_report(rows, skills, meta):
     cols = names + ["NONE", "其他"]
     idx = {n: i for i, n in enumerate(cols)}
 
-    # 混淆矩阵: rows=expected, cols=chosen
-    mat = [[0] * len(cols) for _ in names]
+    # 混淆矩阵: rows=expected（含 NONE 行，当存在预期 NONE 的任务）, cols=chosen
+    row_names = names + (["NONE"] if any(r["expected"] == "NONE" for r in rows) else [])
+    row_idx = {n: i for i, n in enumerate(row_names)}
+    mat = [[0] * len(cols) for _ in row_names]
     for r in rows:
         if r["expected"] in idx and r["chosen"] in idx:
-            mat[names.index(r["expected"])][idx[r["chosen"]]] += 1
+            mat[row_idx[r["expected"]]][idx[r["chosen"]]] += 1
         elif r["chosen"] not in idx:
-            mat[names.index(r["expected"])][idx["其他"]] += 1
+            mat[row_idx[r["expected"]]][idx["其他"]] += 1
 
     cell_w, cell_h, lab_w, top_h = 86, 52, 168, 30
     W = lab_w + cell_w * len(cols) + 20
-    H = top_h + cell_h * len(names) + 56
+    H = top_h + cell_h * len(row_names) + 56
     svg = [f'<svg viewBox="0 0 {W} {H}" width="100%" xmlns="http://www.w3.org/2000/svg" role="img">',
            f'<text x="{lab_w}" y="14" font-size="12" fill="#5f5e5a">列 = agent 实际选中 →（行 = 应选技能）</text>']
     for ci, c in enumerate(cols):
         x = lab_w + ci * cell_w
         svg.append(f'<text x="{x + cell_w/2}" y="{top_h - 8}" font-size="11" fill="#444441" text-anchor="middle">{esc(c)}</text>')
-    for ri, rn in enumerate(names):
+    for ri, rn in enumerate(row_names):
         y = top_h + ri * cell_h
-        svg.append(f'<text x="{lab_w - 8}" y="{y + cell_h/2}" font-size="11.5" fill="#444441" text-anchor="end">{esc(rn)}·{esc(labels[rn])}</text>')
+        svg.append(f'<text x="{lab_w - 8}" y="{y + cell_h/2}" font-size="11.5" fill="#444441" text-anchor="end">{esc(rn)}·{esc(labels.get(rn, "不应触发任何技能"))}</text>')
         for ci in range(len(cols)):
             x = lab_w + ci * cell_w
             v = mat[ri][ci]
@@ -1169,6 +1192,7 @@ HELP_TEXT = """SkillSeam {version} —— 模拟 agent 的 skill 选择过程，
   --gen-positive <N>     自动生成时每技能正向任务数（默认 5）
   --gray-pairs <K>       自动生成时灰区技能对数（默认 2，0=不生成）
   --with-marked          合并事故库中适用于当前技能集的条目
+  --out <目录>           报告输出目录（默认当前目录下 output/）
   --mock                 离线关键词打分模式（仅验证管线，结论不可信）
   -h, --help             显示本帮助
   -V, --version          显示版本
@@ -1212,6 +1236,11 @@ def main():
     skip = {"--mock", "--demo-tasks", "--with-marked", "--tasks",
             str(task_file) if task_file else None,
             "--gen-positive", "--gray-pairs"}
+    if "--out" in args:
+        skip.add("--out")
+        oi = args.index("--out")
+        if oi + 1 < len(args):
+            skip.add(args[oi + 1])
     # 数值型旗标的值也不算位置参数
     for flag in ("--gen-positive", "--gray-pairs"):
         if flag in args and args.index(flag) + 1 < len(args):
@@ -1248,7 +1277,9 @@ def main():
         print(f"[warn] {p}: {'; '.join(iss)}")
     valid_names = [s["name"] for s in skills]
 
-    out = Path(__file__).parent / "output"
+    out = Path.cwd() / "output"
+    if "--out" in args and args.index("--out") + 1 < len(args):
+        out = Path(args[args.index("--out") + 1])
     out.mkdir(exist_ok=True)
     task_source = "user"
     if task_file:
@@ -1264,8 +1295,12 @@ def main():
         for idx, item in enumerate(loaded):
             if not isinstance(item, dict):
                 bad.append(f"第 {idx + 1} 条不是 JSON 对象")
-            elif not str(item.get("t", "")).strip() or not str(item.get("e", "")).strip():
-                bad.append(f"第 {idx + 1} 条缺少 t(任务文本) 或 e(应选技能)")
+                continue
+            t, e = item.get("t"), item.get("e")
+            if not isinstance(t, str) or not t.strip():
+                bad.append(f"第 {idx + 1} 条的 t(任务文本) 必须是非空字符串")
+            elif not isinstance(e, str) or not e.strip():
+                bad.append(f"第 {idx + 1} 条的 e(应选技能) 必须是非空字符串（\'NONE\' 表示不应触发任何技能）")
         if bad:
             eprint(f"错误: 任务文件存在 {len(bad)} 条无效条目: " + "; ".join(bad[:5]))
             sys.exit(2)
@@ -1318,7 +1353,7 @@ def main():
     else:
         lib = None
 
-    unknown = sorted({t["e"] for t in TASKS} - set(valid_names))
+    unknown = sorted({t["e"] for t in TASKS if t["e"] != "NONE"} - set(valid_names))
     if unknown:
         eprint(f"错误: 任务清单中的应选技能不存在于 skill 目录: {unknown}")
         sys.exit(2)
