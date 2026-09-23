@@ -15,7 +15,7 @@
   <a href="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml"><img src="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-0f6e56.svg" alt="License: MIT"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg" alt="Python 3.10+"></a>
-  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-84%20passing-3b6d11.svg" alt="Tests: 84 passing"></a>
+  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-90%20passing-3b6d11.svg" alt="Tests: 90 passing"></a>
 </p>
 
 Simulate the way your agent picks skills, and find out which skill steals whose tasks. Before your users find out.
@@ -30,7 +30,7 @@ SkillSeam replays that selection process before you ship. On a 40-task demo with
 
 ## Quick start (web, no install)
 
-Open [https://snow7-g.github.io/SkillSeam/](https://snow7-g.github.io/SkillSeam/), click the demo button, and you get a real heatmap in ten seconds. Then paste your own skills, add an API key (it stays in your browser, requests go straight to your provider), and hit run.
+Open [https://snow7-g.github.io/SkillSeam/?lang=en](https://snow7-g.github.io/SkillSeam/?lang=en), click the demo button, and you get a real heatmap in ten seconds. Then paste your own skills, add an API key (it stays in your browser, requests go straight to your provider), and hit run.
 
 Your skills live as SKILL.md files? Click the folder button (选择技能文件夹) and pick the directory — it is parsed inside your browser, nothing is uploaded. Or print them in paste-ready form:
 
@@ -40,7 +40,7 @@ python3 skill_seam.py export ~/.agents/skills
 # report-reader: Interprets ophthalmology test reports and follow-up advice
 ```
 
-The web UI speaks Chinese for now. English UI is on the roadmap.
+The web UI ships in Chinese and English: switch in the top-left, or pass `?lang=zh` / `?lang=en`.
 
 ## CLI (local directories, CI gates)
 
@@ -104,7 +104,7 @@ These complement each other. Run lint and security scans per skill, then run Ski
 
 ## Caveats
 
-The simulation is faithful to the injection format but doesn't drive real agent processes. Cross-runtime differences (does Codex pick differently than Claude?) are on the roadmap. The Codex session parser is a lenient extractor, so tool outputs may sneak into harvest candidates. The web UI speaks Chinese for now.
+The simulation is faithful to the injection format but doesn't drive real agent processes. Cross-runtime differences (does Codex pick differently than Claude?) are on the roadmap. The Codex session parser is a lenient extractor, so tool outputs may sneak into harvest candidates. The web UI ships in Chinese and English.
 
 ## The name
 
@@ -122,8 +122,8 @@ Every description sings. Some songs lure your tasks onto the rocks.
 ## Development
 
 ```bash
-python3 tests/test_atlas.py   # 84 tests, stdlib only
-node tests/web_smoke.cjs      # 58 web assertions, node >= 18
+python3 tests/test_atlas.py   # 90 tests, stdlib only
+node tests/web_smoke.cjs      # 73 web assertions, node >= 18
 ```
 
 CI runs both on Python 3.10, 3.12 and 3.13. See CONTRIBUTING.md before opening a PR.

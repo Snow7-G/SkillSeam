@@ -94,6 +94,12 @@ button:disabled { opacity: .45; cursor: default; }
           padding: 6px 10px; margin: 6px 0; color: var(--success-text); }
 .fixreason { color: var(--text-2); font-size: 12px; margin-top: 4px; }
 svg text { font-family: inherit; }
+.langbar { display: flex; gap: 4px; margin: 10px 0 0; }
+.langbar button { margin-top: 0; padding: 3px 12px; font-size: 12px;
+  background: var(--surface); color: var(--text-2);
+  border: 0.5px solid var(--border-strong); border-radius: var(--r-pill); }
+.langbar button:hover:not(:disabled) { background: var(--surface-soft); color: var(--text); }
+.langbar button.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .rowbtns { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .rowbtns button { margin-top: 12px; }
 .rowbtns .hint { margin-top: 12px; }
@@ -104,35 +110,33 @@ code { background: #efede7; border-radius: 4px; padding: 0 4px; font-size: 12px;
 <body>
 <div class="wrap">
   <h1>SkillSeam <span class="em">· find the seam where your skills split</span></h1>
-  <div class="sub">模拟 agent 挑选 skill 的真实过程，找出你整套 skill 里「谁抢了谁的活」。
-    纯静态页面：API key 只存在你的浏览器 localStorage，请求从浏览器直达模型端点，不经过任何服务器。</div>
+  <div class="langbar" id="langbar">
+    <button type="button" data-lang="zh">中文</button>
+    <button type="button" data-lang="en">English</button>
+  </div>
+  <div class="sub" data-i18n="sub"></div>
 
   <div class="card">
-    <h2>1 · 输入</h2>
-    <label>技能清单（每行一个，格式 <code>name: description</code>，至少 2 个）</label>
-    <textarea id="skills" rows="6" placeholder="guahao-yuyue: 处理眼科门诊的预约挂号、改期与取消
-baogao-jiedu: 解读眼科检查报告，涵盖视力、眼压、OCT 等指标含义
-fuzhen-tixing: 为术后与慢病患者制定复诊计划、发送复查提醒"></textarea>
+    <h2 data-i18n="card1_title"></h2>
+    <label data-i18n="skills_label"></label>
+    <textarea id="skills" rows="6"></textarea>
     <div class="rowbtns">
-      <button class="ghost" onclick="pickSkillsFolder()">选择技能文件夹</button>
-      <span class="hint" id="pickHint">从本机读取 SKILL.md，全程在浏览器内解析，不上传任何文件。</span>
+      <button class="ghost" onclick="pickSkillsFolder()" data-i18n="pick_folder"></button>
+      <span class="hint" id="pickHint" data-i18n="pick_hint"></span>
     </div>
     <input type="file" id="folderInput" webkitdirectory multiple class="hidden">
-    <label>测试任务（每行一条。可加 <code>=&gt; skill-name</code> 标注应选技能参与冲突判定；不标注则只做一致性分析）</label>
-    <textarea id="tasks" rows="6" placeholder="我上周查的视力报告，能帮我看一下吗？ => baogao-jiedu
-我想预约下周三上午的眼科门诊 => guahao-yuyue
-复诊的时候顺便帮我查下会员积分余额 => fuzhen-tixing
-帮我看看最近有什么会员活动"></textarea>
-    <div class="hint">冲突判定需要「应选技能」标注；没标注的任务 agent 会给出选择与一致率，由你人工判断选得对不对。</div>
+    <label data-i18n="tasks_label"></label>
+    <textarea id="tasks" rows="6"></textarea>
+    <div class="hint" data-i18n="tasks_hint"></div>
   </div>
 
   <div class="card">
-    <h2>2 · 模型端点（BYOK）</h2>
+    <h2 data-i18n="card2_title"></h2>
     <div class="grid3">
       <div>
         <label>Provider</label>
         <select id="provider">
-          <option value="demo">演示模式（内置真实数据，无需 key）</option>
+          <option value="demo" data-i18n="provider_demo"></option>
           <option value="openai">OpenAI-compatible</option>
           <option value="openrouter">OpenRouter</option>
           <option value="gemini">Gemini</option>
@@ -141,68 +145,315 @@ fuzhen-tixing: 为术后与慢病患者制定复诊计划、发送复查提醒">
       </div>
       <div>
         <label>API Key</label>
-        <input type="password" id="key" placeholder="sk-...（只存你的浏览器）">
+        <input type="password" id="key" data-i18n-ph="key_ph">
       </div>
       <div>
-        <label>模型</label>
+        <label data-i18n="model_label"></label>
         <input type="text" id="model" placeholder="gpt-4o-mini / claude-sonnet-4-5 / ...">
       </div>
     </div>
     <div id="baseRow" class="hidden">
-      <label>Base URL（OpenAI-compatible 端点地址）</label>
-      <input type="text" id="base" placeholder="https://api.openai.com/v1 或任意兼容端点">
+      <label data-i18n="base_label"></label>
+      <input type="text" id="base" data-i18n-ph="base_ph">
     </div>
     <div class="grid2">
       <div>
-        <label>每任务采样次数</label>
+        <label data-i18n="samples_label"></label>
         <select id="samples"><option>1</option><option>3</option><option selected>5</option><option>8</option></select>
       </div>
       <div>
-        <label>记住配置（含 key，存 localStorage）</label>
+        <label data-i18n="remember_label"></label>
         <input type="checkbox" id="remember" checked style="width:auto">
       </div>
     </div>
     <div class="grid2">
       <div>
-        <label>自动生成：每技能正向任务数</label>
+        <label data-i18n="genpos_label"></label>
         <select id="genPos"><option>3</option><option selected>5</option><option>8</option></select>
       </div>
       <div>
-        <label>自动生成：灰区技能对数（按语义重叠挑）</label>
+        <label data-i18n="graypairs_label"></label>
         <select id="grayPairs"><option>0</option><option selected>2</option><option>3</option></select>
       </div>
     </div>
-    <button id="demoBtn" class="ghost" onclick="loadDemo()">看演示数据</button>
-    <button id="genBtn" class="ghost" onclick="genTasks()">自动生成任务</button>
-    <button id="runBtn" onclick="run()">开始模拟</button>
-    <button id="stopBtn" class="ghost hidden" onclick="stopEval()">停止评测</button>
+    <button id="demoBtn" class="ghost" onclick="loadDemo()" data-i18n="demo_btn"></button>
+    <button id="genBtn" class="ghost" onclick="genTasks()" data-i18n="gen_btn"></button>
+    <button id="runBtn" onclick="run()" data-i18n="run_btn"></button>
+    <button id="stopBtn" class="ghost hidden" onclick="stopEval()" data-i18n="stop_btn"></button>
     <div class="bar" id="bar"><div id="barfill"></div></div>
     <div class="errbox" id="errbox"></div>
-    <div class="hint">采样次数越多结论越稳，费用与耗时线性增加。判定规则：5 次采样至少 4 次同结果为「稳定」；应选标注的任务若稳定选中其他技能即「截胡」。自动生成会先让模型挑出最易混淆的技能对，再为每对双向生成边界问法——生成后建议人工过一遍再模拟。</div>
+    <div class="hint" data-i18n="run_hint"></div>
   </div>
 
   <div id="result" class="hidden">
     <div class="cards">
-      <div class="stat green"><div class="num" id="s-hit">-</div><div class="lbl">标注任务命中</div></div>
-      <div class="stat red"><div class="num" id="s-conf">-</div><div class="lbl">稳定冲突（截胡）</div></div>
-      <div class="stat"><div class="num" id="s-unstable">-</div><div class="lbl">不稳定（未达一致率）</div></div>
-      <div class="stat"><div class="num" id="s-total">-</div><div class="lbl">任务总数</div></div>
+      <div class="stat green"><div class="num" id="s-hit">-</div><div class="lbl" data-i18n="stat_hit"></div></div>
+      <div class="stat red"><div class="num" id="s-conf">-</div><div class="lbl" data-i18n="stat_conf"></div></div>
+      <div class="stat"><div class="num" id="s-unstable">-</div><div class="lbl" data-i18n="stat_unstable"></div></div>
+      <div class="stat"><div class="num" id="s-total">-</div><div class="lbl" data-i18n="stat_total"></div></div>
     </div>
     <div id="skillStrip"></div>
-    <div class="card"><h2>选择混淆矩阵</h2><div id="matrix"></div>
-      <div class="hint">行 = 应选技能，列 = agent 实际选中。对角线 = 正确命中；红色 = 被截胡，颜色越深次数越多。未标注的任务不进矩阵。</div></div>
-    <div class="card"><h2>冲突明细</h2><div id="conflicts"></div></div>
-    <div class="card hidden" id="fixCard"><h2>修复建议（AI 生成，改后请重跑验证）</h2><div id="fixes"></div></div>
-    <div class="card"><h2>未标注任务的选择结果（请人工确认）</h2><div id="plains"></div></div>
+    <div class="card"><h2 data-i18n="matrix_title"></h2><div id="matrix"></div>
+      <div class="hint" data-i18n="matrix_hint"></div></div>
+    <div class="card"><h2 data-i18n="conflicts_title"></h2><div id="conflicts"></div></div>
+    <div class="card hidden" id="fixCard"><h2 data-i18n="fixes_title"></h2><div id="fixes"></div></div>
+    <div class="card"><h2 data-i18n="plains_title"></h2><div id="plains"></div></div>
   </div>
 </div>
 
 <script>
 "use strict";
 
+// ---------- i18n：界面文案字典（zh / en）----------
+// 语言解析优先级：?lang=xx → localStorage → 浏览器语言（zh* → 中文，其余 → 英文）
+var I18N = {
+  zh: {
+    sub: "模拟 agent 挑选 skill 的真实过程，找出你整套 skill 里「谁抢了谁的活」。纯静态页面：API key 只存在你的浏览器 localStorage，请求从浏览器直达模型端点，不经过任何服务器。",
+    card1_title: "1 · 输入",
+    skills_label: "技能清单（每行一个，格式 <code>name: description</code>，至少 2 个）",
+    skills_ph: "guahao-yuyue: 处理眼科门诊的预约挂号、改期与取消\nbaogao-jiedu: 解读眼科检查报告，涵盖视力、眼压、OCT 等指标含义\nfuzhen-tixing: 为术后与慢病患者制定复诊计划、发送复查提醒",
+    pick_folder: "选择技能文件夹",
+    pick_hint: "从本机读取 SKILL.md，全程在浏览器内解析，不上传任何文件。",
+    tasks_label: "测试任务（每行一条。可加 <code>=&gt; skill-name</code> 标注应选技能参与冲突判定；不标注则只做一致性分析）",
+    tasks_ph: "我上周查的视力报告，能帮我看一下吗？ => baogao-jiedu\n我想预约下周三上午的眼科门诊 => guahao-yuyue\n复诊的时候顺便帮我查下会员积分余额 => fuzhen-tixing\n帮我看看最近有什么会员活动",
+    tasks_hint: "冲突判定需要「应选技能」标注；没标注的任务 agent 会给出选择与一致率，由你人工判断选得对不对。",
+    card2_title: "2 · 模型端点（BYOK）",
+    provider_demo: "演示模式（内置真实数据，无需 key）",
+    key_ph: "sk-...（只存你的浏览器）",
+    model_label: "模型",
+    base_label: "Base URL（OpenAI-compatible 端点地址）",
+    base_ph: "https://api.openai.com/v1 或任意兼容端点",
+    samples_label: "每任务采样次数",
+    remember_label: "记住配置（含 key，存 localStorage）",
+    genpos_label: "自动生成：每技能正向任务数",
+    graypairs_label: "自动生成：灰区技能对数（按语义重叠挑）",
+    demo_btn: "看演示数据",
+    gen_btn: "自动生成任务",
+    run_btn: "开始模拟",
+    stop_btn: "停止评测",
+    run_hint: "采样次数越多结论越稳，费用与耗时线性增加。判定规则：5 次采样至少 4 次同结果为「稳定」；应选标注的任务若稳定选中其他技能即「截胡」。自动生成会先让模型挑出最易混淆的技能对，再为每对双向生成边界问法——生成后建议人工过一遍再模拟。",
+    stat_hit: "标注任务命中", stat_conf: "稳定冲突（截胡）",
+    stat_unstable: "不稳定（未达一致率）", stat_total: "任务总数",
+    matrix_title: "选择混淆矩阵",
+    matrix_hint: "行 = 应选技能，列 = agent 实际选中。对角线 = 正确命中；红色 = 被截胡，颜色越深次数越多。未标注的任务不进矩阵。",
+    conflicts_title: "冲突明细", fixes_title: "修复建议（AI 生成，改后请重跑验证）",
+    plains_title: "未标注任务的选择结果（请人工确认）",
+    pick_reading: "正在读取 {n} 个 SKILL.md ...",
+    pick_not_found: "未找到 SKILL.md。请选择「技能名/SKILL.md」结构的目录（如 ~/.codex/skills）。",
+    pick_only_hidden: "只有隐藏目录（如 .system/）里有 SKILL.md，已按惯例跳过{skip}。如需检测请直接选择该目录。",
+    pick_no_desc: "读取到 SKILL.md 但都没有可用 description，请检查文件格式。",
+    pick_done: "已读取 {n} 个技能{skipped}{skip}。全程在浏览器内解析，未上传。",
+    skip_hidden: "，跳过 {n} 个隐藏目录中的 SKILL.md（如 .system/）",
+    skip_list: "，跳过 {n} 个：{list}",
+    skip_no_desc: "（缺 description）",
+    err_line_no_sep: "技能第 {n} 行缺少分隔符（应为 name: description）",
+    err_name_invalid: "技能第 {n} 行 name 不合规（小写字母/数字/连字符）: {name}",
+    err_desc_empty: "技能第 {n} 行 description 为空",
+    err_dup_name: "重复的 name: {name}",
+    err_task_empty: "任务第 {n} 行 => 后为空",
+    err_need_two: "至少需要 2 个技能",
+    err_gen_endpoint: "自动生成需要真实模型端点：请选择 Provider 并填写 Key",
+    err_need_key: "请填写 API Key",
+    err_need_base: "OpenAI-compatible 需要填写 Base URL",
+    err_need_model: "请填写模型名",
+    err_samples: "采样次数无效：请选择 1-8 之间的整数。",
+    run_stopped: "评测已停止，结果不完整（已完成的请求已计入）。",
+    gen_status: "正在生成任务（{s} 技能 × {p} 正向 + {k} 对灰区）...",
+    gen_empty: "任务生成结果为空",
+    gen_partial: "部分生成跳过：{w}。已追加 {n} 条到任务框。",
+    gen_done: "已生成 {n} 条任务并追加到任务框（可编辑后点「开始模拟」）。注意：生成任务存在「生成者偏见」（出题模型知道意图），冲突结论请以真实用户问法为准。",
+    gen_pos_failed: "正向任务生成失败，已跳过", gen_gray_failed: "灰区任务生成失败，已跳过",
+    strip_recognized: "已识别 {n} 个技能：",
+    conflict_expect: "应选 {a}，实际被 {b} 截胡",
+    conflict_overtake: "应不触发任何技能，却被 {b} 接管",
+    votes: "（{n}/{m} 票）", keywords: "截胡关键词：",
+    eval_failed: "评测失败：没有取得任何有效的选择结果（请求失败或响应不可解析）。不能视为无冲突。请检查 Key、模型名或端点后重试。",
+    no_conflicts: "标注任务中未发现稳定冲突。想暴露边界问题，多写几条两两语义交界的模糊问法（用 => 标注你认为是正确归属的一方）。",
+    plain_line: "「{task}」→ agent 选中 {chosen}",
+    unstable_note: "（不稳定 {n}/{m} 票，仅供参考）",
+    no_plains: "没有未标注任务。给部分任务去掉 => 标注，可以看看 agent 的自然选择。",
+    demo_note: "演示数据来自 CLI 版对 6 个眼科客服 skill 的真实模拟（qwen3.8-flash，40 任务 × 5 采样，埋有 2 处撞车）。",
+    fixes_generating: "发现 {n} 个稳定冲突，正在生成修复建议...",
+    fix_no_suggestions: "未能自动生成建议。可按冲突明细里的截胡关键词手动改 description：给截胡方加「仅限/不含」边界词。",
+    fix_head: "修改 {name}", fix_note: "（冲突：{victim} 被 {thief} 截胡）",
+    fix_old: "改前", fix_new: "改后", fix_reason: "理由：",
+    matrix_axis: "列 = agent 实际选中 →（行 = 应选技能）", col_other: "其他",
+    votes_raw: "（{x}）",
+    prompt_select: "你是客服 agent 的技能选择器。下面给出可用技能列表（仅名称与描述）。收到用户任务后，选出最合适的一个技能名称；若没有任何技能合适，输出 NONE。只输出 JSON：{\"chosen\": \"<name|NONE>\"}，不要输出其他内容。",
+    prompt_catalog: "可用技能：\n{catalog}\n\n用户任务：{task}",
+    prompt_gen_sys: "你是测试用例生成器，只输出 JSON。",
+    prompt_gen_pos: "根据技能的名称与描述，写 {n} 条真实用户可能提出的任务问法。要求：第一人称、口语化、句式多样、长短不一；不要出现技能名称本身；不要任何解释。只输出 JSON 数组：[\"任务1\", \"任务2\", ...]",
+    prompt_gen_gray: "红队任务：下面两个技能的职责存在语义重叠。你的目标是写出最刁钻的用户问法——让 agent 极难判断该归 A 还是 B、甚至干脆选错的那种。问法要像真实用户的随意口吻：可以夹杂场景细节、模糊指代，两个技能的关键词各带一点。请写 {n} 组边界问法：每组两条，第一条正确答案应归技能A，第二条应归技能B，组内两条要高度相似以形成边界测试。只输出 JSON：{\"first\": [\"偏向A的问法\"...], \"second\": [\"偏向B的问法\"...]}",
+    prompt_gen_pairs: "以下是 {n} 个客服 agent 技能的名称与描述：\n{listing}\n\n请找出职责最容易互相重叠、用户任务容易混淆的 {k} 对技能（按混淆可能性从高到低）。只输出 JSON：{\"pairs\": [[\"技能名1\", \"技能名2\"], ...]}",
+    prompt_skill_name: "技能名称：", prompt_skill_desc: "\n技能描述：",
+    prompt_gray_a: "技能A：", prompt_gray_da: "\n描述A：",
+    prompt_gray_b: "\n\n技能B：", prompt_gray_db: "\n描述B：",
+    prompt_fix: "你是 prompt 工程专家。技能 {thief} 的 description 截胡了本应属于技能 {victim} 的用户任务。\n\n技能 {victim}（应选）：\n{vdesc}\n\n技能 {thief}（实际被选中）：\n{tdesc}\n\n被截胡的任务：\n{tasks}\n\n请给出改写建议（1-2 条），通过修改其中一个或两个技能的 description 使边界清晰、截胡消失。优先改截胡方（加'仅限/不含'等边界词）。new_description 必须是完整可替换的 description，长度不超过 1024 字符，除边界外不得删减原职责。\n两条硬性要求：\n1) 语言必须与原描述一致——原描述是英文就用英文改写，是中文就用中文改写，绝不翻译、不改变语气风格；\n2) 尽量做最小改动：在原描述基础上追加/收紧边界短句即可，不要整段重写（便于人工 review 与 diff）。只输出 JSON：{\"changes\": [{\"skill\": \"技能名\", \"new_description\": \"改写后的完整描述\", \"reason\": \"一句话理由\"}]}"
+  },
+  en: {
+    sub: "Simulate how an agent picks skills and find out which skill steals whose tasks. Static page: the API key stays in your browser localStorage and requests go straight to your provider, with no server in between.",
+    card1_title: "1 · Input",
+    skills_label: "Skills, one per line, as <code>name: description</code> (at least 2)",
+    skills_ph: "booking-desk: Handles clinic appointment booking, rescheduling and cancellations\nreport-reader: Interprets ophthalmology test reports and follow-up advice\nfollow-up-planner: Builds follow-up plans and reminders for post-op patients",
+    pick_folder: "Choose skills folder",
+    pick_hint: "Reads SKILL.md files from your machine. Parsing happens inside the browser; nothing is uploaded.",
+    tasks_label: "Test tasks, one per line. Add <code>=&gt; skill-name</code> to mark the expected skill and enable conflict detection; unmarked tasks get consistency analysis only.",
+    tasks_ph: "my vision report from last week, can you take a look? => report-reader\nI want to book an eye clinic visit next Wednesday => booking-desk\nI'm a gold member, do follow-ups get a discount? => follow-up-planner\nwhat membership offers do you have right now",
+    tasks_hint: "Conflict detection needs the expected-skill marker. For unmarked tasks you get the agent's choice and its consistency, so you can judge it yourself.",
+    card2_title: "2 · Model endpoint (BYOK)",
+    provider_demo: "Demo mode (built-in real data, no key needed)",
+    key_ph: "sk-... (stored in your browser only)",
+    model_label: "Model",
+    base_label: "Base URL (OpenAI-compatible endpoint)",
+    base_ph: "https://api.openai.com/v1 or any compatible endpoint",
+    samples_label: "Samples per task",
+    remember_label: "Remember settings (including key, in localStorage)",
+    genpos_label: "Auto-generate: positive tasks per skill",
+    graypairs_label: "Auto-generate: gray-zone skill pairs (by semantic overlap)",
+    demo_btn: "View demo data",
+    gen_btn: "Auto-generate tasks",
+    run_btn: "Run simulation",
+    stop_btn: "Stop",
+    run_hint: "More samples, steadier conclusions; cost and time grow linearly. Rule: 4 of 5 identical votes counts as stable; a marked task that stably picks another skill counts as stolen. Auto-generation asks the model for the most confusable skill pairs, then writes boundary tasks both ways — review them before running.",
+    stat_hit: "Marked tasks correct", stat_conf: "Stable conflicts (stolen)",
+    stat_unstable: "Unstable (below threshold)", stat_total: "Tasks total",
+    matrix_title: "Selection confusion matrix",
+    matrix_hint: "Rows = expected skill, columns = what the agent picked. The diagonal is correct; red cells were stolen, darker means more votes. Unmarked tasks are excluded.",
+    conflicts_title: "Conflict details", fixes_title: "Fix suggestions (AI-generated; re-run to verify)",
+    plains_title: "Unmarked task choices (review manually)",
+    pick_reading: "Reading {n} SKILL.md files ...",
+    pick_not_found: "No SKILL.md found. Pick a folder shaped like <name>/SKILL.md (for example ~/.codex/skills).",
+    pick_only_hidden: "SKILL.md exists only inside hidden folders (.system/ etc.){skip}, skipped by convention. Select that folder directly if you want it scanned.",
+    pick_no_desc: "SKILL.md files were found, but none has a usable description. Check the file format.",
+    pick_done: "Read {n} skills{skipped}{skip}. Parsed in your browser; nothing uploaded.",
+    skip_hidden: ", skipped {n} SKILL.md inside hidden folders (.system/ etc.)",
+    skip_list: ", skipped {n}: {list}",
+    skip_no_desc: " (no description)",
+    err_line_no_sep: "Skill line {n} is missing the separator (expected name: description)",
+    err_name_invalid: "Skill line {n} has an invalid name (lowercase letters, digits, hyphens): {name}",
+    err_desc_empty: "Skill line {n} has an empty description",
+    err_dup_name: "Duplicate name: {name}",
+    err_task_empty: "Task line {n} is empty after =>",
+    err_need_two: "At least 2 skills are required",
+    err_gen_endpoint: "Auto-generation needs a real endpoint: pick a provider and fill in the key",
+    err_need_key: "API key is required",
+    err_need_base: "A base URL is required for OpenAI-compatible endpoints",
+    err_need_model: "Model name is required",
+    err_samples: "Invalid sample count: pick an integer between 1 and 8.",
+    run_stopped: "Evaluation stopped; results are incomplete (finished requests are counted).",
+    gen_status: "Generating tasks ({s} skills × {p} positive + {k} gray pairs)...",
+    gen_empty: "Task generation returned nothing",
+    gen_partial: "Some generations were skipped: {w}. Appended {n} tasks.",
+    gen_done: "Generated {n} tasks and appended them to the box (edit, then hit Run). Note: generated tasks carry generator bias — the model knows the intended answer — so trust conflicts found with real user questions.",
+    gen_pos_failed: "positive task generation failed, skipped", gen_gray_failed: "gray-zone task generation failed, skipped",
+    strip_recognized: "{n} skills recognized:",
+    conflict_expect: "expected {a}, stolen by {b}",
+    conflict_overtake: "no skill should fire, but {b} took it",
+    votes: " ({n}/{m} votes)", keywords: "Stealing keywords:",
+    eval_failed: "Evaluation failed: no valid selection was obtained (requests failed or responses were unparseable). This is not the same as no conflicts. Check the key, model name and endpoint, then retry.",
+    no_conflicts: "No stable conflicts among marked tasks. To surface boundary problems, add a few genuinely ambiguous questions at the semantic seam (mark the side you believe is correct with =>).",
+    plain_line: "\u201c{task}\u201d → the agent picked {chosen}",
+    unstable_note: " (unstable {n}/{m}, reference only)",
+    no_plains: "No unmarked tasks. Drop the => marker from some tasks to see what the agent picks on its own.",
+    demo_note: "Demo data comes from a real CLI run against 6 ophthalmology support skills (qwen3.8-flash, 40 tasks × 5 samples, two seeded collisions).",
+    fixes_generating: "Found {n} stable conflicts, generating fix suggestions...",
+    fix_no_suggestions: "No suggestions could be generated. Use the stealing keywords above to edit descriptions by hand: add an only / not-for boundary to the thief.",
+    fix_head: "Edit {name}", fix_note: "(conflict: {victim} stolen by {thief})",
+    fix_old: "Before", fix_new: "After", fix_reason: "Why: ",
+    matrix_axis: "columns = what the agent picked → (rows = expected skill)", col_other: "other",
+    votes_raw: " ({x})",
+    prompt_select: "You are the skill selector of a customer-support agent. The available skills are listed below (name and description only). Given a user task, pick the single best-matching skill name; if none fits, output NONE. Output JSON only: {\"chosen\": \"<name|NONE>\"} and nothing else.",
+    prompt_catalog: "Available skills:\n{catalog}\n\nUser task: {task}",
+    prompt_gen_sys: "You generate test cases. Output JSON only.",
+    prompt_gen_pos: "Write {n} realistic questions a user might ask that this skill should handle. Requirements: first person, conversational, varied sentence shapes and lengths; never mention the skill name itself; no explanations. Output a JSON array only: [\"task 1\", \"task 2\", ...]",
+    prompt_gen_gray: "Red-team task: the two skills below overlap semantically. Write the nastiest user questions you can — the ones an agent would struggle to route to A or B, or would get plain wrong. They should sound like a real user's casual phrasing: scene details, vague references, a bit of each skill's keywords. Write {n} boundary pairs, two questions each: the first should correctly belong to skill A, the second to skill B, and the two must be very similar to form a boundary test. Output JSON only: {\"first\": [\"question leaning A\"...], \"second\": [\"question leaning B\"...]}",
+    prompt_gen_pairs: "Below are {n} customer-support agent skills with their names and descriptions:\n{listing}\n\nFind the {k} pairs whose responsibilities overlap most and whose user tasks are easiest to confuse (most confusable first). Output JSON only: {\"pairs\": [[\"name1\", \"name2\"], ...]}",
+    prompt_skill_name: "Skill name: ", prompt_skill_desc: "\nSkill description: ",
+    prompt_gray_a: "Skill A: ", prompt_gray_da: "\nDescription A: ",
+    prompt_gray_b: "\n\nSkill B: ", prompt_gray_db: "\nDescription B: ",
+    prompt_fix: "You are a prompt engineer. The description of skill {thief} steals user tasks that should belong to skill {victim}.\n\nSkill {victim} (expected):\n{vdesc}\n\nSkill {thief} (actually picked):\n{tdesc}\n\nStolen tasks:\n{tasks}\n\nSuggest 1-2 edits to one or both descriptions so the boundary is clear and the stealing stops. Prefer editing the thief (add only / not-for boundary words). new_description must be a complete drop-in replacement, at most 1024 characters, and must not drop any existing responsibility.\nTwo hard requirements:\n1) keep the same language as the original description (English stays English, Chinese stays Chinese): never translate or shift the tone;\n2) make the smallest change that works: append or tighten a boundary clause instead of rewriting the whole description, so it reviews as a diff. Output JSON only: {\"changes\": [{\"skill\": \"name\", \"new_description\": \"...\", \"reason\": \"one line\"}]}"
+  }
+};
+
+// 纯函数：?lang=xx → localStorage → 浏览器语言（zh* → 中文，其余 → 英文）
+function resolveLang(query, stored, navLang) {
+  function valid(l) { return l && I18N[l] ? l : null; }
+  var q = null;
+  try { q = new URLSearchParams(query || "").get("lang"); } catch (e) {}
+  return valid(q) || valid(stored) || ((String(navLang || "en").toLowerCase().indexOf("zh") === 0) ? "zh" : "en");
+}
+
+var LANG = (function() {
+  var stored = null;
+  try { stored = localStorage.getItem("atlas_lang"); } catch (e) {}
+  return resolveLang(location.search, stored, navigator.language);
+})();
+
+function t(key, vars) {
+  var s = (I18N[LANG] && I18N[LANG][key]) || I18N.zh[key] || key;
+  if (vars) {
+    Object.keys(vars).forEach(function(k) {
+      s = s.split("{" + k + "}").join(vars[k]);
+    });
+  }
+  return s;
+}
+
+function applyI18n() {
+  document.documentElement.lang = LANG === "zh" ? "zh-CN" : LANG;
+  Array.prototype.forEach.call(document.querySelectorAll("[data-i18n]"), function(el) {
+    el.innerHTML = t(el.getAttribute("data-i18n"));
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-i18n-ph]"), function(el) {
+    el.placeholder = t(el.getAttribute("data-i18n-ph"));
+  });
+  ["skills", "tasks"].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && el.getAttribute("data-ph-set") !== LANG) {
+      if (!el.value.trim()) el.placeholder = t(id === "skills" ? "skills_ph" : "tasks_ph");
+      el.setAttribute("data-ph-set", LANG);
+    }
+  });
+  var bar = document.getElementById("langbar");
+  if (bar) {
+    Array.prototype.forEach.call(bar.querySelectorAll("button"), function(b) {
+      b.classList.toggle("on", b.getAttribute("data-lang") === LANG);
+    });
+  }
+  if (typeof refreshPickHint === "function") refreshPickHint();
+  var ph = document.getElementById("pickHint");
+  if (ph && !ph.textContent.trim()) ph.textContent = t("pick_hint");
+}
+
+// 切换语言：原地刷新文案并重绘结果（不重载页面，textarea 内容不丢）
+function setLang(lang) {
+  if (!I18N[lang] || lang === LANG) return;
+  LANG = lang;
+  try { localStorage.setItem("atlas_lang", lang); } catch (e) {}
+  try {
+    var u = new URL(location.href);
+    u.searchParams.set("lang", lang);
+    history.replaceState(null, "", u.toString());
+  } catch (e) {}
+  applyI18n();
+  if (window.__lastDemoRendered) renderDemo();
+  else if (window.__lastRender) {
+    render(window.__lastRender.byTask, window.__lastRender.skills,
+           window.__lastRender.samples, window.__lastRender.model);
+    if (window.__lastFixes) renderFixes(window.__lastFixes.suggestions, window.__lastFixes.skills);
+  }
+}
+
 window.addEventListener("DOMContentLoaded", function() {
   var fi = document.getElementById("folderInput");
   if (fi) fi.addEventListener("change", function() { handleFolderPicked(fi); });
+  var bar = document.getElementById("langbar");
+  if (bar) {
+    Array.prototype.forEach.call(bar.querySelectorAll("button"), function(b) {
+      b.addEventListener("click", function() { setLang(b.getAttribute("data-lang")); });
+    });
+  }
+  applyI18n();
 });
 var DEMO = {"skills": [{"name": "baogao-jiedu", "desc": "解读眼科检查报告，涵盖视力、眼压、OCT、视野、眼底"}, {"name": "fuzhen-tixing", "desc": "为术后与慢病患者制定复诊计划、发送复查提醒，并解答会"}, {"name": "guahao-yuyue", "desc": "处理眼科门诊的预约挂号、改期与取消，受理视力检查、报"}, {"name": "huiyuan-yingxiao", "desc": "管理会员等级、积分兑换与专属活动报名，处理会员身份核"}, {"name": "shuqian-xuzhi", "desc": "说明白内障、近视激光等眼科手术的术前准备、禁食要求、"}, {"name": "tousu-shouli", "desc": "受理患者对就诊体验、服务质量与收费的投诉，登记工单并"}], "matrix": [[8, 0, 2, 0, 0, 0, 0, 0], [0, 7, 0, 1, 0, 0, 0, 0], [0, 0, 5, 0, 0, 0, 0, 0], [0, 2, 0, 5, 0, 0, 0, 0], [0, 0, 0, 0, 5, 0, 0, 0], [0, 0, 0, 0, 0, 5, 0, 0]], "cols": ["baogao-jiedu", "fuzhen-tixing", "guahao-yuyue", "huiyuan-yingxiao", "shuqian-xuzhi", "tousu-shouli", "NONE", "其他"], "conflicts": [{"task": "视力下降了，之前的报告还在吗？帮我查查。", "expected": "baogao-jiedu", "chosen": "guahao-yuyue", "votes": "5/5"}, {"task": "报告咨询窗口怎么走？我要问一下报告结果。", "expected": "baogao-jiedu", "chosen": "guahao-yuyue", "votes": "5/5"}, {"task": "我是黄金会员，复诊有折扣吗？", "expected": "huiyuan-yingxiao", "chosen": "fuzhen-tixing", "votes": "5/5"}, {"task": "复诊的时候顺便帮我查下会员积分余额。", "expected": "fuzhen-tixing", "chosen": "huiyuan-yingxiao", "votes": "5/5"}], "meta": {"total": 40, "hits": 35, "unstable": 1, "model": "qwen3.8-flash", "note": "数据来自 SkillSeam CLI 对 6 个眼科客服 skill 的真实模拟（埋有 2 处撞车）"}};
 
@@ -252,7 +503,7 @@ function skillFolderRows(items) {
   var rows = [], skipped = [];
   items.forEach(function(it) {
     var e = parseSkillMd(it.text, it.folder);
-    if (!e.description) { skipped.push((e.name || it.folder || it.path) + "（缺 description）"); return; }
+    if (!e.description) { skipped.push((e.name || it.folder || it.path) + t("skip_no_desc")); return; }
     rows.push({ name: e.name, description: e.description.replace(/\s*\n\s*/g, " ").trim() });
   });
   return { rows: rows, skipped: skipped };
@@ -282,35 +533,53 @@ function pickSkillsFolder() {
   if (el) el.click();
 }
 
+// 提示行按状态渲染，切换语言时可直接重绘
+function refreshPickHint() {
+  var ph = document.getElementById("pickHint");
+  if (!ph) return;
+  var st = window.__pickState;
+  if (!st) { ph.textContent = t("pick_hint"); return; }
+  var sep = LANG === "zh" ? "、" : ", ";
+  if (st.kind === "reading") ph.textContent = t("pick_reading", { n: st.n });
+  else if (st.kind === "notFound") ph.textContent = t("pick_not_found");
+  else if (st.kind === "hiddenOnly") ph.textContent = t("pick_only_hidden", { skip: t("skip_hidden", { n: st.hidden }) });
+  else if (st.kind === "noDesc") ph.textContent = t("pick_no_desc");
+  else if (st.kind === "done") {
+    ph.textContent = t("pick_done", {
+      n: st.rows,
+      skipped: st.skipped.length ? t("skip_list", { n: st.skipped.length, list: st.skipped.join(sep) }) : "",
+      skip: st.hidden ? t("skip_hidden", { n: st.hidden }) : "" });
+  }
+}
+
 function handleFolderPicked(input) {
-  var hint = document.getElementById("pickHint");
   var all = Array.prototype.slice.call(input.files || []);
   var sel = selectSkillMdFiles(all);
   var items = sel.picked;
-  var skipNote = sel.hidden ? "，跳过 " + sel.hidden + " 个隐藏目录中的 SKILL.md（如 .system/）" : "";
   if (!items.length) {
-    hint.textContent = sel.hidden
-      ? "只有隐藏目录（如 .system/）里有 SKILL.md，已按惯例跳过" + skipNote + "。如需检测请直接选择该目录。"
-      : "未找到 SKILL.md。请选择「技能名/SKILL.md」结构的目录（如 ~/.codex/skills）。";
+    window.__pickState = sel.hidden ? { kind: "hiddenOnly", hidden: sel.hidden } : { kind: "notFound" };
+    refreshPickHint();
     input.value = "";
     return;
   }
-  hint.textContent = "正在读取 " + items.length + " 个 SKILL.md ...";
+  window.__pickState = { kind: "reading", n: items.length };
+  refreshPickHint();
   Promise.all(items.map(function(it) {
     return it.file.text().then(function(t) { it.text = t; }, function() { it.text = ""; });
   })).then(function() {
     var res = skillFolderRows(items);
     if (!res.rows.length) {
-      hint.textContent = "读取到 SKILL.md 但都没有可用 description，请检查文件格式。";
+      window.__pickState = { kind: "noDesc" };
+      refreshPickHint();
       input.value = "";
       return;
     }
     document.getElementById("skills").value = res.rows.map(function(r) {
       return r.name + ": " + r.description;
     }).join("\n");
-    hint.textContent = "已读取 " + res.rows.length + " 个技能" +
-      (res.skipped.length ? "，跳过 " + res.skipped.length + " 个：" + res.skipped.join("、") : "") +
-      skipNote + "。全程在浏览器内解析，未上传。";
+    window.__pickState = { kind: "done", rows: res.rows.length, hidden: sel.hidden,
+                           skipped: res.skipped.slice() };
+    refreshPickHint();
     input.value = "";
   });
 }
@@ -366,11 +635,11 @@ function parseSkills(text) {
     line = line.trim();
     if (!line) return;
     var sep = line.search(/[:：|｜]/);
-    if (sep < 1) { errs.push("技能第 " + (i + 1) + " 行缺少分隔符（应为 name: description）"); return; }
+    if (sep < 1) { errs.push(t("err_line_no_sep", { n: i + 1 })); return; }
     var name = line.slice(0, sep).trim(), desc = line.slice(sep + 1).trim();
-    if (!NAME_RE.test(name)) { errs.push("技能第 " + (i + 1) + " 行 name 不合规（小写字母/数字/连字符）: " + name); return; }
-    if (!desc) { errs.push("技能第 " + (i + 1) + " 行 description 为空"); return; }
-    if (seen[name]) { errs.push("重复的 name: " + name); return; }
+    if (!NAME_RE.test(name)) { errs.push(t("err_name_invalid", { n: i + 1, name: name })); return; }
+    if (!desc) { errs.push(t("err_desc_empty", { n: i + 1 })); return; }
+    if (seen[name]) { errs.push(t("err_dup_name", { name: name })); return; }
     seen[name] = 1;
     out.push({ name: name, description: desc });
   });
@@ -385,7 +654,7 @@ function parseTasks(text) {
     var m = line.match(/^(.*?)\s*=>\s*([a-zA-Z0-9-]+)\s*$/);  // NONE 为大写合法预期值
     if (m) out.push({ task: m[1].trim(), expected: m[2] });
     else out.push({ task: line, expected: null });
-    if (m && !m[2]) errs.push("任务第 " + (i + 1) + " 行 => 后为空");
+    if (m && !m[2]) errs.push(t("err_task_empty", { n: i + 1 }));
   });
   return { tasks: out, errs: errs };
 }
@@ -396,11 +665,9 @@ function buildCatalog(skills) {
   }).join("\n");
 }
 
-// 规则同步警告：本文件的 SYSTEM_PROMPT、CONSISTENCY_MIN(0.8)、冲突判定规则
+// 规则同步警告：本文件的 SYSTEM_PROMPT（zh 版与 CLI 逐字一致，en 版为等价英文）、CONSISTENCY_MIN(0.8)、冲突判定规则
 // 与 skill_seam.py（CLI 版）保持一致，任何一边修改必须同步另一边。
-var SYSTEM_PROMPT = "你是客服 agent 的技能选择器。下面给出可用技能列表（仅名称与描述）。" +
-  "收到用户任务后，选出最合适的一个技能名称；若没有任何技能合适，输出 NONE。" +
-  '只输出 JSON：{"chosen": "<name|NONE>"}，不要输出其他内容。';
+var SYSTEM_PROMPT = t("prompt_select");
 var CONSISTENCY_MIN = 0.8;
 
 function extractChosen(content, names) {
@@ -472,7 +739,7 @@ function llmCall(cfg, base, messages, maxTokens) {
 function chatCall(cfg, base, catalog, task) {
   return llmCall(cfg, base, [
     { role: "system", content: SYSTEM_PROMPT },
-    { role: "user", content: "可用技能：\n" + catalog + "\n\n用户任务：" + task }
+    { role: "user", content: t("prompt_catalog", { catalog: catalog, task: task }) }
   ], 60);
 }
 
@@ -484,24 +751,15 @@ function parseJSONLoose(content) {
 }
 
 // ---------------- 任务自动生成（与 skill_seam.py 的 generate_tasks_real 保持一致） ----------------
-var GEN_POS_PROMPT = "根据技能的名称与描述，写 {n} 条真实用户可能提出的任务问法。" +
-  "要求：第一人称、口语化、句式多样、长短不一；不要出现技能名称本身；不要任何解释。" +
-  '只输出 JSON 数组：["任务1", "任务2", ...]';
-var GEN_GRAY_PROMPT = "红队任务：下面两个技能的职责存在语义重叠。你的目标是写出最刁钻的用户问法——" +
-  "让 agent 极难判断该归 A 还是 B、甚至干脆选错的那种。" +
-  "问法要像真实用户的随意口吻：可以夹杂场景细节、模糊指代，两个技能的关键词各带一点。" +
-  "请写 {n} 组边界问法：每组两条，第一条正确答案应归技能A，第二条应归技能B，" +
-  "组内两条要高度相似以形成边界测试。" +
-  '只输出 JSON：{"first": ["偏向A的问法"...], "second": ["偏向B的问法"...]}';
+var GEN_POS_PROMPT = t("prompt_gen_pos");
+var GEN_GRAY_PROMPT = t("prompt_gen_gray");
 
 function llmPickPairs(cfg, base, skills, k) {
   var byName = {}, listing = [];
   skills.forEach(function(s) { byName[s.name] = s; listing.push("- " + s.name + ": " + s.description); });
-  var prompt = "以下是 " + skills.length + " 个客服 agent 技能的名称与描述：\n" + listing.join("\n") +
-    "\n\n请找出职责最容易互相重叠、用户任务容易混淆的 " + k + " 对技能（按混淆可能性从高到低）。" +
-    '只输出 JSON：{"pairs": [["技能名1", "技能名2"], ...]}';
+  var prompt = t("prompt_gen_pairs", { n: skills.length, k: k, listing: listing.join("\n") });
   return llmCall(cfg, base, [
-    { role: "system", content: "你是测试用例生成器，只输出 JSON。" }, { role: "user", content: prompt }], 500)
+    { role: "system", content: t("prompt_gen_sys") }, { role: "user", content: prompt }], 500)
     .then(function(content) {
       var obj = parseJSONLoose(content) || {};
       var pairs = [], seen = {};
@@ -520,10 +778,10 @@ function genTasksAuto(cfg, base, skills, nPos, kPairs) {
   var allNames = skills.map(function(s) { return s.name; });
   var seenText = {};
   function genPositive(s) {
-    var prompt = "技能名称：" + s.name + "\n技能描述：" + s.description + "\n\n" +
+    var prompt = t("prompt_skill_name") + s.name + t("prompt_skill_desc") + s.description + "\n\n" +
       GEN_POS_PROMPT.replace("{n}", nPos);
     return llmCall(cfg, base, [
-      { role: "system", content: "你是测试用例生成器，只输出 JSON。" }, { role: "user", content: prompt }], 800)
+      { role: "system", content: t("prompt_gen_sys") }, { role: "user", content: prompt }], 800)
       .then(function(content) {
         var arr = parseJSONLoose(content);
         if (!Array.isArray(arr)) return [];
@@ -545,10 +803,10 @@ function genTasksAuto(cfg, base, skills, nPos, kPairs) {
   }
   function genGray(a, b) {
     var prompt = GEN_GRAY_PROMPT.replace("{n}", 3);
-    var body = "技能A：" + a.name + "\n描述A：" + a.description +
-               "\n\n技能B：" + b.name + "\n描述B：" + b.description;
+    var body = t("prompt_gray_a") + a.name + t("prompt_gray_da") + a.description +
+               t("prompt_gray_b") + b.name + t("prompt_gray_db") + b.description;
     return llmCall(cfg, base, [
-      { role: "system", content: "你是测试用例生成器，只输出 JSON。" }, { role: "user", content: body + "\n\n" + prompt }], 900)
+      { role: "system", content: t("prompt_gen_sys") }, { role: "user", content: body + "\n\n" + prompt }], 900)
       .then(function(content) {
         var obj = parseJSONLoose(content);
         if (!obj || typeof obj !== "object") return [];
@@ -583,30 +841,30 @@ function genTasks() {
   hideErr();
   var ps = parseSkills($("skills").value);
   if (ps.errs.length) { showErr(ps.errs.join("\n")); return; }
-  if (ps.skills.length < 2) { showErr("至少需要 2 个技能"); return; }
+  if (ps.skills.length < 2) { showErr(t("err_need_two")); return; }
   var cfg = getCfg();
-  if (cfg.provider === "demo") { showErr("自动生成需要真实模型端点：请选择 Provider 并填写 Key"); return; }
-  if (!cfg.key) { showErr("请填写 API Key"); return; }
-  if (cfg.provider === "openai" && !cfg.base) { showErr("OpenAI-compatible 需要填写 Base URL"); return; }
-  if (!cfg.model) { showErr("请填写模型名"); return; }
+  if (cfg.provider === "demo") { showErr(t("err_gen_endpoint")); return; }
+  if (!cfg.key) { showErr(t("err_need_key")); return; }
+  if (cfg.provider === "openai" && !cfg.base) { showErr(t("err_need_base")); return; }
+  if (!cfg.model) { showErr(t("err_need_model")); return; }
   saveCfg();
   var base = cfg.provider === "openai" ? cfg.base : PROVIDER_BASE[cfg.provider];
   var nPos = parseInt($("genPos").value, 10);
   var kPairs = parseInt($("grayPairs").value, 10);
   setRunning(true);
-  showStatus("正在生成任务（" + ps.skills.length + " 技能 × " + nPos + " 正向 + " + kPairs + " 对灰区）...");
+  showStatus(t("gen_status", { s: ps.skills.length, p: nPos, k: kPairs }));
   genTasksAuto(cfg, base, ps.skills, nPos, kPairs).then(function(r) {
     setRunning(false);
     hideStatus();
-    if (!r.tasks.length) { showErr("任务生成结果为空" + (r.warnings.length ? "：" + r.warnings.join("；") : "")); return; }
+    if (!r.tasks.length) { showErr(t("gen_empty") + (r.warnings.length ? "：" + r.warnings.join("；") : "")); return; }
     // 追加而非覆盖：用户可能已手写任务
     var generated = r.tasks.map(function(t) {
       return t.t + " => " + t.e;
     }).join("\n");
     var existing = $("tasks").value.trim();
     $("tasks").value = existing ? existing + "\n" + generated : generated;
-    if (r.warnings.length) showErr("部分生成跳过：" + r.warnings.join("；") + "。已追加 " + r.tasks.length + " 条到任务框。");
-    else showStatus("已生成 " + r.tasks.length + " 条任务并追加到任务框（可编辑后点「开始模拟」）。注意：生成任务存在「生成者偏见」（出题模型知道意图），冲突结论请以真实用户问法为准。");
+    if (r.warnings.length) showErr(t("gen_partial", { w: r.warnings.join("；"), n: r.tasks.length }));
+    else showStatus(t("gen_done", { n: r.tasks.length }));
   });
 }
 
@@ -622,13 +880,7 @@ function hideStatus() {
 }
 
 // ---------------- 修复建议（与 skill_seam.py 的 generate_fix_suggestions 保持一致） ----------------
-var FIX_PROMPT = "你是 prompt 工程专家。技能 {thief} 的 description 截胡了本应属于技能 {victim} 的用户任务。\n\n" +
-  "技能 {victim}（应选）：\n{vdesc}\n\n技能 {thief}（实际被选中）：\n{tdesc}\n\n" +
-  "被截胡的任务：\n{tasks}\n\n" +
-  "请给出改写建议（1-2 条），通过修改其中一个或两个技能的 description 使边界清晰、截胡消失。" +
-  "优先改截胡方（加'仅限/不含'等边界词）。new_description 必须是完整可替换的 description，" +
-  "长度不超过 1024 字符，除边界外不得删减原职责。" +
-  '只输出 JSON：{"changes": [{"skill": "技能名", "new_description": "改写后的完整描述", "reason": "一句话理由"}]}';
+var FIX_PROMPT = t("prompt_fix");
 
 function genFixes(cfg, base, rows, skillsByName) {
   var pairs = {}, order = [];
@@ -674,17 +926,18 @@ function renderFixes(suggestions, skills) {
   suggestions.forEach(function(s) {
     s.changes.forEach(function(c) {
       var oldDesc = byName[c.skill] ? byName[c.skill].description : "";
-      html += '<div class="fix"><div class="fixhead">修改 ' + chip(c.skill) +
-        '<span class="fixreason">（冲突：' + chip(s.victim) + ' 被 ' + chip(s.thief, "red") + ' 截胡）</span></div>' +
-        '<div class="fixold"><b>改前</b>：' + esc(oldDesc) + '</div>' +
-        '<div class="fixnew"><b>改后</b>：' + esc(c.new_description) + '</div>' +
-        '<div class="fixreason">理由：' + esc(c.reason) + '</div></div>';
+      html += '<div class="fix"><div class="fixhead">' + t("fix_head", { name: chip(c.skill) }) +
+        '<span class="fixreason">' + t("fix_note", { victim: chip(s.victim), thief: chip(s.thief, "red") }) + '</span></div>' +
+        '<div class="fixold"><b>' + t("fix_old") + '</b>: ' + esc(oldDesc) + '</div>' +
+        '<div class="fixnew"><b>' + t("fix_new") + '</b>: ' + esc(c.new_description) + '</div>' +
+        '<div class="fixreason">' + t("fix_reason") + esc(c.reason) + '</div></div>';
     });
   });
   if (!html) {
-    html = '<div class="hint">未能自动生成建议。可按冲突明细里的截胡关键词手动改 description：给截胡方加"仅限/不含"边界词。</div>';
+    html = '<div class="hint">' + t("fix_no_suggestions") + '</div>';
   }
   $("fixes").innerHTML = html;
+  window.__lastFixes = { suggestions: suggestions, skills: skills };
   $("fixCard").classList.remove("hidden");
 }
 
@@ -734,7 +987,7 @@ function run() {
 
   var cfg = getCfg();
   var samples = parseInt($("samples").value, 10);
-  if (!(samples >= 1)) { showErr("采样次数无效：请选择 1-8 之间的整数。"); return; }
+  if (!(samples >= 1)) { showErr(t("err_samples")); return; }
   if (cfg.provider === "demo") { renderDemo(); return; }
   if (!cfg.key) { showErr("请填写 API Key（或先选「演示模式」看效果）"); return; }
   if (cfg.provider === "openai" && !cfg.base) { showErr("OpenAI-compatible 需要填写 Base URL"); return; }
@@ -806,9 +1059,10 @@ function run() {
     if (fatal > 0) {
       showErr("注意：" + fatal + " 个请求失败（已计为 ERROR）。首个错误：" + firstErr);
     }
+    window.__lastRender = { byTask: byTask, skills: ps.skills, samples: samples, model: cfg.model };
     render(byTask, ps.skills, samples, cfg.model);
     if (stopped) {
-      showErr("评测已停止，结果不完整（已完成的请求已计入）。");
+      showErr(t("run_stopped"));
       return;
     }
     // 有稳定冲突时自动生成修复建议（BYOK 模式专属能力）
@@ -900,7 +1154,7 @@ function render(byTask, skills, samples, model) {
   $("s-conf").textContent = conflicts.length;
   $("s-unstable").textContent = unstable;
   $("s-total").textContent = rows.length;
-  $("skillStrip").innerHTML = "已识别 " + skills.length + " 个技能：" +
+  $("skillStrip").innerHTML = t("strip_recognized", { n: skills.length }) +
     skills.map(function(s) { return chip(s.name); }).join("");
 
   var expNames = [];
@@ -908,13 +1162,14 @@ function render(byTask, skills, samples, model) {
   var cols = expNames.slice();
   names.forEach(function(n) { if (cols.indexOf(n) < 0 && n !== "NONE") cols.push(n); });
   if (cols.indexOf("NONE") < 0) cols.push("NONE");
-  cols.push("其他");
+  var OTHER_COL = t("col_other");
+  cols.push(OTHER_COL);
   var mat = expNames.map(function() { return cols.map(function() { return 0; }); });
   var rowIdx = {};
   expNames.forEach(function(n, i) { rowIdx[n] = i; });
   tagged.forEach(function(r) {
     var ci = cols.indexOf(r.chosen);
-    if (ci < 0) ci = cols.indexOf("其他");
+    if (ci < 0) ci = cols.indexOf(OTHER_COL);
     mat[rowIdx[r.expected]][ci]++;
   });
   var matSkills = expNames.map(function(n) {
@@ -931,29 +1186,28 @@ function render(byTask, skills, samples, model) {
         .map(function(t) { return '<span class="badge">' + esc(t) + "</span>"; }).join("");
     }
     var expectLabel = r.expected === "NONE"
-      ? '应<b>不触发任何技能</b>，却被 ' + chip(r.chosen, "red") + ' 接管'
-      : '应选 ' + chip(r.expected) + '，实际被 ' + chip(r.chosen, "red") + ' 截胡';
-    ch += '<div class="conflict">「' + esc(r.task) + '」<br>' + expectLabel + '（' +
-          Math.round(r.consistency * samples) + "/" + samples + ' 票）' +
-          (badges ? "<br>截胡关键词：" + badges : "") + "</div>";
+      ? t("conflict_overtake", { b: chip(r.chosen, "red") })
+      : t("conflict_expect", { a: chip(r.expected), b: chip(r.chosen, "red") });
+    ch += '<div class="conflict">「' + esc(r.task) + '」<br>' + expectLabel +
+          t("votes", { n: Math.round(r.consistency * samples), m: samples }) +
+          (badges ? "<br>" + t("keywords") + badges : "") + "</div>";
   });
   // 与 CLI 一致：没有任何有效选择结果时，明确报告评测失败，不给"无冲突"结论
   if (allSamplesInvalid(rows)) {
-    ch = '<div class="conflict">评测失败：没有取得任何有效的选择结果（请求失败或响应不可解析）。' +
-         '不能视为无冲突。请检查 Key、模型名或端点后重试。</div>';
+    ch = '<div class="conflict">' + t("eval_failed") + '</div>';
   }
   $("conflicts").innerHTML = ch ||
-    '<div class="plain">标注任务中未发现稳定冲突。想暴露边界问题，多写几条两两语义交界的模糊问法（用 => 标注你认为是正确归属的一方）。</div>';
+    '<div class="plain">' + t("no_conflicts") + '</div>';
 
   var pl = "";
   rows.forEach(function(r) {
     if (r.expected) return;
-    var cls = r.stable ? "" : "（不稳定 " + Math.round(r.consistency * samples) + "/" + samples + " 票，仅供参考）";
-    pl += '<div class="plain">「' + esc(r.task) + '」→ agent 选中 ' + chip(r.chosen) +
+    var cls = r.stable ? "" : t("unstable_note", { n: Math.round(r.consistency * samples), m: samples });
+    pl += '<div class="plain">' + t("plain_line", { task: esc(r.task), chosen: chip(r.chosen) }) +
           " " + cls + "</div>";
   });
   $("plains").innerHTML = pl ||
-    '<div class="plain">没有未标注任务。给部分任务去掉 => 标注，可以看看 agent 的自然选择。</div>';
+    '<div class="plain">' + t("no_plains") + '</div>';
 
   $("result").classList.remove("hidden");
   $("result").scrollIntoView({ behavior: "smooth" });
@@ -972,21 +1226,24 @@ function renderDemo() {
   $("skills").value = D.skills.map(function(s) { return s.name + ": " + s.desc; }).join("\n");
   $("fixCard").classList.add("hidden");  // 演示模式无修复建议，清掉 BYOK 运行残留
   var skills = D.skills.map(function(s) { return { name: s.name, description: s.desc }; });
-  var svg = matrixSvg(D.matrix, skills, D.cols);
+  var demoCols = D.cols.map(function(c) { return c === "其他" ? t("col_other") : c; });
+  var svg = matrixSvg(D.matrix, skills, demoCols);
   $("s-hit").textContent = D.meta.hits + "/" + D.meta.total;
   $("s-conf").textContent = D.conflicts.length;
   $("s-unstable").textContent = D.meta.unstable;
   $("s-total").textContent = D.meta.total;
-  $("skillStrip").innerHTML = "已识别 " + skills.length + " 个技能：" +
+  $("skillStrip").innerHTML = t("strip_recognized", { n: skills.length }) +
     skills.map(function(s) { return chip(s.name); }).join("");
+  window.__lastDemoRendered = true;
   $("matrix").innerHTML = svg;
   var ch = "";
   D.conflicts.forEach(function(c) {
-    ch += '<div class="conflict">「' + esc(c.task) + '」<br>应选 ' + chip(c.expected) +
-          '，实际被 ' + chip(c.chosen, "red") + ' 截胡（' + esc(c.votes) + ' 票）</div>';
+    ch += '<div class="conflict">「' + esc(c.task) + '」<br>' +
+          t("conflict_expect", { a: chip(c.expected), b: chip(c.chosen, "red") }) +
+          t("votes_raw", { x: esc(c.votes) }) + "</div>";
   });
   $("conflicts").innerHTML = ch;
-  $("plains").innerHTML = '<div class="plain">演示数据来自 CLI 版对 6 个眼科客服 skill 的真实模拟（qwen3.8-flash，40 任务 × 5 采样，埋有 2 处撞车）。</div>';
+  $("plains").innerHTML = '<div class="plain">' + t("demo_note") + '</div>';
   $("result").classList.remove("hidden");
   $("result").scrollIntoView({ behavior: "smooth" });
 }
@@ -1013,7 +1270,7 @@ function matrixSvg(mat, skills, cols) {
   var W = labW + cellW * cols.length + 20;
   var H = topH + cellH * skills.length + 56;
   var svg = ['<svg viewBox="0 0 ' + W + " " + H + '" width="100%" xmlns="http://www.w3.org/2000/svg">'];
-  svg.push('<text x="' + labW + '" y="14" font-size="12" fill="#5f5e5a">列 = agent 实际选中 →（行 = 应选技能）</text>');
+  svg.push('<text x="' + labW + '" y="14" font-size="12" fill="#5f5e5a">' + esc(t("matrix_axis")) + "</text>");
   cols.forEach(function(c, ci) {
     var x = labW + ci * cellW;
     // 列头空间有限：超长截断，悬浮显示完整技能名
