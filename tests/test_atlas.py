@@ -343,13 +343,23 @@ class TestAdversarialPrompt(unittest.TestCase):
         self.assertTrue(all("a-b" not in t["t"] and "c-d" not in t["t"] for t in tasks))
 
 
+# 所有 provider 凭据相关的环境变量：测试构造「无配置」环境时必须一并清掉
+PROVIDER_ENV_VARS = ("DASHSCOPE_API_KEY", "DEEPSEEK_API_KEY", "OPENAI_API_KEY",
+                     "OPENAI_BASE_URL", "DEEPSEEK_BASE_URL", "ATLAS_MODEL")
+
+
+def env_without_keys(**extra):
+    env = {k: v for k, v in os.environ.items() if k not in PROVIDER_ENV_VARS}
+    env.update(extra)
+    return env
+
+
 class TestReliabilityFixes(unittest.TestCase):
     """GPT-6 静态审查发现的 7 个问题中本批修复的 6 个。"""
 
     def setUp(self):
         self.td = tempfile.TemporaryDirectory()
-        self.no_key_env = {k: v for k, v in os.environ.items()
-                           if k not in ("DASHSCOPE_API_KEY", "OPENAI_API_KEY")}
+        self.no_key_env = env_without_keys()
 
     def tearDown(self):
         self.td.cleanup()
@@ -390,8 +400,7 @@ class TestReliabilityFixes(unittest.TestCase):
         """配置只有 model → 一次性列出缺失字段，退出 2。"""
         with tempfile.TemporaryDirectory() as td:
             (Path(td) / ".atlasrc.json").write_text(json.dumps({"model": "m"}), encoding="utf-8")
-            env = {k: v for k, v in os.environ.items()
-                   if k not in ("DASHSCOPE_API_KEY", "OPENAI_API_KEY")}
+            env = env_without_keys()
             r = subprocess.run([sys.executable, str(SCRIPT), str(ROOT / "demo-skills")],
                                capture_output=True, text=True, cwd=td, env=env)
             self.assertEqual(r.returncode, 2)
@@ -399,8 +408,7 @@ class TestReliabilityFixes(unittest.TestCase):
             self.assertIn("api_key", r.stderr)
 
     def test_config_not_object(self):
-        env = {k: v for k, v in os.environ.items()
-               if k not in ("DASHSCOPE_API_KEY", "OPENAI_API_KEY")}
+        env = env_without_keys()
         with tempfile.TemporaryDirectory() as td:
             (Path(td) / ".atlasrc.json").write_text("[1,2]", encoding="utf-8")
             r = subprocess.run([sys.executable, str(SCRIPT), str(ROOT / "demo-skills")],
@@ -718,6 +726,20 @@ class TestCLIExitCodes(unittest.TestCase):
             self.assertEqual(len(overtake), 1)
             self.assertTrue(overtake[0]["conflict"])
             self.assertTrue((Path(td) / "output" / "report.html").exists())
+
+    def test_deepseek_env_fallback(self):
+        """DEEPSEEK_API_KEY 走官方端点（此前只支持 DashScope/OpenAI）。"""
+        env = env_without_keys(DEEPSEEK_API_KEY="sk-test-deepseek")
+        with tempfile.TemporaryDirectory() as td:
+            r = subprocess.run([sys.executable, str(SCRIPT), str(ROOT / "demo-skills"),
+                                "--demo-tasks", "--mock"], capture_output=True, text=True,
+                               cwd=td, env=env)
+            self.assertEqual(r.returncode, 1, msg=r.stderr)  # mock 模式跑通（demo 有冲突）
+        with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "sk-test-deepseek"}, clear=True):
+            c = ad.load_config()
+        self.assertEqual(c["base_url"], "https://api.deepseek.com/v1")
+        self.assertEqual(c["model"], "deepseek-chat")
+        self.assertEqual(c["api_key"], "sk-test-deepseek")
 
     def test_scan_is_recursive_and_skips_hidden(self):
         """递归查找 SKILL.md（支持分类嵌套），但跳过隐藏目录（.system/.git）。"""

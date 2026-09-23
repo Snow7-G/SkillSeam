@@ -61,6 +61,11 @@ def load_config():
                     "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
                     "api_key": os.environ["DASHSCOPE_API_KEY"],
                     "model": os.environ.get("ATLAS_MODEL", "qwen3.8-flash")}
+        if os.environ.get("DEEPSEEK_API_KEY"):
+            return {"mode": "real",
+                    "base_url": os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1"),
+                    "api_key": os.environ["DEEPSEEK_API_KEY"],
+                    "model": os.environ.get("ATLAS_MODEL", "deepseek-chat")}
         if os.environ.get("OPENAI_API_KEY"):
             return {"mode": "real",
                     "base_url": os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
@@ -1232,7 +1237,7 @@ HELP_TEXT = """SkillSeam {version} —— 模拟 agent 的 skill 选择过程，
   -h, --help             显示本帮助
   -V, --version          显示版本
 
-配置: .atlasrc.json（当前目录或脚本目录）→ 环境变量 DASHSCOPE_API_KEY / OPENAI_API_KEY
+配置: .atlasrc.json（当前目录或脚本目录）→ 环境变量 DASHSCOPE_API_KEY / DEEPSEEK_API_KEY / OPENAI_API_KEY
 退出码: 0 无冲突 · 1 有冲突 · 2 配置、参数或评测失败（无有效采样）
 文档: https://github.com/Snow7-G/SkillSeam"""
 
@@ -1397,7 +1402,7 @@ def main():
 
     cfg = None if mock else load_config()
     if cfg is None and not mock:
-        eprint("错误: 未检测到模型配置（.atlasrc.json 或环境变量 DASHSCOPE_API_KEY / OPENAI_API_KEY）。")
+        eprint("错误: 未检测到模型配置（.atlasrc.json 或环境变量 DASHSCOPE_API_KEY / DEEPSEEK_API_KEY / OPENAI_API_KEY）。")
         eprint("       若只想离线验证管线，请显式加 --mock。")
         sys.exit(2)
     if mock:
