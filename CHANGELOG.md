@@ -6,6 +6,9 @@
 
 ## [Unreleased]
 
+### Added
+- 环境变量回退链新增 `DEEPSEEK_API_KEY`（端点 `https://api.deepseek.com/v1`，默认模型 `deepseek-chat`），此前只认 DashScope 与 OpenAI。
+
 ### Fixed
 - **扫描范围不一致**：CLI 原先只扫一层（`*/SKILL.md`），网页递归读取，导致同一目录下两者技能数不同（真实案例：`~/.codex/skills` CLI 读到 3 个、网页读到 9 个）。现统一为递归查找，并同时跳过隐藏目录（`.system`/`.git`）与噪音目录（node_modules 等），两侧都明确告知「跳过了什么、如需检测该如何指定」。
 - CLI `export` / `harvest` 不再吞掉扫描警告（跳过隐藏目录的说明此前只存在于主流程）。
