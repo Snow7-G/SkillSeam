@@ -206,6 +206,13 @@ t("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   t("loadDemo 切换到演示模式", els["provider"].value === "demo");
   t("loadDemo 渲染热力图", els["matrix"].innerHTML.indexOf("<svg") >= 0);
 
+  // 技能名玻璃胶囊
+  t("chip 结构", chip("a-b") === '<span class="skill-chip">a-b</span>');
+  t("chip red 变体", chip("c-d", "red").indexOf("skill-chip red") >= 0);
+  t("chip 转义", chip("<x>").indexOf("&lt;") >= 0);
+  loadDemo();
+  t("skillStrip 展示全部技能", els["skillStrip"].innerHTML.split("skill-chip").length - 1 === 6);
+
   // #6: 预期 NONE
   const pn = parseTasks("无关任务 => NONE");
   t("parseTasks NONE", pn.tasks[0].expected === "NONE" && pn.errs.length === 0);
