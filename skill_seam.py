@@ -676,8 +676,10 @@ FIX_PROMPT = (
 )
 
 
-def generate_fix_suggestions(cfg, rows, skills_by_name, max_pairs=5):
-    """对每个稳定冲突对生成 description 改写建议。失败的对静默跳过。"""
+def generate_fix_suggestions(cfg, rows, skills_by_name, max_pairs=5, verbose=True):
+    """对每个稳定冲突对生成 description 改写建议。失败的对跳过（不影响冲突判定）。
+
+    生成慢且可能与评测共用同一额度（易被限流），因此打印进度，且每对只重试一次。"""
     pairs = {}
     for r in rows:
         # 预期 NONE（过度接管）没有受害技能可改写 → 跳过建议生成，
@@ -686,13 +688,19 @@ def generate_fix_suggestions(cfg, rows, skills_by_name, max_pairs=5):
             pairs.setdefault((r["expected"], r["chosen"]), []).append(r)
 
     suggestions = []
-    for (victim, thief), rs in list(pairs.items())[:max_pairs]:
+    todo = list(pairs.items())[:max_pairs]
+    if todo and verbose:
+        print(f"\n检测到 {len(todo)} 对稳定冲突，正在生成修复建议（每对需一次较长生成，可用 --no-fixes 跳过）...",
+              flush=True)
+    for pi, ((victim, thief), rs) in enumerate(todo, 1):
+        if verbose:
+            print(f"  [{pi}/{len(todo)}] {thief} ← 抢了 {victim}", flush=True)
         v, t = skills_by_name[victim], skills_by_name[thief]
         task_list = "\n".join(f"- {r['task']}" for r in rs[:5])
         prompt = FIX_PROMPT.format(thief=thief, victim=victim,
                                    vdesc=v["description"], tdesc=t["description"],
                                    tasks=task_list)
-        for attempt in range(3):
+        for attempt in range(2):   # 重试 1 次即可：建议生成失败不影响冲突判定，不值得长时间阻塞
             try:
                 obj = parse_json_loose(_gen_call(cfg, prompt))
                 if isinstance(obj, dict):
@@ -709,8 +717,10 @@ def generate_fix_suggestions(cfg, rows, skills_by_name, max_pairs=5):
                                             "conflict_tasks": [r["task"] for r in rs[:3]],
                                             "changes": valid})
                         break
-            except Exception:
-                if attempt == 2:
+            except Exception as e:
+                if attempt == 1:
+                    if verbose:
+                        print(f"        生成失败（跳过该对）: {_err_text(e)[:120]}", flush=True)
                     break
                 time.sleep(1.5)
     return suggestions
@@ -1248,6 +1258,7 @@ HELP_TEXT = """SkillSeam {version} —— 模拟 agent 的 skill 选择过程，
   --with-marked          合并事故库中适用于当前技能集的条目
   --out <目录>           报告输出目录（默认当前目录下 output/）
   --workers <N>          并发请求数（默认 8；免费额度被限流时调小，如 2）
+  --no-fixes             不生成 AI 修复建议（更快、更省额度，适合 CI）
   --mock                 离线关键词打分模式（仅验证管线，结论不可信）
   -h, --help             显示本帮助
   -V, --version          显示版本
@@ -1290,12 +1301,13 @@ def main():
             sys.exit(2)
     skip = {"--mock", "--demo-tasks", "--with-marked", "--tasks",
             str(task_file) if task_file else None,
-            "--gen-positive", "--gray-pairs", "--workers"}
+            "--gen-positive", "--gray-pairs", "--workers", "--no-fixes"}
     if "--out" in args:
         skip.add("--out")
         oi = args.index("--out")
         if oi + 1 < len(args):
             skip.add(args[oi + 1])
+    no_fixes = "--no-fixes" in args
     if "--workers" in args:
         wi = args.index("--workers")
         if wi + 1 < len(args) and args[wi + 1].isdigit():
@@ -1444,7 +1456,8 @@ def main():
     fix_suggestions = []
     if conflicts and not (mock or cfg is None):
         print(f"为 {len(conflicts)} 个冲突生成修复建议...")
-        fix_suggestions = generate_fix_suggestions(cfg, rows, {s["name"]: s for s in skills})
+        fix_suggestions = [] if no_fixes else generate_fix_suggestions(
+            cfg, rows, {s["name"]: s for s in skills})
         print(f"  生成 {len(fix_suggestions)} 组建议")
     elif conflicts:
         print("（mock 模式跳过修复建议生成）")
