@@ -200,6 +200,12 @@ t("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   global.fetch = savedFetchB;
   delete globalThis.__atlasHook;
 
+  // 流程回归：演示按钮（曾因 loadDemo 未定义而完全失效）
+  els["provider"].value = "openai";
+  loadDemo();
+  t("loadDemo 切换到演示模式", els["provider"].value === "demo");
+  t("loadDemo 渲染热力图", els["matrix"].innerHTML.indexOf("<svg") >= 0);
+
   // #6: 预期 NONE
   const pn = parseTasks("无关任务 => NONE");
   t("parseTasks NONE", pn.tasks[0].expected === "NONE" && pn.errs.length === 0);

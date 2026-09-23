@@ -800,6 +800,13 @@ function render(byTask, skills, samples, model) {
   $("result").scrollIntoView({ behavior: "smooth" });
 }
 
+function loadDemo() {
+  // 「看演示数据」：切到演示 provider 并渲染内置结果（无需 API Key）
+  hideErr();
+  $("provider").value = "demo";
+  renderDemo();
+}
+
 function renderDemo() {
   hideErr();
   var D = DEMO;
