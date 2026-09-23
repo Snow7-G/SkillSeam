@@ -18,6 +18,7 @@ global.localStorage = {
   removeItem: (k) => { removedKeys.push(k); delete store[k]; },
 };
 global.fetch = () => Promise.reject(new Error("no network"));
+global.window = { addEventListener: () => {} };  // 页面在 DOMContentLoaded 里绑定文件夹选择
 
 const html = fs.readFileSync(path.join(__dirname, "..", "docs", "index.html"), "utf-8");
 const m = html.match(/<script>([\s\S]*)<\/script>/);
@@ -212,6 +213,30 @@ t("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   loadDemo();
   t("loadDemo 切换到演示模式", els["provider"].value === "demo");
   t("loadDemo 渲染热力图", els["matrix"].innerHTML.indexOf("<svg") >= 0);
+
+  // 本机技能文件夹读取：frontmatter 解析
+  const p1 = parseSkillMd("---\nname: a-b\ndescription: 处理挂号\n---\n\n正文", "fb");
+  t("parseSkillMd 普通值", p1.name === "a-b" && p1.description === "处理挂号");
+  const p2 = parseSkillMd('---\nname: "q-s"\ndescription: \'单引号\'\n---\n', "fb");
+  t("parseSkillMd 去引号", p2.name === "q-s" && p2.description === "单引号");
+  const p3 = parseSkillMd("---\nname: fold\ndescription: >-\n  line one\n  line two\n---\n", "fb");
+  t("parseSkillMd 折行块", p3.description === "line one line two");
+  const p4 = parseSkillMd("---\nname: lit\ndescription: |\n  l1\n  l2\n---\n", "fb");
+  t("parseSkillMd 字面块", p4.description === "l1\nl2");
+  const p5 = parseSkillMd("没有 frontmatter", "fallback-name");
+  t("parseSkillMd 无 frontmatter 回退目录名", p5.name === "fallback-name" && p5.issues.length === 1);
+
+  // 纯函数：文件夹条目 → 粘贴行
+  const fr = skillFolderRows([
+    { path: "skills/a/SKILL.md", folder: "a", text: "---\nname: a-b\ndescription: 甲\n---\n" },
+    { path: "skills/b/SKILL.md", folder: "b", text: "---\nname: b-c\ndescription: 乙\n---\n" },
+    { path: "skills/c/SKILL.md", folder: "c", text: "---\nname: c-d\n---\n" },
+  ]);
+  t("skillFolderRows 提取技能", fr.rows.length === 2 && fr.rows[0].name === "a-b");
+  t("skillFolderRows 跳过缺描述", fr.skipped.length === 1 && fr.skipped[0].indexOf("c-d") >= 0);
+  t("skillFolderRows 折叠多行描述", skillFolderRows([
+    { path: "s/m/SKILL.md", folder: "m", text: "---\nname: m\ndescription: |\n  第一行\n  第二行\n---\n" },
+  ]).rows[0].description === "第一行 第二行");
 
   // 技能名玻璃胶囊
   t("chip 结构", chip("a-b") === '<span class="skill-chip">a-b</span>');

@@ -20,7 +20,7 @@ SkillSeam 把这个选择过程搬到上线之前重演。40 条任务、6 个 s
 
 ## 快速开始（网页版，零安装）
 
-打开 https://snow7-g.github.io/SkillSeam/ ，点「看演示数据」，十秒出热力图。然后粘你自己的 skill（本地目录跑一条 `python3 skill_seam.py export ~/.agents/skills` 就有粘贴格式），填 API key（只存你的浏览器，请求直达端点），点「开始模拟」。
+打开 https://snow7-g.github.io/SkillSeam/ ，点「看演示数据」，十秒出热力图。然后点「选择技能文件夹」直接选你的技能目录（浏览器内解析，不上传任何文件），或用 `python3 skill_seam.py export ~/.agents/skills` 拿到粘贴格式，填 API key（只存你的浏览器，请求直达端点），点「开始模拟」。
 
 支持 OpenAI-compatible、OpenRouter、Gemini、Anthropic Claude。
 

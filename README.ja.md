@@ -20,7 +20,7 @@ SkillSeam は、出荷前にその選択プロセスを再生します。6 ス�
 
 [https://snow7-g.github.io/SkillSeam/](https://snow7-g.github.io/SkillSeam/) を開き、デモボタンを押すと 10 秒でヒートマップが表示されます。自分のスキルを貼り付けて、API キーを追加し（キーはブラウザ内のみ、リクエストはプロバイダーへ直通）、「実行」を押すだけです。
 
-SKILL.md として保存している場合は、貼り付け用に出力できます:
+SKILL.md として保存している場合は、ページの「选择技能文件夹」ボタンでフォルダを選ぶだけでも読み込めます（ブラウザ内で解析、アップロードなし）。貼り付け用に出力する場合:
 
 ```bash
 python3 skill_seam.py export ~/.agents/skills

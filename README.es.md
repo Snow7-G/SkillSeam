@@ -20,7 +20,7 @@ SkillSeam reproduce ese proceso de selección antes de que publiques. En una dem
 
 Abre [https://snow7-g.github.io/SkillSeam/](https://snow7-g.github.io/SkillSeam/), pulsa el botón de demo y tendrás un mapa de calor real en diez segundos. Luego pega tus skills, añade una API key (se queda en tu navegador, las peticiones van directas a tu proveedor) y ejecuta.
 
-¿Tus skills son archivos SKILL.md? Imprímelos en formato listo para pegar:
+¿Tus skills son archivos SKILL.md? Pulsa el botón de carpeta (选择技能文件夹) y elige el directorio: se analiza dentro de tu navegador, no se sube nada. O imprímelos en formato listo para pegar:
 
 ```bash
 python3 skill_seam.py export ~/.agents/skills

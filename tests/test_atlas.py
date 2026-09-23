@@ -719,6 +719,23 @@ class TestCLIExitCodes(unittest.TestCase):
             self.assertTrue(overtake[0]["conflict"])
             self.assertTrue((Path(td) / "output" / "report.html").exists())
 
+    def test_export_flattens_multiline_description(self):
+        """export 必须输出单行 name: description（| 块标量的多行描述要折叠）。"""
+        with tempfile.TemporaryDirectory() as td:
+            sdir = Path(td) / "m"
+            (sdir / "multi-line").mkdir(parents=True)
+            (sdir / "multi-line" / "SKILL.md").write_text(
+                "---\nname: multi-line\ndescription: |\n  line one\n  line two\n---\n\n正文\n",
+                encoding="utf-8")
+            (sdir / "plain").mkdir()
+            (sdir / "plain" / "SKILL.md").write_text(
+                "---\nname: plain\ndescription: 普通描述\n---\n\n正文\n", encoding="utf-8")
+            r = run_cli(["export", str(sdir)])
+            self.assertEqual(r.returncode, 0, msg=r.stderr)
+            out_lines = [l for l in r.stdout.splitlines() if l.strip()]
+            self.assertEqual(len(out_lines), 2, msg=r.stdout)  # 每技能恰好一行
+            self.assertIn("multi-line: line one line two", out_lines)
+
     def test_missing_dir(self):
         self.assertEqual(run_cli(["/no/such/dir", "--mock"]).returncode, 2)
 

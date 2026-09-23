@@ -20,7 +20,7 @@ SkillSeam spielt diesen Auswahlprozess vor dem Deployment erneut ab. In einer De
 
 Öffne [https://snow7-g.github.io/SkillSeam/](https://snow7-g.github.io/SkillSeam/), klicke auf die Demo-Schaltfläche, und nach zehn Sekunden erscheint eine echte Heatmap. Dann eigene Skills einfügen, einen API-Key hinzufügen (er bleibt im Browser, die Anfragen gehen direkt zum Provider) und loslaufen lassen.
 
-Deine Skills liegen als SKILL.md-Dateien vor? Gib sie in ein paste-fertiges Format aus:
+Deine Skills liegen als SKILL.md-Dateien vor? Klicke auf der Seite auf die Ordner-Schaltfläche (选择技能文件夹) und wähle das Verzeichnis — die Auswertung läuft im Browser, nichts wird hochgeladen. Oder gib sie in ein paste-fertiges Format aus:
 
 ```bash
 python3 skill_seam.py export ~/.agents/skills

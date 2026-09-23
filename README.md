@@ -32,7 +32,7 @@ SkillSeam replays that selection process before you ship. On a 40-task demo with
 
 Open [https://snow7-g.github.io/SkillSeam/](https://snow7-g.github.io/SkillSeam/), click the demo button, and you get a real heatmap in ten seconds. Then paste your own skills, add an API key (it stays in your browser, requests go straight to your provider), and hit run.
 
-Your skills live as SKILL.md files? Print them in paste-ready form:
+Your skills live as SKILL.md files? Click the folder button (选择技能文件夹) and pick the directory — it is parsed inside your browser, nothing is uploaded. Or print them in paste-ready form:
 
 ```bash
 python3 skill_seam.py export ~/.agents/skills

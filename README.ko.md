@@ -20,7 +20,7 @@ SkillSeam은 출시 전에 이 선택 과정을 재현합니다. 6개 스킬, 40
 
 [https://snow7-g.github.io/SkillSeam/](https://snow7-g.github.io/SkillSeam/) 을 열고 데모 버튼을 누르면 10초 안에 히트맵이 나옵니다. 자신의 스킬을 붙여넣고, API 키를 추가하고(키는 브라우저에만 저장, 요청은 프로바이더로 직행), 실행하세요.
 
-SKILL.md 파일로 관리 중이라면 붙여넣기용으로 출력할 수 있습니다:
+SKILL.md 파일로 관리 중이라면 페이지의 「选择技能文件夹」 버튼으로 폴더를 고르면 바로 읽어옵니다(브라우저 안에서만 파싱, 업로드 없음). 붙여넣기용으로 출력하려면:
 
 ```bash
 python3 skill_seam.py export ~/.agents/skills

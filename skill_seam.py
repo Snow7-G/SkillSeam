@@ -1174,7 +1174,9 @@ def cmd_export(argv):
         eprint(f"错误: {root} 下没有 SKILL.md")
         return 2
     for s in skills:
-        print(f"{s['name']}: {s['description']}")
+        # 粘贴格式要求每行一条：多行 description（| 块标量）折叠为单行
+        one_line = " ".join(s["description"].split())
+        print(f"{s['name']}: {one_line}")
     return 0
 
 

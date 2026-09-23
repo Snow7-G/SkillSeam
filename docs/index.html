@@ -94,6 +94,9 @@ button:disabled { opacity: .45; cursor: default; }
           padding: 6px 10px; margin: 6px 0; color: var(--success-text); }
 .fixreason { color: var(--text-2); font-size: 12px; margin-top: 4px; }
 svg text { font-family: inherit; }
+.rowbtns { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rowbtns button { margin-top: 12px; }
+.rowbtns .hint { margin-top: 12px; }
 .hidden { display: none; }
 code { background: #efede7; border-radius: 4px; padding: 0 4px; font-size: 12px; }
 </style>
@@ -110,6 +113,11 @@ code { background: #efede7; border-radius: 4px; padding: 0 4px; font-size: 12px;
     <textarea id="skills" rows="6" placeholder="guahao-yuyue: 处理眼科门诊的预约挂号、改期与取消
 baogao-jiedu: 解读眼科检查报告，涵盖视力、眼压、OCT 等指标含义
 fuzhen-tixing: 为术后与慢病患者制定复诊计划、发送复查提醒"></textarea>
+    <div class="rowbtns">
+      <button class="ghost" onclick="pickSkillsFolder()">选择技能文件夹</button>
+      <span class="hint" id="pickHint">从本机读取 SKILL.md，全程在浏览器内解析，不上传任何文件。</span>
+    </div>
+    <input type="file" id="folderInput" webkitdirectory multiple class="hidden">
     <label>测试任务（每行一条。可加 <code>=&gt; skill-name</code> 标注应选技能参与冲突判定；不标注则只做一致性分析）</label>
     <textarea id="tasks" rows="6" placeholder="我上周查的视力报告，能帮我看一下吗？ => baogao-jiedu
 我想预约下周三上午的眼科门诊 => guahao-yuyue
@@ -191,6 +199,11 @@ fuzhen-tixing: 为术后与慢病患者制定复诊计划、发送复查提醒">
 
 <script>
 "use strict";
+
+window.addEventListener("DOMContentLoaded", function() {
+  var fi = document.getElementById("folderInput");
+  if (fi) fi.addEventListener("change", function() { handleFolderPicked(fi); });
+});
 var DEMO = {"skills": [{"name": "baogao-jiedu", "desc": "解读眼科检查报告，涵盖视力、眼压、OCT、视野、眼底"}, {"name": "fuzhen-tixing", "desc": "为术后与慢病患者制定复诊计划、发送复查提醒，并解答会"}, {"name": "guahao-yuyue", "desc": "处理眼科门诊的预约挂号、改期与取消，受理视力检查、报"}, {"name": "huiyuan-yingxiao", "desc": "管理会员等级、积分兑换与专属活动报名，处理会员身份核"}, {"name": "shuqian-xuzhi", "desc": "说明白内障、近视激光等眼科手术的术前准备、禁食要求、"}, {"name": "tousu-shouli", "desc": "受理患者对就诊体验、服务质量与收费的投诉，登记工单并"}], "matrix": [[8, 0, 2, 0, 0, 0, 0, 0], [0, 7, 0, 1, 0, 0, 0, 0], [0, 0, 5, 0, 0, 0, 0, 0], [0, 2, 0, 5, 0, 0, 0, 0], [0, 0, 0, 0, 5, 0, 0, 0], [0, 0, 0, 0, 0, 5, 0, 0]], "cols": ["baogao-jiedu", "fuzhen-tixing", "guahao-yuyue", "huiyuan-yingxiao", "shuqian-xuzhi", "tousu-shouli", "NONE", "其他"], "conflicts": [{"task": "视力下降了，之前的报告还在吗？帮我查查。", "expected": "baogao-jiedu", "chosen": "guahao-yuyue", "votes": "5/5"}, {"task": "报告咨询窗口怎么走？我要问一下报告结果。", "expected": "baogao-jiedu", "chosen": "guahao-yuyue", "votes": "5/5"}, {"task": "我是黄金会员，复诊有折扣吗？", "expected": "huiyuan-yingxiao", "chosen": "fuzhen-tixing", "votes": "5/5"}, {"task": "复诊的时候顺便帮我查下会员积分余额。", "expected": "fuzhen-tixing", "chosen": "huiyuan-yingxiao", "votes": "5/5"}], "meta": {"total": 40, "hits": 35, "unstable": 1, "model": "qwen3.8-flash", "note": "数据来自 SkillSeam CLI 对 6 个眼科客服 skill 的真实模拟（埋有 2 处撞车）"}};
 
 var $ = function(id) { return document.getElementById(id); };
@@ -204,6 +217,88 @@ var STOPWORDS = { "相关": 1, "处理": 1, "包括": 1, "以及": 1, "问题": 
 function showErr(msg) { var e = $("errbox"); e.style.background = ""; e.style.color = "";
   e.textContent = msg; e.style.display = "block"; }
 function hideErr() { $("errbox").style.display = "none"; }
+// ---------- 本机技能文件夹读取（纯前端，不上传任何文件）----------
+// 解析 SKILL.md 的 frontmatter（name/description，支持 > 折行与 | 字面块标量）
+function parseSkillMd(text, fallbackName) {
+  var body = String(text).replace(/\r\n/g, "\n");
+  var m = body.match(/^---\n([\s\S]*?)\n---/);
+  if (!m) return { name: fallbackName || "", description: "", issues: ["缺少 frontmatter"] };
+  var lines = m[1].split("\n"), fm = {};
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (!line.trim() || line.trim().charAt(0) === "#" || line.indexOf(":") < 0) continue;
+    var idx = line.indexOf(":");
+    var key = line.slice(0, idx).trim();
+    var val = line.slice(idx + 1).trim();
+    if (/^[>|][+-]?$/.test(val)) {
+      var block = [];
+      for (i++; i < lines.length; i++) {
+        var l = lines[i];
+        if (l.charAt(0) !== " " && l.charAt(0) !== "\t" && l.trim()) break;
+        block.push(l.trim());
+      }
+      i--;
+      while (block.length && !block[block.length - 1]) block.pop();
+      fm[key] = val.charAt(0) === ">" ? block.filter(Boolean).join(" ") : block.join("\n");
+    } else {
+      fm[key] = val.replace(/^["']|["']$/g, "");
+    }
+  }
+  return { name: fm.name || fallbackName || "", description: fm.description || "", issues: [] };
+}
+
+// 纯函数：把 [{path, folder, text}] 转成网页粘贴行（便于测试）
+function skillFolderRows(items) {
+  var rows = [], skipped = [];
+  items.forEach(function(it) {
+    var e = parseSkillMd(it.text, it.folder);
+    if (!e.description) { skipped.push((e.name || it.folder || it.path) + "（缺 description）"); return; }
+    rows.push({ name: e.name, description: e.description.replace(/\s*\n\s*/g, " ").trim() });
+  });
+  return { rows: rows, skipped: skipped };
+}
+
+function pickSkillsFolder() {
+  var el = document.getElementById("folderInput");
+  if (el) el.click();
+}
+
+function handleFolderPicked(input) {
+  var hint = document.getElementById("pickHint");
+  var all = Array.prototype.slice.call(input.files || []);
+  var skills = all.filter(function(f) {
+    return /(^|\/)SKILL\.md$/i.test(f.webkitRelativePath || f.name);
+  });
+  if (!skills.length) {
+    hint.textContent = "未找到 SKILL.md。请选择「技能名/SKILL.md」结构的目录（如 ~/.codex/skills）。";
+    input.value = "";
+    return;
+  }
+  hint.textContent = "正在读取 " + skills.length + " 个 SKILL.md ...";
+  var items = skills.map(function(f) {
+    var parts = (f.webkitRelativePath || f.name).split("/");
+    return { path: f.webkitRelativePath || f.name,
+             folder: parts.length > 1 ? parts[parts.length - 2] : "", file: f, text: "" };
+  });
+  Promise.all(items.map(function(it) {
+    return it.file.text().then(function(t) { it.text = t; }, function() { it.text = ""; });
+  })).then(function() {
+    var res = skillFolderRows(items);
+    if (!res.rows.length) {
+      hint.textContent = "读取到 SKILL.md 但都没有可用 description，请检查文件格式。";
+      input.value = "";
+      return;
+    }
+    document.getElementById("skills").value = res.rows.map(function(r) {
+      return r.name + ": " + r.description;
+    }).join("\n");
+    hint.textContent = "已读取 " + res.rows.length + " 个技能" +
+      (res.skipped.length ? "，跳过 " + res.skipped.length + " 个：" + res.skipped.join("、") : "") +
+      "。全程在浏览器内解析，未上传。";
+    input.value = "";
+  });
+}
+
 // 技能名玻璃胶囊：用户一眼识别"这是技能名"
 function chip(name, cls) {
   return '<span class="skill-chip' + (cls ? " " + cls : "") + '">' + esc(name) + "</span>";
