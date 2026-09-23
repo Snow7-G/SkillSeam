@@ -245,11 +245,36 @@ def parse_frontmatter(text, path):
     return {"name": name, "description": desc, "body_lines": body.count("\n") + 1}, issues
 
 
+# 递归查找 SKILL.md 时跳过的噪音目录（隐藏目录一律跳过，见 _iter_skill_mds）
+NOISE_DIRS = {"node_modules", "__pycache__", "output", "build", "dist", "venv"}
+
+
+def _iter_skill_mds(root: Path):
+    """递归查找 SKILL.md，跳过隐藏目录（.git/.system 等）与噪音目录。
+
+    返回 (paths, skipped)：skipped 为 [(路径, 命中的目录名)]，便于调用方明确告知用户
+    「跳过了什么」，而不是让技能数悄悄变少。"""
+    paths, skipped = [], []
+    for md in sorted(root.rglob("SKILL.md")):
+        parts = md.relative_to(root).parts[:-1]
+        reason = next((p for p in parts if p.startswith(".") or p in NOISE_DIRS), None)
+        if reason:
+            skipped.append((md, reason))
+            continue
+        paths.append(md)
+    return paths, skipped
+
+
 def scan_skills(root: Path):
     """返回 (skills, all_issues, rejected)。rejected 是含不可靠解析（[fatal]）的文件，
     调用方必须阻止评测而不是静默跳过。"""
     skills, all_issues, rejected = [], [], []
-    for md in sorted(root.glob("*/SKILL.md")):
+    mds, skipped = _iter_skill_mds(root)
+    if skipped:
+        all_issues.append((root, [
+            f"跳过 {len(skipped)} 个隐藏/噪音目录中的 SKILL.md（如 {skipped[0][1]}/），"
+            f"如需检测请把目录参数直接指向它"]))
+    for md in mds:
         skill, issues = parse_frontmatter(md.read_text(encoding="utf-8"), md)
         fatal = [i for i in issues if i.startswith("[fatal]")]
         if fatal:
@@ -1064,7 +1089,10 @@ def cmd_harvest(argv):
         eprint("用法: skill-seam harvest <skills目录> [--claude] [--codex] [--label] [--out FILE]")
         return 2
     root = Path(paths[0])
-    skills, _, rejected = scan_skills(root)
+    skills, issues, rejected = scan_skills(root)
+    for p, msgs in issues:
+        for m in msgs:
+            eprint(f"[warn] {p}: {m}")
     if rejected:
         eprint("错误: 存在无法可靠解析的 SKILL.md，收割中止。")
         for md, msgs in rejected:
@@ -1163,7 +1191,10 @@ def cmd_export(argv):
     """skill-seam export <skills目录> —— 输出网页版可直接粘贴的 "name: description" 行。"""
     paths = [a for a in argv if not a.startswith("--")]
     root = Path(paths[0]) if paths else Path("./demo-skills")
-    skills, _, rejected = scan_skills(root)
+    skills, issues, rejected = scan_skills(root)
+    for p, msgs in issues:
+        for m in msgs:
+            eprint(f"[warn] {p}: {m}")
     if rejected:
         eprint("错误: 以下 SKILL.md 存在无法可靠解析的语法，export 拒绝输出：")
         for md, msgs in rejected:

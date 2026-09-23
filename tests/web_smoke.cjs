@@ -226,6 +226,17 @@ t("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   const p5 = parseSkillMd("没有 frontmatter", "fallback-name");
   t("parseSkillMd 无 frontmatter 回退目录名", p5.name === "fallback-name" && p5.issues.length === 1);
 
+  // 纯函数：文件列表 → SKILL.md 筛选（与 CLI 一致：跳过隐藏与噪音目录）
+  const sel = selectSkillMdFiles([
+    { name: "SKILL.md", webkitRelativePath: "skills/a/SKILL.md" },
+    { name: "SKILL.md", webkitRelativePath: "skills/cat/b/SKILL.md" },
+    { name: "SKILL.md", webkitRelativePath: "skills/.system/sys/SKILL.md" },
+    { name: "SKILL.md", webkitRelativePath: "skills/node_modules/nm/SKILL.md" },
+    { name: "README.md", webkitRelativePath: "skills/a/README.md" },
+  ]);
+  t("selectSkillMdFiles 递归+跳过隐藏", sel.picked.length === 2 && sel.hidden === 2);
+  t("selectSkillMdFiles 目录名回退", sel.picked[1].folder === "b");
+
   // 纯函数：文件夹条目 → 粘贴行
   const fr = skillFolderRows([
     { path: "skills/a/SKILL.md", folder: "a", text: "---\nname: a-b\ndescription: 甲\n---\n" },

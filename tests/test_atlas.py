@@ -719,6 +719,22 @@ class TestCLIExitCodes(unittest.TestCase):
             self.assertTrue(overtake[0]["conflict"])
             self.assertTrue((Path(td) / "output" / "report.html").exists())
 
+    def test_scan_is_recursive_and_skips_hidden(self):
+        """递归查找 SKILL.md（支持分类嵌套），但跳过隐藏目录（.system/.git）。"""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "skills"
+            for rel in ("flat-a/SKILL.md", "category/deep-b/SKILL.md", ".system/sys-c/SKILL.md",
+                        ".git/git-d/SKILL.md", "node_modules/nm-e/SKILL.md"):
+                p = root / rel
+                p.parent.mkdir(parents=True, exist_ok=True)
+                p.write_text(f"---\nname: {rel.split('/')[0].strip('.')}\ndescription: d\n---\n",
+                             encoding="utf-8")
+            skills, issues, rejected = ad.scan_skills(root)
+            names = sorted(s["name"] for s in skills)
+            self.assertEqual(names, ["category", "flat-a"])       # 嵌套被找到，隐藏/噪音被跳过
+            self.assertEqual(rejected, [])
+            self.assertTrue(any("跳过 3 个" in " ".join(msgs) for _, msgs in issues))
+
     def test_export_flattens_multiline_description(self):
         """export 必须输出单行 name: description（| 块标量的多行描述要折叠）。"""
         with tempfile.TemporaryDirectory() as td:

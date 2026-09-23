@@ -258,6 +258,25 @@ function skillFolderRows(items) {
   return { rows: rows, skipped: skipped };
 }
 
+// 纯函数：从文件列表挑出 SKILL.md（跳过隐藏目录与噪音目录，与 CLI 的 _iter_skill_mds 一致）
+var NOISE_DIRS = ["node_modules", "__pycache__", "output", "build", "dist", "venv"];
+
+function selectSkillMdFiles(list) {
+  var picked = [], hidden = 0;
+  list.forEach(function(f) {
+    var rel = f.webkitRelativePath || f.name || "";
+    if (!/(^|\/)SKILL\.md$/i.test(rel)) return;
+    var parts = rel.split("/");
+    var dirs = parts.slice(1, -1);  // 去掉所选目录本身与文件名
+    var noisy = dirs.some(function(d) {
+      return d.charAt(0) === "." || NOISE_DIRS.indexOf(d) >= 0;
+    });
+    if (noisy) { hidden++; return; }
+    picked.push({ path: rel, folder: dirs.length ? dirs[dirs.length - 1] : "", file: f, text: "" });
+  });
+  return { picked: picked, hidden: hidden };
+}
+
 function pickSkillsFolder() {
   var el = document.getElementById("folderInput");
   if (el) el.click();
@@ -266,20 +285,17 @@ function pickSkillsFolder() {
 function handleFolderPicked(input) {
   var hint = document.getElementById("pickHint");
   var all = Array.prototype.slice.call(input.files || []);
-  var skills = all.filter(function(f) {
-    return /(^|\/)SKILL\.md$/i.test(f.webkitRelativePath || f.name);
-  });
-  if (!skills.length) {
-    hint.textContent = "未找到 SKILL.md。请选择「技能名/SKILL.md」结构的目录（如 ~/.codex/skills）。";
+  var sel = selectSkillMdFiles(all);
+  var items = sel.picked;
+  var skipNote = sel.hidden ? "，跳过 " + sel.hidden + " 个隐藏目录中的 SKILL.md（如 .system/）" : "";
+  if (!items.length) {
+    hint.textContent = sel.hidden
+      ? "只有隐藏目录（如 .system/）里有 SKILL.md，已按惯例跳过" + skipNote + "。如需检测请直接选择该目录。"
+      : "未找到 SKILL.md。请选择「技能名/SKILL.md」结构的目录（如 ~/.codex/skills）。";
     input.value = "";
     return;
   }
-  hint.textContent = "正在读取 " + skills.length + " 个 SKILL.md ...";
-  var items = skills.map(function(f) {
-    var parts = (f.webkitRelativePath || f.name).split("/");
-    return { path: f.webkitRelativePath || f.name,
-             folder: parts.length > 1 ? parts[parts.length - 2] : "", file: f, text: "" };
-  });
+  hint.textContent = "正在读取 " + items.length + " 个 SKILL.md ...";
   Promise.all(items.map(function(it) {
     return it.file.text().then(function(t) { it.text = t; }, function() { it.text = ""; });
   })).then(function() {
@@ -294,7 +310,7 @@ function handleFolderPicked(input) {
     }).join("\n");
     hint.textContent = "已读取 " + res.rows.length + " 个技能" +
       (res.skipped.length ? "，跳过 " + res.skipped.length + " 个：" + res.skipped.join("、") : "") +
-      "。全程在浏览器内解析，未上传。";
+      skipNote + "。全程在浏览器内解析，未上传。";
     input.value = "";
   });
 }
