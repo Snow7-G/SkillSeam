@@ -653,23 +653,27 @@ class TestCLIExitCodes(unittest.TestCase):
 
                 cfg = {"base_url": "https://example.invalid/v1", "model": "test-model",
                        "api_key": "YOUR_API_KEY_HERE"}
-                with patch.object(sys, "argv", [str(SCRIPT), str(sdir), "--tasks", str(tfile)]), \
-                        patch.object(ad, "__file__", str(Path(td) / "skill_seam.py")), \
-                        patch.object(os, "getcwd", return_value=str(td)), \
-                        patch.object(ad, "TASKS", []), \
-                        patch.object(ad, "load_config", return_value=cfg), \
-                        patch.object(ad, "chat_once", side_effect=chat_once), \
-                        patch.object(ad.time, "sleep"), \
-                        patch.object(ad, "generate_fix_suggestions", return_value=[]), \
-                        patch.object(sys, "stdout", new_callable=io.StringIO), \
-                        patch.object(sys, "stderr", new_callable=io.StringIO) as stderr:
-                    with self.assertRaises(SystemExit) as result:
-                        ad.main()
-                    self.assertEqual(result.exception.code, expected_code)
-                    if expected_code == 2:
-                        self.assertIn("评测失败", stderr.getvalue())
-                    else:
-                        self.assertEqual(stderr.getvalue(), "")
+                old_cwd = os.getcwd()
+                os.chdir(td)  # 输出目录基于 cwd：chdir 在所有 Python 版本行为一致
+                try:
+                    with patch.object(sys, "argv", [str(SCRIPT), str(sdir), "--tasks", str(tfile)]), \
+                            patch.object(ad, "__file__", str(Path(td) / "skill_seam.py")), \
+                            patch.object(ad, "TASKS", []), \
+                            patch.object(ad, "load_config", return_value=cfg), \
+                            patch.object(ad, "chat_once", side_effect=chat_once), \
+                            patch.object(ad.time, "sleep"), \
+                            patch.object(ad, "generate_fix_suggestions", return_value=[]), \
+                            patch.object(sys, "stdout", new_callable=io.StringIO), \
+                            patch.object(sys, "stderr", new_callable=io.StringIO) as stderr:
+                        with self.assertRaises(SystemExit) as result:
+                            ad.main()
+                        self.assertEqual(result.exception.code, expected_code)
+                        if expected_code == 2:
+                            self.assertIn("评测失败", stderr.getvalue())
+                        else:
+                            self.assertEqual(stderr.getvalue(), "")
+                finally:
+                    os.chdir(old_cwd)
                 results = json.loads((Path(td) / "output" / "results.json").read_text(encoding="utf-8"))
                 self.assertEqual(len(results["rows"]), 2)
                 for row, response in zip(results["rows"], (first, second)):
