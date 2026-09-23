@@ -107,6 +107,48 @@ t("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
     gen.tasks.some(x => x.kind === "gray" && x.e === "c-d"));
   llmCall = savedLlm;
 
+  // 流程回归：稳定冲突 → 建议生成（NONE 预期被过滤，不传给 genFixes）
+  global.showStatus = global.hideStatus = function() {};
+  global.$ = function(id) { return els[id] || { classList: { add() {}, remove() {} }, innerHTML: "" }; };
+  const fixCalls = { calls: [] };
+  const savedGen = genFixes;
+  genFixes = function(cfg, base, fixable, byName) {
+    fixCalls.calls.push(fixable.map(function(r) { return r.expected; }));
+    return Promise.resolve([]);
+  };
+  const byNameMap = { "a-b": { name: "a-b", description: "x" } };
+  const conflictsFlow = [
+    { task: "正常冲突", expected: "a-b", chosen: "c-d" },
+    { task: "过度接管", expected: "NONE", chosen: "a-b" },
+  ];
+  const triggered = triggerFixGeneration(conflictsFlow, byNameMap,
+    [{ name: "a-b" }, { name: "c-d" }], { key: "k" }, "http://x");
+  // 异步等 genFixes 链跑完
+  await new Promise(function(r) { setTimeout(r, 10); });
+  t("triggerFixGeneration 触发", triggered === true);
+  t("genFixes 只收到可改写冲突", fixCalls.calls.length === 1 &&
+    fixCalls.calls[0].length === 1 && fixCalls.calls[0][0] === "a-b");
+  genFixes = savedGen;
+
+  // 无可改写冲突 → 不触发
+  const triggered2 = triggerFixGeneration(
+    [{ task: "过度接管", expected: "NONE", chosen: "a-b" }], byNameMap, {}, "http://x");
+  t("纯 NONE 冲突不触发建议生成", triggered2 === false);
+
+  // #3: stopEval abort 在途请求
+  const savedFetch3 = global.fetch;
+  let sigRef = null;
+  global.fetch = function(url, opts) {
+    sigRef = opts.signal;
+    return new Promise(function() {});  // 永不 settle，模拟在途
+  };
+  const p = llmCall({ provider: "openai", key: "k", model: "m" }, "http://x/v1",
+    [{ role: "user", content: "t" }], 10);
+  stopEval();
+  t("stopEval abort 在途请求", !!sigRef && sigRef.aborted === true);
+  global.fetch = savedFetch3;
+  p.catch(function() {});
+
   // #6: 预期 NONE
   const pn = parseTasks("无关任务 => NONE");
   t("parseTasks NONE", pn.tasks[0].expected === "NONE" && pn.errs.length === 0);

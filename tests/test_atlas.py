@@ -682,6 +682,41 @@ class TestCLIExitCodes(unittest.TestCase):
                     self.assertEqual(row["votes"], [vote] * ad.SAMPLES)
                 self.assertTrue((Path(td) / "output" / "report.html").exists())
 
+    def test_none_overtake_real_mode(self):
+        """预期 NONE 的过度接管：真实模式下建议生成不崩溃，冲突保留，退出 1。"""
+        with tempfile.TemporaryDirectory() as td:
+            sdir, tfile = make_clean_fixture(Path(td))
+            tasks = json.loads(tfile.read_text(encoding="utf-8"))
+            tasks = [dict(tasks[0], e="NONE"), tasks[-1]]
+            tfile.write_text(json.dumps(tasks), encoding="utf-8")
+            responses = {tasks[0]["t"]: "canting-yuding", tasks[1]["t"]: "canting-yuding"}
+
+            def chat_once(cfg, catalog, task_text):
+                return responses[task_text]
+
+            cfg = {"base_url": "https://example.invalid/v1", "model": "test-model",
+                   "api_key": "x"}
+            old_cwd = os.getcwd()
+            os.chdir(td)
+            try:
+                with patch.object(sys, "argv", [str(SCRIPT), str(sdir), "--tasks", str(tfile)]), \
+                        patch.object(ad, "TASKS", []), \
+                        patch.object(ad, "load_config", return_value=cfg), \
+                        patch.object(ad, "chat_once", side_effect=chat_once), \
+                        patch.object(ad.time, "sleep"), \
+                        patch.object(sys, "stdout", new_callable=io.StringIO), \
+                        patch.object(sys, "stderr", new_callable=io.StringIO):
+                    with self.assertRaises(SystemExit) as result:
+                        ad.main()
+                    self.assertEqual(result.exception.code, 1)
+            finally:
+                os.chdir(old_cwd)
+            results = json.loads((Path(td) / "output" / "results.json").read_text(encoding="utf-8"))
+            overtake = [r for r in results["rows"] if r["expected"] == "NONE"]
+            self.assertEqual(len(overtake), 1)
+            self.assertTrue(overtake[0]["conflict"])
+            self.assertTrue((Path(td) / "output" / "report.html").exists())
+
     def test_missing_dir(self):
         self.assertEqual(run_cli(["/no/such/dir", "--mock"]).returncode, 2)
 

@@ -260,8 +260,11 @@ function extractChosen(content, names) {
 
 var EVAL_TIMEOUT_MS = 90000;  // 单请求应用层超时
 
+var activeCtrls = [];         // 在途请求的控制器，停止评测时统一 abort
+
 function llmCall(cfg, base, messages, maxTokens) {
   var ctrl = new AbortController();
+  activeCtrls.push(ctrl);
   var timer = setTimeout(function() { ctrl.abort(); }, EVAL_TIMEOUT_MS);
   var system = "", userMsgs = [];
   messages.forEach(function(m) {
@@ -279,13 +282,17 @@ function llmCall(cfg, base, messages, maxTokens) {
       body: JSON.stringify({ model: cfg.model, temperature: 0.7, max_tokens: maxTokens,
         system: system, messages: userMsgs })
     }).then(function(r) {
-      clearTimeout(timer);
       if (!r.ok) return r.text().then(function(t) {
         throw new Error("HTTP " + r.status + ": " + t.slice(0, 160)); });
       return r.json();
     }).then(function(d) {
       var part = (d.content || []).filter(function(c) { return c.type === "text"; })[0];
       return part ? part.text : "";
+    }).finally(function() {
+      // 覆盖正文读取、网络失败与用户取消三种情况
+      clearTimeout(timer);
+      var i = activeCtrls.indexOf(ctrl);
+      if (i >= 0) activeCtrls.splice(i, 1);
     });
   }
   return fetch(base.replace(/\/+$/, "") + "/chat/completions", {
@@ -295,11 +302,15 @@ function llmCall(cfg, base, messages, maxTokens) {
     body: JSON.stringify({ model: cfg.model, temperature: 0.7, max_tokens: maxTokens,
       messages: messages })
   }).then(function(r) {
-    clearTimeout(timer);
     if (!r.ok) return r.text().then(function(t) {
       throw new Error("HTTP " + r.status + ": " + t.slice(0, 160)); });
     return r.json();
-  }).then(function(d) { return d.choices[0].message.content; });
+  }).then(function(d) { return d.choices[0].message.content; })
+    .finally(function() {
+      clearTimeout(timer);
+      var i = activeCtrls.indexOf(ctrl);
+      if (i >= 0) activeCtrls.splice(i, 1);
+    });
 }
 
 function chatCall(cfg, base, catalog, task) {
@@ -541,7 +552,11 @@ function pool(jobs, n, onProgress) {
 }
 
 var evalStopped = false;
-function stopEval() { evalStopped = true; }
+function stopEval() {
+  evalStopped = true;
+  // 取消在途请求，而不是只阻止后续请求发出
+  activeCtrls.forEach(function(c) { try { c.abort(); } catch (e) {} });
+}
 
 function setRunning(on) {
   $("runBtn").disabled = on; $("demoBtn").disabled = on; $("genBtn").disabled = on;
@@ -584,8 +599,10 @@ function run() {
     for (var j = 0; j < samples; j++) {
       jobs.push(function(task) {
         return function() {
-          if (evalStopped) return { error: "评测已停止" };
-          return chatCall(cfg, base, catalog, task);
+          if (evalStopped) return { stopped: true };
+          return chatCall(cfg, base, catalog, task).catch(function(e) {
+            return evalStopped ? { stopped: true } : { error: String(e && e.message || e) };
+          });
         };
       }(t.task));
     }
@@ -606,7 +623,8 @@ function run() {
       var votes = [];
       for (var j = 0; j < samples; j++) {
         var r = results[k++];
-        if (r && !r.error) votes.push(extractChosen(String(r.value), names));
+        if (r && r.stopped) { votes.push("STOPPED"); stopped = true; }
+        else if (r && !r.error) votes.push(extractChosen(String(r.value), names));
         else { votes.push("ERROR"); fatal++; if (!firstErr) firstErr = r ? r.error : "未知错误"; }
       }
       byTask.push({ task: t.task, expected: t.expected, votes: votes });
@@ -627,24 +645,31 @@ function run() {
     var conflicts = byTask.filter(function(t) { return t.expected; })
       .map(function(t) {
         var maj = majority(t.votes);
-        var stable = maj.consistency >= CONSISTENCY_MIN && maj.chosen !== "ERROR" && maj.chosen !== "INVALID";
+        var stable = maj.consistency >= CONSISTENCY_MIN &&
+                     maj.chosen !== "ERROR" && maj.chosen !== "INVALID" && maj.chosen !== "STOPPED";
         return { task: t.task, expected: t.expected, chosen: maj.chosen, stable: stable,
                  conflict: !!(stable && maj.chosen !== t.expected) };
       }).filter(function(r) { return r.conflict; });
-    var fixable = conflicts.filter(function(r) { return byName[r.expected]; });
-    if (fixable.length) {
-      showStatus("发现 " + conflicts.length + " 个稳定冲突，正在生成修复建议...");
-      var byName = {};
-      ps.skills.forEach(function(s) { byName[s.name] = s; });
-      genFixes(cfg, base, fixable, byName).then(function(suggestions) {
-        hideStatus();
-        renderFixes(suggestions, ps.skills);
-      });
-    } else {
-      hideStatus();
-      $("fixCard").classList.add("hidden");
-    }
+    var byName = {};
+    ps.skills.forEach(function(s) { byName[s.name] = s; });
+    triggerFixGeneration(conflicts, byName, ps.skills, cfg, base);
   });
+}
+
+// 检测到稳定冲突后触发建议生成：预期 NONE（无受害技能可改写）自动跳过
+function triggerFixGeneration(conflicts, byName, skills, cfg, base) {
+  var fixable = conflicts.filter(function(r) { return byName[r.expected]; });
+  if (!fixable.length) {
+    hideStatus();
+    $("fixCard").classList.add("hidden");
+    return false;
+  }
+  showStatus("发现 " + conflicts.length + " 个稳定冲突，正在生成修复建议...");
+  genFixes(cfg, base, fixable, byName).then(function(suggestions) {
+    hideStatus();
+    renderFixes(suggestions, skills);
+  });
+  return true;
 }
 
 function allSamplesInvalid(rows) {
@@ -690,7 +715,8 @@ function render(byTask, skills, samples, model) {
 
   var rows = byTask.map(function(bt) {
     var maj = majority(bt.votes);
-    var stable = maj.consistency >= CONS_MIN && maj.chosen !== "ERROR" && maj.chosen !== "INVALID";
+    var stable = maj.consistency >= CONS_MIN &&
+                 maj.chosen !== "ERROR" && maj.chosen !== "INVALID" && maj.chosen !== "STOPPED";
     return { task: bt.task, expected: bt.expected, chosen: maj.chosen,
              consistency: maj.consistency, stable: stable,
              conflict: !!(bt.expected && stable && maj.chosen !== bt.expected) };

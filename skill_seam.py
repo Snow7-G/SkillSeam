@@ -636,7 +636,9 @@ def generate_fix_suggestions(cfg, rows, skills_by_name, max_pairs=5):
     """对每个稳定冲突对生成 description 改写建议。失败的对静默跳过。"""
     pairs = {}
     for r in rows:
-        if r["conflict"] and r["chosen"] in skills_by_name:
+        # 预期 NONE（过度接管）没有受害技能可改写 → 跳过建议生成，
+        # 冲突本身仍在报告中并计入退出码
+        if r["conflict"] and r["chosen"] in skills_by_name and r["expected"] in skills_by_name:
             pairs.setdefault((r["expected"], r["chosen"]), []).append(r)
 
     suggestions = []
