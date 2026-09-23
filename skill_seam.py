@@ -399,7 +399,19 @@ def extract_chosen(content, valid_names):
     return "INVALID"
 
 
-def simulate_real(cfg, catalog, valid_names):
+def _err_text(e):
+    """把异常整理成可读原因；HTTPError 额外带上响应体（多数平台在 body 里说明原因）。"""
+    msg = f"{type(e).__name__}: {e}"
+    body = None
+    try:
+        if hasattr(e, "read"):
+            body = (e.read() or b"").decode("utf-8", "ignore").strip()[:200]
+    except Exception:
+        body = None
+    return f"{msg} | {body}" if body else msg
+
+
+def simulate_real(cfg, catalog, valid_names, errors=None):
     jobs = [(ti, si) for ti in range(len(TASKS)) for si in range(SAMPLES)]
     results = {}
     done = [0]
@@ -410,8 +422,10 @@ def simulate_real(cfg, catalog, valid_names):
             try:
                 content = chat_once(cfg, catalog, TASKS[ti]["t"])
                 return ti, si, extract_chosen(content, valid_names)
-            except Exception:
+            except Exception as e:
                 if attempt == 2:
+                    if errors is not None and len(errors) < 5:
+                        errors.append(_err_text(e))
                     return ti, si, "ERROR"
                 time.sleep(1.5 * (attempt + 1))
 
@@ -1233,6 +1247,7 @@ HELP_TEXT = """SkillSeam {version} —— 模拟 agent 的 skill 选择过程，
   --gray-pairs <K>       自动生成时灰区技能对数（默认 2，0=不生成）
   --with-marked          合并事故库中适用于当前技能集的条目
   --out <目录>           报告输出目录（默认当前目录下 output/）
+  --workers <N>          并发请求数（默认 8；免费额度被限流时调小，如 2）
   --mock                 离线关键词打分模式（仅验证管线，结论不可信）
   -h, --help             显示本帮助
   -V, --version          显示版本
@@ -1275,12 +1290,18 @@ def main():
             sys.exit(2)
     skip = {"--mock", "--demo-tasks", "--with-marked", "--tasks",
             str(task_file) if task_file else None,
-            "--gen-positive", "--gray-pairs"}
+            "--gen-positive", "--gray-pairs", "--workers"}
     if "--out" in args:
         skip.add("--out")
         oi = args.index("--out")
         if oi + 1 < len(args):
             skip.add(args[oi + 1])
+    if "--workers" in args:
+        wi = args.index("--workers")
+        if wi + 1 < len(args) and args[wi + 1].isdigit():
+            skip.add(args[wi + 1])
+            global MAX_WORKERS
+            MAX_WORKERS = max(1, int(args[wi + 1]))
     # 数值型旗标的值也不算位置参数
     for flag in ("--gen-positive", "--gray-pairs"):
         if flag in args and args.index(flag) + 1 < len(args):
@@ -1412,7 +1433,8 @@ def main():
     else:
         print(f"provider: {cfg['base_url']}  model: {cfg['model']}")
         t0 = time.time()
-        votes = simulate_real(cfg, catalog, valid_names)
+        run_errors = []
+        votes = simulate_real(cfg, catalog, valid_names, errors=run_errors)
         mode_label, model = "真实 LLM 模拟", cfg["model"]
     print(f"模拟完成，耗时 {time.time() - t0:.1f}s")
 
@@ -1443,7 +1465,16 @@ def main():
         print(f"  [截胡] 「{r['task'][:28]}…」应选 {r['expected']} → 实际 {r['chosen']} ({int(r['consistency'] * SAMPLES)}/{SAMPLES})")
     print(f"\n报告: {out / 'report.html'}")
     if not any(v in valid_names or v == "NONE" for v in votes.values()):
-        eprint("错误: 评测失败，无有效采样（请求失败或响应不可解析）；不能判定为无冲突。")
+        eprint("错误: 评测失败，没有取得任何有效的选择结果；不能判定为无冲突。")
+        all_error = all(v == "ERROR" for v in votes.values())
+        if all_error:
+            if run_errors:
+                eprint(f"       首个失败原因: {run_errors[0]}")
+            eprint("       常见原因: key 或端点错误 · 额度用尽或触发限流（可加 --workers 2 降低并发）"
+                   " · 网络不通 · 模型名不存在")
+        else:
+            eprint("       请求有响应，但没有一条能解析出选择结果（模型未按约定格式输出）。"
+                   "可换一个更强的模型重试。")
         sys.exit(2)
     sys.exit(1 if conflicts else 0)
 

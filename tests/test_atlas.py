@@ -757,6 +757,38 @@ class TestCLIExitCodes(unittest.TestCase):
             self.assertEqual(rejected, [])
             self.assertTrue(any("跳过 3 个" in " ".join(msgs) for _, msgs in issues))
 
+    def test_all_requests_fail_reports_reason(self):
+        """全部请求失败时必须给出具体原因与排查方向，而不是笼统的「评测失败」。"""
+        def boom(cfg, catalog, task_text):
+            raise RuntimeError("simulated 429 too many requests")
+
+        with tempfile.TemporaryDirectory() as td:
+            sdir, tfile = make_clean_fixture(Path(td))
+            cfg = {"base_url": "https://example.invalid/v1", "model": "m", "api_key": "x"}
+            old_cwd = os.getcwd()
+            os.chdir(td)
+            try:
+                with patch.object(sys, "argv", [str(SCRIPT), str(sdir), "--tasks", str(tfile)]), \
+                        patch.object(ad, "load_config", return_value=cfg), \
+                        patch.object(ad, "chat_once", side_effect=boom), \
+                        patch.object(ad.time, "sleep"), \
+                        patch.object(sys, "stdout", new_callable=io.StringIO), \
+                        patch.object(sys, "stderr", new_callable=io.StringIO) as stderr:
+                    with self.assertRaises(SystemExit) as result:
+                        ad.main()
+                    err = stderr.getvalue()
+                    self.assertEqual(result.exception.code, 2)
+                    self.assertIn("simulated 429", err)      # 原始异常原因透出
+                    self.assertIn("--workers", err)          # 给出降并发建议
+            finally:
+                os.chdir(old_cwd)
+
+    def test_workers_flag_accepted(self):
+        """--workers 的值不能被当成技能目录参数。"""
+        r = run_cli(["./demo-skills", "--demo-tasks", "--mock", "--workers", "2"])
+        self.assertEqual(r.returncode, 1, msg=r.stderr)   # demo 任务含冲突
+        self.assertNotIn("没有 SKILL.md", r.stderr)
+
     def test_export_flattens_multiline_description(self):
         """export 必须输出单行 name: description（| 块标量的多行描述要折叠）。"""
         with tempfile.TemporaryDirectory() as td:

@@ -7,6 +7,10 @@
 ## [Unreleased]
 
 ### Added
+- CLI `--workers <N>`：并发请求数可调（默认 8），免费额度被平台限流时调小即可。
+- 全部请求失败时输出**具体失败原因**（含平台返回的错误体）与排查方向，不再只给一句「评测失败」。
+
+### Added
 - 环境变量回退链新增 `DEEPSEEK_API_KEY`（端点 `https://api.deepseek.com/v1`，默认模型 `deepseek-chat`），此前只认 DashScope 与 OpenAI。
 
 ### Fixed
