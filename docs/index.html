@@ -108,7 +108,7 @@ fuzhen-tixing: 为术后与慢病患者制定复诊计划、发送复查提醒">
     <div class="grid2">
       <div>
         <label>每任务采样次数</label>
-        <select id="samples"><option>3</option><option selected>5</option></select>
+        <select id="samples"><option>1</option><option>3</option><option selected>5</option><option>8</option></select>
       </div>
       <div>
         <label>记住配置（含 key，存 localStorage）</label>
@@ -578,6 +578,7 @@ function run() {
 
   var cfg = getCfg();
   var samples = parseInt($("samples").value, 10);
+  if (!(samples >= 1)) { showErr("采样次数无效：请选择 1-8 之间的整数。"); return; }
   if (cfg.provider === "demo") { renderDemo(); return; }
   if (!cfg.key) { showErr("请填写 API Key（或先选「演示模式」看效果）"); return; }
   if (cfg.provider === "openai" && !cfg.base) { showErr("OpenAI-compatible 需要填写 Base URL"); return; }
