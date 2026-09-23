@@ -6,7 +6,8 @@ const path = require("path");
 const els = {};
 global.document = { getElementById: (id) => {
     if (!els[id]) els[id] = { addEventListener() {}, value: "", checked: true, style: {},
-      classList: { toggle() {}, remove() {}, add() {} }, innerHTML: "", textContent: "", disabled: false };
+      classList: { toggle() {}, remove() {}, add() {} }, innerHTML: "", textContent: "",
+      disabled: false, scrollIntoView() {} };
     return els[id];
   }, querySelectorAll: () => [] };
 const store = {};
@@ -148,6 +149,43 @@ t("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   t("stopEval abort 在途请求", !!sigRef && sigRef.aborted === true);
   global.fetch = savedFetch3;
   p.catch(function() {});
+
+  // ===== 完整流程测试 A：全部网络失败 → ERROR 票，保留错误原因 =====
+  const el = function(id) { document.getElementById(id); return els[id]; };
+  el("skills").value = "a-b: 甲\n\nc-d: 乙\n";
+  el("tasks").value = "任务一 => a-b\n任务二 => c-d\n";
+  el("samples").value = "1";
+  el("provider").value = "openai"; el("key").value = "k";
+  el("model").value = "m"; el("base").value = "http://x";
+  const savedFetchA = global.fetch;
+  global.fetch = function() { return Promise.reject(new Error("boom network")); };
+  run();
+  await new Promise(function(r) { setTimeout(r, 20); });
+  t("流程A：错误原因保留", els["errbox"].textContent.indexOf("boom network") >= 0);
+  t("流程A：无 [object Object]", els["errbox"].textContent.indexOf("object Object") < 0);
+  global.fetch = savedFetchA;
+
+  // ===== 完整流程测试 B：点击停止 → 在途请求 abort，采样 STOPPED =====
+  const savedFetchB = global.fetch;
+  const sigsB = [];
+  global.fetch = function(url, opts) {
+    sigsB.push(opts.signal);
+    // 模拟真实在途请求：响应 abort 信号
+    return new Promise(function(_, rej) {
+      if (opts.signal) opts.signal.addEventListener("abort",
+        function() { rej(new Error("AbortError")); });
+    });
+  };
+  run();
+  await new Promise(function(r) { setTimeout(r, 20); });
+  t("流程B：两个请求均已发出", sigsB.length === 2);
+  stopEval();
+  await new Promise(function(r) { setTimeout(r, 20); });
+  t("流程B：stop 后提示结果不完整", els["errbox"].textContent.indexOf("评测已停止") >= 0);
+  t("流程B：不误报评测失败", els["conflicts"].innerHTML.indexOf("评测失败") < 0);
+  t("流程B：在途请求全部 abort", sigsB.every(function(s) { return s.aborted; }));
+  t("流程B：无 [object Object]", els["errbox"].textContent.indexOf("object Object") < 0);
+  global.fetch = savedFetchB;
 
   // #6: 预期 NONE
   const pn = parseTasks("无关任务 => NONE");

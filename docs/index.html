@@ -533,13 +533,15 @@ function renderFixes(suggestions, skills) {
 }
 
 function pool(jobs, n, onProgress) {
+  // 约定：job 函数直接返回最终结果对象 { value } / { stopped: true } / { error }，
+  // pool 只做赋值，不再二次包装；catch 仅兜底意外异常
   var i = 0, completed = 0;
   var results = new Array(jobs.length);
   function worker() {
     if (i >= jobs.length) return Promise.resolve();
     var cur = i++;
     return Promise.resolve().then(jobs[cur])
-      .then(function(v) { results[cur] = { value: v }; })
+      .then(function(v) { results[cur] = v; })
       .catch(function(e) { results[cur] = { error: String((e && e.message) || e) }; })
       .then(function() {
         completed++;
@@ -600,7 +602,9 @@ function run() {
       jobs.push(function(task) {
         return function() {
           if (evalStopped) return { stopped: true };
-          return chatCall(cfg, base, catalog, task).catch(function(e) {
+          return chatCall(cfg, base, catalog, task).then(function(text) {
+            return { value: text };
+          }, function(e) {
             return evalStopped ? { stopped: true } : { error: String(e && e.message || e) };
           });
         };
@@ -624,8 +628,9 @@ function run() {
       for (var j = 0; j < samples; j++) {
         var r = results[k++];
         if (r && r.stopped) { votes.push("STOPPED"); stopped = true; }
-        else if (r && !r.error) votes.push(extractChosen(String(r.value), names));
-        else { votes.push("ERROR"); fatal++; if (!firstErr) firstErr = r ? r.error : "未知错误"; }
+        else if (r && r.error) { votes.push("ERROR"); fatal++; if (!firstErr) firstErr = r.error; }
+        else if (r && typeof r.value === "string") votes.push(extractChosen(r.value, names));
+        else { votes.push("ERROR"); fatal++; if (!firstErr) firstErr = "未知结果"; }
       }
       byTask.push({ task: t.task, expected: t.expected, votes: votes });
     });

@@ -703,12 +703,14 @@ class TestCLIExitCodes(unittest.TestCase):
                         patch.object(ad, "TASKS", []), \
                         patch.object(ad, "load_config", return_value=cfg), \
                         patch.object(ad, "chat_once", side_effect=chat_once), \
+                        patch.object(ad, "_gen_call") as gen_mock, \
                         patch.object(ad.time, "sleep"), \
                         patch.object(sys, "stdout", new_callable=io.StringIO), \
                         patch.object(sys, "stderr", new_callable=io.StringIO):
                     with self.assertRaises(SystemExit) as result:
                         ad.main()
                     self.assertEqual(result.exception.code, 1)
+                    self.assertEqual(gen_mock.call_count, 0)  # 冲突已被过滤，不会发起建议生成请求
             finally:
                 os.chdir(old_cwd)
             results = json.loads((Path(td) / "output" / "results.json").read_text(encoding="utf-8"))
