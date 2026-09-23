@@ -66,7 +66,14 @@ t("conflictReason 命中", cr.includes("视力") && cr.includes("报告"));
 const svg = matrixSvg([[2, 0, 1], [0, 3, 0]], [{ name: "a-b", description: "甲职责" },
   { name: "c-d", description: "乙职责" }], ["a-b", "c-d", "NONE", "其他"]);
 t("matrixSvg 结构", svg.startsWith("<svg") && svg.endsWith("</svg>") &&
-  (svg.match(/<rect/g) || []).length === 8);
+  (svg.match(/<rect/g) || []).length === 10);
+t("matrixSvg 行标签胶囊", (svg.match(/rx="10"/g) || []).length === 2);
+const longSvg = matrixSvg([[1, 0], [0, 1]],
+  [{ name: "scene-distillation-zine-v1-3", description: "抽象化重绘" },
+   { name: "scenes-gathered-zine-v1-3", description: "拼贴海报" }],
+  ["scene-distillation-zine-v1-3", "scenes-gathered-zine-v1-3", "NONE", "其他"]);
+t("matrixSvg 长名列头截断+tooltip", longSvg.indexOf("<title>scene-distillation-zine-v1-3</title>") >= 0);
+t("matrixSvg 长名行标签不被裁切", longSvg.indexOf("scene-distillation-zine-v1-3·") >= 0);
 
 // 演示数据
 t("DEMO 数据存在", !!DEMO && DEMO.matrix.length === 6 && DEMO.conflicts.length === 4);

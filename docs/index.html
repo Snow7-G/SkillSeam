@@ -854,23 +854,51 @@ function renderDemo() {
   $("result").scrollIntoView({ behavior: "smooth" });
 }
 
+// 估算文本宽度（CJK 与 ASCII 不同宽度）
+function estTextW(str, cjkPx, asciiPx) {
+  var w = 0;
+  for (var i = 0; i < str.length; i++) w += str.charCodeAt(i) > 255 ? cjkPx : asciiPx;
+  return w;
+}
+
 function matrixSvg(mat, skills, cols) {
-  var cellW = 86, cellH = 52, labW = 190, topH = 30;
+  var cellW = 86, cellH = 52, topH = 30;
+  // 行标签做成玻璃胶囊，并按最长名字动态确定标签列宽（长技能名不再被裁切）
+  var rowLabels = skills.map(function(s) {
+    var m = s.description.match(/[\u4e00-\u9fff]+/);
+    var lab = m ? m[0].slice(0, 8) : s.name;
+    return s.name + "\u00b7" + lab;
+  });
+  var labW = 190;
+  rowLabels.forEach(function(t) {
+    labW = Math.min(Math.max(labW, estTextW(t, 11.5, 6.3) + 26), 360);
+  });
   var W = labW + cellW * cols.length + 20;
   var H = topH + cellH * skills.length + 56;
   var svg = ['<svg viewBox="0 0 ' + W + " " + H + '" width="100%" xmlns="http://www.w3.org/2000/svg">'];
   svg.push('<text x="' + labW + '" y="14" font-size="12" fill="#5f5e5a">列 = agent 实际选中 →（行 = 应选技能）</text>');
   cols.forEach(function(c, ci) {
     var x = labW + ci * cellW;
+    // 列头空间有限：超长截断，悬浮显示完整技能名
+    var disp = c.length > 14 ? c.slice(0, 13) + "\u2026" : c;
     svg.push('<text x="' + (x + cellW / 2) + '" y="' + (topH - 8) +
-      '" font-size="11" fill="#444441" text-anchor="middle">' + esc(c) + "</text>");
+      '" font-size="11" fill="#444441" text-anchor="middle">' + esc(disp) +
+      (disp !== c ? "<title>" + esc(c) + "</title>" : "") + "</text>");
   });
   skills.forEach(function(s, ri) {
     var y = topH + ri * cellH;
-    var m = s.description.match(/[\u4e00-\u9fff]+/);
-    var lab = m ? m[0].slice(0, 8) : s.name;
-    svg.push('<text x="' + (labW - 8) + '" y="' + (y + cellH / 2) +
-      '" font-size="11.5" fill="#444441" text-anchor="end">' + esc(s.name) + "·" + esc(lab) + "</text>");
+    var label = rowLabels[ri];
+    var tw = estTextW(label, 11.5, 6.3);
+    while (tw > labW - 26 && label.length > 4) {
+      label = label.slice(0, -2) + "\u2026";
+      tw = estTextW(label, 11.5, 6.3);
+    }
+    // 玻璃胶囊底（与 .skill-chip 同风格）
+    svg.push('<rect x="' + (labW - 19 - tw) + '" y="' + (y + cellH / 2 - 10) +
+      '" width="' + (tw + 14) + '" height="20" rx="10" fill="rgba(255,255,255,0.65)"' +
+      ' stroke="#d3d1c7" stroke-width="0.5"/>');
+    svg.push('<text x="' + (labW - 12) + '" y="' + (y + cellH / 2) +
+      '" font-size="11.5" fill="#0c447c" text-anchor="end">' + esc(label) + "</text>");
     cols.forEach(function(c, ci) {
       var x = labW + ci * cellW, v = mat[ri][ci];
       var fill, tcol;
