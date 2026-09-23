@@ -150,6 +150,12 @@ t("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   global.fetch = savedFetch3;
   p.catch(function() {});
 
+  // ===== 完整流程测试 A/B 共用的内部状态捕获 =====
+  const hookCalls = [];
+  globalThis.__atlasHook = function(byTask, info) {
+    hookCalls.push({ byTask: JSON.parse(JSON.stringify(byTask)), info: info });
+  };
+
   // ===== 完整流程测试 A：全部网络失败 → ERROR 票，保留错误原因 =====
   const el = function(id) { document.getElementById(id); return els[id]; };
   el("skills").value = "a-b: 甲\n\nc-d: 乙\n";
@@ -163,6 +169,9 @@ t("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   await new Promise(function(r) { setTimeout(r, 20); });
   t("流程A：错误原因保留", els["errbox"].textContent.indexOf("boom network") >= 0);
   t("流程A：无 [object Object]", els["errbox"].textContent.indexOf("object Object") < 0);
+  t("流程A：采样分类为 ERROR", hookCalls.length === 1 &&
+    hookCalls[0].byTask.every(function(bt) { return bt.votes.join(",") === "ERROR"; }));
+  t("流程A：fatal 计数正确", hookCalls[0].info.fatal === 2);
   global.fetch = savedFetchA;
 
   // ===== 完整流程测试 B：点击停止 → 在途请求 abort，采样 STOPPED =====
@@ -185,7 +194,11 @@ t("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   t("流程B：不误报评测失败", els["conflicts"].innerHTML.indexOf("评测失败") < 0);
   t("流程B：在途请求全部 abort", sigsB.every(function(s) { return s.aborted; }));
   t("流程B：无 [object Object]", els["errbox"].textContent.indexOf("object Object") < 0);
+  t("流程B：采样分类为 STOPPED", hookCalls.length === 2 &&
+    hookCalls[1].byTask.every(function(bt) { return bt.votes.join(",") === "STOPPED"; }));
+  t("流程B：STOPPED 计数正确", hookCalls[1].info.stoppedCount === 2 && hookCalls[1].info.fatal === 0);
   global.fetch = savedFetchB;
+  delete globalThis.__atlasHook;
 
   // #6: 预期 NONE
   const pn = parseTasks("无关任务 => NONE");

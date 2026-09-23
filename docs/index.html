@@ -634,6 +634,14 @@ function run() {
       }
       byTask.push({ task: t.task, expected: t.expected, votes: votes });
     });
+    // 测试钩子：流程测试直接断言内部结果，不依赖提示文字
+    if (typeof globalThis.__atlasHook === "function") {
+      var stoppedCount = 0;
+      byTask.forEach(function(bt) {
+        bt.votes.forEach(function(v) { if (v === "STOPPED") stoppedCount++; });
+      });
+      globalThis.__atlasHook(byTask, { fatal: fatal, stoppedCount: stoppedCount });
+    }
     if (fatal === results.length) {
       showErr("全部请求失败。常见原因：key 无效、端点不允许浏览器直连（CORS）、模型名错误。\n" + firstErr);
       return;
