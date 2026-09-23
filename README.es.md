@@ -14,11 +14,11 @@ Los runtimes de agentes como Claude Code y Codex cargan los skills leyendo apena
 
 Funciona bien hasta que dos descriptions se solapan. En nuestra demo de hospital, la description de un skill de reservas decía que también atendía "consultas de informes de visión". El skill de interpretación de informes era el responsable real. Un paciente pide interpretar un informe, responde el skill de reservas, y luego inventa cosas. No hay error ni registro. Nos enteramos porque los pacientes se quejaron.
 
-SkillSeam reproduce ese proceso de selección antes de que publiques. En una demo de 6 skills y 40 tareas, detectó los 4 conflictos plantados con votos de 5/5, y todas las tareas limpias pasaron. Cada informe de conflicto señala las palabras exactas de la description del ladrón que causaron el robo.
+SkillSeam reproduce ese proceso de selección antes de que publiques. Las dos demos incluidas son ejecuciones reales de 6 skills y 40 tareas: el conjunto en chino revela 4 problemas de frontera y el inglés 6, todos con unanimidad 5/5 y sin filas inestables. Cada informe de conflicto señala las palabras exactas de la description del ladrón que causaron el robo.
 
 ## Inicio rápido (web, sin instalar nada)
 
-Abre [https://snow7-g.github.io/SkillSeam/](https://snow7-g.github.io/SkillSeam/), pulsa el botón de demo y tendrás un mapa de calor real en diez segundos. Luego pega tus skills, añade una API key (se queda en tu navegador, las peticiones van directas a tu proveedor) y ejecuta.
+Abre [https://snow7-g.github.io/SkillSeam/?lang=en](https://snow7-g.github.io/SkillSeam/?lang=en), pulsa el botón de demo y tendrás un mapa de calor real en diez segundos. Luego pega tus skills, añade una API key (se queda en tu navegador, las peticiones van directas a tu proveedor) y ejecuta.
 
 ¿Tus skills son archivos SKILL.md? Pulsa el botón de carpeta (选择技能文件夹) y elige el directorio: se analiza dentro de tu navegador, no se sube nada. O imprímelos en formato listo para pegar:
 
@@ -102,8 +102,8 @@ Cada description canta. Algunas canciones llevan tus tareas contra las rocas.
 ## Desarrollo
 
 ```bash
-python3 tests/test_atlas.py   # 58 tests, solo stdlib
-node tests/web_smoke.cjs      # 19 aserciones web, node >= 18
+python3 tests/test_atlas.py   # 91 tests, solo stdlib
+node tests/web_smoke.cjs      # 99 aserciones web, node >= 18
 ```
 
 CI ejecuta ambos en Python 3.10, 3.12 y 3.13. Lee CONTRIBUTING.md antes de abrir un PR.

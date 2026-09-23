@@ -1,0 +1,49 @@
+[
+  {"t": "I'd like to book an eye clinic appointment for next Wednesday morning.", "e": "appointment-desk", "kind": "positive"},
+  {"t": "Please cancel tomorrow's appointment and move it to Friday.", "e": "appointment-desk", "kind": "positive"},
+  {"t": "Any specialist slots left on Saturday? Book one for me.", "e": "appointment-desk", "kind": "positive"},
+  {"t": "I booked the wrong time, I want to change it to Tuesday afternoon.", "e": "appointment-desk", "kind": "positive"},
+  {"t": "Can you look up the time and location of my appointment?", "e": "appointment-desk", "kind": "positive"},
+
+  {"t": "My OCT report says the retinal nerve fibre layer is thinner than normal, how serious is that?", "e": "report-reader", "kind": "positive"},
+  {"t": "Can you explain the numbers on my intraocular pressure test?", "e": "report-reader", "kind": "positive"},
+  {"t": "What do the dark spots on my visual field report mean?", "e": "report-reader", "kind": "positive"},
+  {"t": "What do the sphere and cylinder values on my prescription mean?", "e": "report-reader", "kind": "positive"},
+  {"t": "The doctor said there are lesions in my fundus photo, please walk me through the report.", "e": "report-reader", "kind": "positive"},
+
+  {"t": "It's been a month since my cataract surgery, when should I come back for a check?", "e": "followup-planner", "kind": "positive"},
+  {"t": "Arrange my follow-up visit for next week.", "e": "followup-planner", "kind": "positive"},
+  {"t": "Can the follow-up reminder reach me two days in advance?", "e": "followup-planner", "kind": "positive"},
+  {"t": "What tests will my post-op check-up include?", "e": "followup-planner", "kind": "positive"},
+  {"t": "How often should a chronic glaucoma patient come back?", "e": "followup-planner", "kind": "positive"},
+
+  {"t": "I'm having refractive laser surgery the day after tomorrow, what should I prepare?", "e": "preop-briefing", "kind": "positive"},
+  {"t": "Do I need to fast before cataract surgery? For how many hours?", "e": "preop-briefing", "kind": "positive"},
+  {"t": "What time should I arrive on the day, and what documents do I need to bring?", "e": "preop-briefing", "kind": "positive"},
+  {"t": "Can I wear contact lenses before the surgery?", "e": "preop-briefing", "kind": "positive"},
+  {"t": "Which eye drops do I need to stop before the operation?", "e": "preop-briefing", "kind": "positive"},
+
+  {"t": "How do I redeem my membership points for an examination package?", "e": "membership-offers", "kind": "positive"},
+  {"t": "What perks does a Gold membership include?", "e": "membership-offers", "kind": "positive"},
+  {"t": "Sign me up for this month's free fundus photography event for members.", "e": "membership-offers", "kind": "positive"},
+  {"t": "How do I level up my membership tier?", "e": "membership-offers", "kind": "positive"},
+  {"t": "When do my points expire?", "e": "membership-offers", "kind": "positive"},
+
+  {"t": "I want to complain about the nurse's attitude during yesterday's visit.", "e": "complaint-intake", "kind": "positive"},
+  {"t": "Your clinic overcharged me, I'd like to file a complaint.", "e": "complaint-intake", "kind": "positive"},
+  {"t": "How long until I get a result after filing a complaint?", "e": "complaint-intake", "kind": "positive"},
+  {"t": "The doctor misdiagnosed me, I want to file a formal complaint.", "e": "complaint-intake", "kind": "positive"},
+  {"t": "What does the complaint process look like, and what do I need to prepare?", "e": "complaint-intake", "kind": "positive"},
+
+  {"t": "I had an acuity test last week, can you take a look at the results for me?", "e": "report-reader", "kind": "gray", "pair": "appointment-desk<->report-reader"},
+  {"t": "Send me my test report, and tell me whether anything looks off.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk<->report-reader"},
+  {"t": "My eyesight got worse, is my earlier report still on file? Please check.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk<->report-reader"},
+  {"t": "I'd like to ask about the retinal problem written in my report.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk<->report-reader"},
+  {"t": "Where's the report enquiry desk? I want to ask about my results.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk<->report-reader"},
+
+  {"t": "Can I pay for my post-op follow-up visit with membership points?", "e": "followup-planner", "kind": "gray", "pair": "followup<->membership"},
+  {"t": "How do I book the free re-check event for members?", "e": "membership-offers", "kind": "gray", "pair": "followup<->membership"},
+  {"t": "Can the follow-up reminder be sent to my membership mini-app?", "e": "followup-planner", "kind": "gray", "pair": "followup<->membership"},
+  {"t": "I'm a Gold member, is there a discount on follow-up visits?", "e": "membership-offers", "kind": "gray", "pair": "followup<->membership"},
+  {"t": "While I'm in for the follow-up, check my points balance too.", "e": "followup-planner", "kind": "gray", "pair": "followup<->membership"}
+]

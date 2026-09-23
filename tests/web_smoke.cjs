@@ -32,10 +32,11 @@ const m = html.match(/<script>([\s\S]*)<\/script>/);
 if (!m) { console.error("FAIL: 未找到 <script> 块"); process.exit(1); }
 // 提取 JS 中的数据与函数，去掉 use strict 以便函数进入本作用域
 const script = m[1];
-const demoMatch = script.match(/var DEMO = (\{.*?\});\n/s);
-const DEMO = demoMatch ? JSON.parse(demoMatch[1]) : null;
+const demoMatch = script.match(/var DEMO_BY_LANG = (\{[\s\S]*?\n\});/);
+const DEMO_BY_LANG = demoMatch ? JSON.parse(demoMatch[1]) : null;
+const DEMO = DEMO_BY_LANG ? DEMO_BY_LANG.zh : null;   // 旧断言沿用中文数据集
 const body = script.replace('"use strict";', "")
-  .replace(/var DEMO = \{.*?\};\n/s, "");
+  .replace(/var DEMO_BY_LANG = \{[\s\S]*?\n\};/, "");
 
 // 最小 DOM 求值环境：定义用到的全局后 eval
 const fnSrc = body;
@@ -215,6 +216,51 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   global.fetch = savedFetchB;
   delete globalThis.__atlasHook;
 
+  // ===== 演示数据（中英各一套，均由仓库内真实运行结果派生）=====
+  check("演示数据含 zh/en 两套", !!DEMO_BY_LANG && Object.keys(DEMO_BY_LANG).sort().join() === "en,zh");
+  Object.keys(DEMO_BY_LANG || {}).forEach(function(lang) {
+    const D = DEMO_BY_LANG[lang];
+    const sum = D.matrix.reduce(function(a, r) { return a + r.reduce(function(x, y) { return x + y; }, 0); }, 0);
+    const stolen = D.matrix.reduce(function(a, r, i) {
+      return a + r.reduce(function(x, y, j) { return x + y * (j !== i && j < D.skills.length ? 1 : 0); }, 0); }, 0);
+    check("演示数据[" + lang + "] 矩阵行列与技能数吻合",
+      D.matrix.length === D.skills.length && D.matrix.every(function(r) { return r.length === D.cols.length; }));
+    check("演示数据[" + lang + "] 矩阵总数等于任务数", sum === D.meta.total);
+    check("演示数据[" + lang + "] 命中+冲突+不稳定 = 任务数",
+      D.meta.hits + D.conflicts.length + D.meta.unstable === D.meta.total);
+    check("演示数据[" + lang + "] 冲突数与矩阵截胡格数一致", stolen === D.conflicts.length);
+    check("演示数据[" + lang + "] 冲突条目合法",
+      D.conflicts.every(function(c) {
+        return c.task && D.cols.indexOf(c.expected) >= 0 && D.cols.indexOf(c.chosen) >= 0 &&
+               /^\d+\/\d+$/.test(c.votes); }));
+    check("演示数据[" + lang + "] 技能描述完整（未被截断）",
+      D.skills.every(function(s) { return s.desc.length > 26; }));
+    check("演示数据[" + lang + "] 有脚注文案", typeof D.meta.note === "string" && D.meta.note.length > 20);
+    check("演示数据[" + lang + "] 脚注语言匹配",
+      lang === "zh" ? /[\u4e00-\u9fff]/.test(D.meta.note) : !/[\u4e00-\u9fff]/.test(D.meta.note));
+    check("演示数据[" + lang + "] 技能名与界面语言一致",
+      lang === "zh" ? /[a-z]+-[a-z]/.test(D.skills[0].name) && /[\u4e00-\u9fff]/.test(D.skills[0].desc)
+                    : !/[\u4e00-\u9fff]/.test(D.skills.map(function(s) { return s.desc; }).join("")));
+  });
+  check("演示数据与存档结果文件可复现", (function() {
+    const fsx = require("fs"), p = require("path");
+    const pairs = [["zh", "examples/results-demo-qwen.json"], ["en", "examples/results-demo-en-qwen.json"]];
+    return pairs.every(function(pair) {
+      const raw = JSON.parse(fsx.readFileSync(p.join(__dirname, "..", pair[1]), "utf-8"));
+      const D = DEMO_BY_LANG[pair[0]];
+      const names = D.skills.map(function(s) { return s.name; }).sort().join();
+      const rawNames = raw.meta.skills.map(function(s) { return s.name; }).sort().join();
+      return names === rawNames && raw.rows.length === D.meta.total &&
+        raw.rows.filter(function(r) { return r.conflict; }).length === D.conflicts.length &&
+        raw.meta.model === D.meta.model;
+    });
+  })());
+  // 行标签：英文描述取前几个词，不能退化成 name·name
+  check("行标签 中文取首段中文", shortLabel("解读眼科检查报告，涵盖视力、眼压", "x") === "解读眼科检查报告");
+  check("行标签 英文取前几个词", shortLabel("Handles booking, rescheduling and cancelling", "x") === "Handles booking");
+  check("行标签 英文掐掉尾部虚词", shortLabel("Builds follow-up plans for post-op patients", "x") === "Builds follow-up plans");
+  check("行标签 无描述时回退技能名", shortLabel("", "my-skill") === "my-skill");
+
   // ===== i18n =====
   const zhKeys = Object.keys(I18N.zh).sort().join(",");
   const enKeys = Object.keys(I18N.en).sort().join(",");
@@ -242,6 +288,18 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   check("切换到英文：写入 localStorage", localStorage.getItem("atlas_lang") === "en");
   setLang("zh");
   check("切回中文", t("run_btn") === "开始模拟" && document.documentElement.lang === "zh-CN");
+
+  // 演示数据按界面语言切换
+  setLang("en");
+  renderDemo();
+  check("英文界面渲染英文演示数据集",
+    els["skills"].value.indexOf("appointment-desk:") === 0 &&
+    els["plains"].innerHTML.indexOf("Real CLI run") >= 0);
+  setLang("zh");
+  renderDemo();
+  check("中文界面渲染中文演示数据集",
+    els["skills"].value.indexOf("baogao-jiedu:") === 0 &&
+    els["plains"].innerHTML.indexOf("真实模拟") >= 0);
 
   // 流程回归：演示按钮（曾因 loadDemo 未定义而完全失效）
   els["provider"].value = "openai";

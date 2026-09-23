@@ -15,7 +15,7 @@
   <a href="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml"><img src="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-0f6e56.svg" alt="License: MIT"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg" alt="Python 3.10+"></a>
-  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-90%20passing-3b6d11.svg" alt="Tests: 90 passing"></a>
+  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-91%20passing-3b6d11.svg" alt="Tests: 91 passing"></a>
 </p>
 
 Simulate the way your agent picks skills, and find out which skill steals whose tasks. Before your users find out.
@@ -26,7 +26,7 @@ Agent runtimes like Claude Code and Codex load skills by reading one or two line
 
 That works fine until two descriptions overlap. In our hospital demo, a booking skill's description claimed it also handled "vision report inquiries". The report-reading skill owned that job. So a patient asks for a report reading, the booking skill answers, and then it makes things up. Nothing errors, and nothing gets logged. We only found out because patients complained.
 
-SkillSeam replays that selection process before you ship. On a 40-task demo with 6 skills, it exposed 4 planted conflicts at 5/5 vote consistency, and every clean task passed. Each conflict report points at the exact keywords in the thief's description that caused the theft.
+SkillSeam replays that selection process before you ship. Both bundled demos are real 40-task runs over 6 ophthalmology support skills: the Chinese set surfaces 4 boundary problems, the English set 6 — every one of them unanimous at 5/5, with no flaky rows. Each conflict report points at the exact keywords in the thief's description that caused the theft.
 
 ## Quick start (web, no install)
 
@@ -41,6 +41,12 @@ python3 skill_seam.py export ~/.agents/skills
 ```
 
 The web UI ships in Chinese and English: switch in the top-left, or pass `?lang=zh` / `?lang=en`.
+
+Each language ships its own demo dataset, both from committed runs. Reproduce the English one:
+
+```bash
+python3 skill_seam.py demo-skills-en --tasks examples/tasks-demo-en.json
+```
 
 ## CLI (local directories, CI gates)
 
@@ -123,7 +129,7 @@ Every description sings. Some songs lure your tasks onto the rocks.
 
 ```bash
 python3 tests/test_atlas.py   # 90 tests, stdlib only
-node tests/web_smoke.cjs      # 73 web assertions, node >= 18
+node tests/web_smoke.cjs      # 99 web assertions, node >= 18
 ```
 
 CI runs both on Python 3.10, 3.12 and 3.13. See CONTRIBUTING.md before opening a PR.

@@ -14,11 +14,11 @@ Claude Code, Codex 같은 에이전트 런타임은 스킬을 로드할 때 desc
 
 description이 겹치지 않으면 잘 동작합니다. 겹치는 순간 문제가 생깁니다. 병원 데모에서 예약 스킬의 description에 "시력 검사 보고서 문의 접수"가 포함되어 있었고, 실제 담당은 보고서 해석 스킬이었습니다. 환자가 보고서 해석을 요청하자 예약 스킬이 응답하고, 사실을 지어냅니다. 에러도 없고, 로그도 없습니다. 환자 불만 접수로 알게 되었습니다.
 
-SkillSeam은 출시 전에 이 선택 과정을 재현합니다. 6개 스킬, 40개 태스크 데모에서 심어둔 4건의 충돌을 모두 찾아냈고(투표 일치도 5/5), 깨끗한 태스크는 하나도 놓치지 않았습니다. 각 충돌 리포트는 가로챈 스킬 description 안의 원인 키워드까지 짚어줍니다.
+SkillSeam은 출시 전에 그 선택 과정을 재현합니다. 함께 제공되는 두 데모는 모두 6개 스킬·40개 태스크 실제 실행 결과로, 중국어 세트는 4건, 영어 세트는 6건의 경계 문제를 찾아냈습니다. 모두 투표 일치도 5/5였고 흔들린 행은 없습니다. 각 충돌 리포트는 가로챈 스킬 description 안의 원인 키워드까지 짚어줍니다.
 
 ## 빠른 시작 (웹, 설치 없음)
 
-[https://snow7-g.github.io/SkillSeam/](https://snow7-g.github.io/SkillSeam/) 을 열고 데모 버튼을 누르면 10초 안에 히트맵이 나옵니다. 자신의 스킬을 붙여넣고, API 키를 추가하고(키는 브라우저에만 저장, 요청은 프로바이더로 직행), 실행하세요.
+[https://snow7-g.github.io/SkillSeam/?lang=en](https://snow7-g.github.io/SkillSeam/?lang=en) 을 열고 데모 버튼을 누르면 10초 안에 히트맵이 나옵니다. 자신의 스킬을 붙여넣고, API 키를 추가하고(키는 브라우저에만 저장, 요청은 프로바이더로 직행), 실행하세요.
 
 SKILL.md 파일로 관리 중이라면 페이지의 「选择技能文件夹」 버튼으로 폴더를 고르면 바로 읽어옵니다(브라우저 안에서만 파싱, 업로드 없음). 붙여넣기용으로 출력하려면:
 
@@ -102,8 +102,8 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 개발
 
 ```bash
-python3 tests/test_atlas.py   # 58 테스트, 표준 라이브러리만 사용
-node tests/web_smoke.cjs      # 19 웹 어설션, node >= 18
+python3 tests/test_atlas.py   # 91 테스트, 표준 라이브러리만 사용
+node tests/web_smoke.cjs      # 99 웹 어설션, node >= 18
 ```
 
 CI는 Python 3.10 / 3.12 / 3.13에서 둘 다 실행합니다. PR 전에 CONTRIBUTING.md를 확인하세요.

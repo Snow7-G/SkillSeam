@@ -788,6 +788,17 @@ class TestCLIExitCodes(unittest.TestCase):
         self.assertIn("语言必须与原描述一致", ad.FIX_PROMPT)
         self.assertIn("最小改动", ad.FIX_PROMPT)
 
+    def test_no_fixes_output_is_not_misleading(self):
+        """--no-fixes 时不能先打印「正在生成修复建议」再打印「生成 0 组」——实跑观感像生成失败。"""
+        src = SCRIPT.read_text(encoding="utf-8")
+        block = src[src.index("fix_suggestions = []"):][:1400]
+        self.assertIn("if no_fixes:", block, "应为 --no-fixes 单独分支")
+        self.assertLess(block.index("if no_fixes:"),
+                        block.index("为 {len(conflicts)} 个冲突生成修复建议"),
+                        "「正在生成」必须在 no_fixes 判断之后打印")
+        self.assertIn("跳过修复建议生成", block)
+        self.assertIn("未能生成任何建议", block, "建议为空时应给出警告而非静默")
+
     def test_ssl_cert_failure_gets_specific_hint(self):
         """证书校验失败要给出针对性指引（换 key/换 provider 都没用）。"""
         import urllib.error

@@ -14,11 +14,11 @@ Agent-Runtimes wie Claude Code und Codex laden Skills, indem sie nur ein, zwei Z
 
 Das funktioniert, solange sich zwei Descriptions nicht überlappen. In unserer Krankenhaus-Demo behauptete die Description eines Buchungs-Skills, dass er auch „Anfragen zu Sehtest-Berichten" bearbeitet. Zuständig war eigentlich der Skill zur Berichtsauswertung. Ein Patient bittet um eine Berichtsauswertung, der Buchungs-Skill antwortet und erfindet dann etwas. Kein Fehler, kein Logeintrag. Wir haben es nur erfahren, weil sich Patienten beschwert haben.
 
-SkillSeam spielt diesen Auswahlprozess vor dem Deployment erneut ab. In einer Demo mit 6 Skills und 40 Aufgaben hat er alle 4 eingeschleusten Konflikte bei 5/5-Stimmeneinheitlichkeit gefunden, und jede saubere Aufgabe bestand. Jeder Konfliktbericht nennt die exakten Schlüsselwörter in der Description des Diebes, die den Diebstahl verursacht haben.
+SkillSeam spielt diesen Auswahlprozess vor dem Deployment erneut ab. Beide mitgelieferten Demos sind echte Läufe über 6 Skills und 40 Aufgaben: Das chinesische Set deckt 4 Grenzfälle auf, das englische 6 — alle mit 5/5-Stimmeneinheitlichkeit und ohne wackelige Zeilen. Jeder Konfliktbericht nennt die exakten Schlüsselwörter in der Description des Diebes, die den Diebstahl verursacht haben.
 
 ## Schnellstart (Web, keine Installation)
 
-Öffne [https://snow7-g.github.io/SkillSeam/](https://snow7-g.github.io/SkillSeam/), klicke auf die Demo-Schaltfläche, und nach zehn Sekunden erscheint eine echte Heatmap. Dann eigene Skills einfügen, einen API-Key hinzufügen (er bleibt im Browser, die Anfragen gehen direkt zum Provider) und loslaufen lassen.
+Öffne [https://snow7-g.github.io/SkillSeam/?lang=en](https://snow7-g.github.io/SkillSeam/?lang=en), klicke auf die Demo-Schaltfläche, und nach zehn Sekunden erscheint eine echte Heatmap. Dann eigene Skills einfügen, einen API-Key hinzufügen (er bleibt im Browser, die Anfragen gehen direkt zum Provider) und loslaufen lassen.
 
 Deine Skills liegen als SKILL.md-Dateien vor? Klicke auf der Seite auf die Ordner-Schaltfläche (选择技能文件夹) und wähle das Verzeichnis — die Auswertung läuft im Browser, nichts wird hochgeladen. Oder gib sie in ein paste-fertiges Format aus:
 
@@ -102,8 +102,8 @@ Jede Description singt. Manche Lieder locken deine Aufgaben auf die Klippen.
 ## Entwicklung
 
 ```bash
-python3 tests/test_atlas.py   # 58 Tests, nur Stdlib
-node tests/web_smoke.cjs      # 19 Web-Assertions, node >= 18
+python3 tests/test_atlas.py   # 91 Tests, nur Stdlib
+node tests/web_smoke.cjs      # 99 Web-Assertions, node >= 18
 ```
 
 CI läuft beides auf Python 3.10, 3.12 und 3.13. Vor einem PR bitte CONTRIBUTING.md lesen.

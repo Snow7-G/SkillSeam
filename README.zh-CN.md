@@ -6,7 +6,7 @@
   <img src="assets/banner.svg" alt="SkillSeam" width="720">
 </p>
 
-[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-90%20passing-3b6d11.svg)](tests/test_atlas.py)
+[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-91%20passing-3b6d11.svg)](tests/test_atlas.py)
 
 模拟 agent 真实挑选 skill 的过程，找出哪个 skill 抢了谁的活。在用户发现问题之前。
 
@@ -16,11 +16,17 @@ Claude Code、Codex 这类 agent 加载 skill 时只读一两行 description。�
 
 两个 description 不重叠时没问题。一旦重叠就有事。我们医院项目里，挂号预约的 description 写了"受理视力检查、报告相关咨询"，而报告解读才是真正管这事的。病人要解读报告，agent 把话递给了挂号 skill，挂号 skill 开始瞎编。不报错，不留日志。最后是病人投诉了才知道。
 
-SkillSeam 把这个选择过程搬到上线之前重演。40 条任务、6 个 skill 的 demo 里，埋进去的 4 处撞车全部现形，且一致率 5/5，干净任务零误报。每条冲突报告都会指出截胡方 description 里惹祸的关键词。
+SkillSeam 把这个选择过程搬到上线之前重演。内置的两套 demo 都是 6 个眼科客服 skill、40 条任务的真实运行——中文集暴露 4 处边界问题，英文集 6 处，每一处都是一致率 5/5、无摇摆行。每条冲突报告都会指出截胡方 description 里惹祸的关键词。
 
 ## 快速开始（网页版，零安装）
 
 打开 https://snow7-g.github.io/SkillSeam/?lang=zh ，点「看演示数据」，十秒出热力图。然后点「选择技能文件夹」直接选你的技能目录（浏览器内解析，不上传任何文件），或用 `python3 skill_seam.py export ~/.agents/skills` 拿到粘贴格式，填 API key（只存你的浏览器，请求直达端点），点「开始模拟」。
+
+英文界面（`?lang=en`）配的是另一套英文 demo 数据集，也来自仓库内存档的真实运行。复现：
+
+```bash
+python3 skill_seam.py demo-skills-en --tasks examples/tasks-demo-en.json
+```
 
 支持 OpenAI-compatible、OpenRouter、Gemini、Anthropic Claude。
 
@@ -102,8 +108,8 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 开发
 
 ```bash
-python3 tests/test_atlas.py   # 90 项测试，纯标准库
-node tests/web_smoke.cjs      # 73 项网页断言，node >= 18
+python3 tests/test_atlas.py   # 91 项测试，纯标准库
+node tests/web_smoke.cjs      # 99 项网页断言，node >= 18
 ```
 
 CI 覆盖 Python 3.10 / 3.12 / 3.13。提 PR 前看 CONTRIBUTING.md。MIT 许可证。

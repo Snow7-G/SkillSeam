@@ -272,7 +272,6 @@ var I18N = {
     plain_line: "「{task}」→ agent 选中 {chosen}",
     unstable_note: "（不稳定 {n}/{m} 票，仅供参考）",
     no_plains: "没有未标注任务。给部分任务去掉 => 标注，可以看看 agent 的自然选择。",
-    demo_note: "演示数据来自 CLI 版对 6 个眼科客服 skill 的真实模拟（qwen3.8-flash，40 任务 × 5 采样，埋有 2 处撞车）。",
     fixes_generating: "发现 {n} 个稳定冲突，正在生成修复建议...",
     fix_no_suggestions: "未能自动生成建议。可按冲突明细里的截胡关键词手动改 description：给截胡方加「仅限/不含」边界词。",
     fix_head: "修改 {name}", fix_note: "（冲突：{victim} 被 {thief} 截胡）",
@@ -355,7 +354,6 @@ var I18N = {
     plain_line: "\u201c{task}\u201d → the agent picked {chosen}",
     unstable_note: " (unstable {n}/{m}, reference only)",
     no_plains: "No unmarked tasks. Drop the => marker from some tasks to see what the agent picks on its own.",
-    demo_note: "Demo data comes from a real CLI run against 6 ophthalmology support skills (qwen3.8-flash, 40 tasks × 5 samples, two seeded collisions).",
     fixes_generating: "Found {n} stable conflicts, generating fix suggestions...",
     fix_no_suggestions: "No suggestions could be generated. Use the stealing keywords above to edit descriptions by hand: add an only / not-for boundary to the thief.",
     fix_head: "Edit {name}", fix_note: "(conflict: {victim} stolen by {thief})",
@@ -455,7 +453,10 @@ window.addEventListener("DOMContentLoaded", function() {
   }
   applyI18n();
 });
-var DEMO = {"skills": [{"name": "baogao-jiedu", "desc": "解读眼科检查报告，涵盖视力、眼压、OCT、视野、眼底"}, {"name": "fuzhen-tixing", "desc": "为术后与慢病患者制定复诊计划、发送复查提醒，并解答会"}, {"name": "guahao-yuyue", "desc": "处理眼科门诊的预约挂号、改期与取消，受理视力检查、报"}, {"name": "huiyuan-yingxiao", "desc": "管理会员等级、积分兑换与专属活动报名，处理会员身份核"}, {"name": "shuqian-xuzhi", "desc": "说明白内障、近视激光等眼科手术的术前准备、禁食要求、"}, {"name": "tousu-shouli", "desc": "受理患者对就诊体验、服务质量与收费的投诉，登记工单并"}], "matrix": [[8, 0, 2, 0, 0, 0, 0, 0], [0, 7, 0, 1, 0, 0, 0, 0], [0, 0, 5, 0, 0, 0, 0, 0], [0, 2, 0, 5, 0, 0, 0, 0], [0, 0, 0, 0, 5, 0, 0, 0], [0, 0, 0, 0, 0, 5, 0, 0]], "cols": ["baogao-jiedu", "fuzhen-tixing", "guahao-yuyue", "huiyuan-yingxiao", "shuqian-xuzhi", "tousu-shouli", "NONE", "其他"], "conflicts": [{"task": "视力下降了，之前的报告还在吗？帮我查查。", "expected": "baogao-jiedu", "chosen": "guahao-yuyue", "votes": "5/5"}, {"task": "报告咨询窗口怎么走？我要问一下报告结果。", "expected": "baogao-jiedu", "chosen": "guahao-yuyue", "votes": "5/5"}, {"task": "我是黄金会员，复诊有折扣吗？", "expected": "huiyuan-yingxiao", "chosen": "fuzhen-tixing", "votes": "5/5"}, {"task": "复诊的时候顺便帮我查下会员积分余额。", "expected": "fuzhen-tixing", "chosen": "huiyuan-yingxiao", "votes": "5/5"}], "meta": {"total": 40, "hits": 35, "unstable": 1, "model": "qwen3.8-flash", "note": "数据来自 SkillSeam CLI 对 6 个眼科客服 skill 的真实模拟（埋有 2 处撞车）"}};
+var DEMO_BY_LANG = {
+  "zh": {"skills":[{"name":"baogao-jiedu","desc":"解读眼科检查报告，涵盖视力、眼压、OCT、视野、眼底照相等项目的指标含义与随访建议。"},{"name":"fuzhen-tixing","desc":"为术后与慢病患者制定复诊计划、发送复查提醒，并解答会员权益在复诊场景下的使用问题。"},{"name":"guahao-yuyue","desc":"处理眼科门诊的预约挂号、改期与取消，受理视力检查、报告相关咨询的登记与转接，引导患者完成就诊前准备。"},{"name":"huiyuan-yingxiao","desc":"管理会员等级、积分兑换与专属活动报名，处理会员身份核验与权益使用问题。"},{"name":"shuqian-xuzhi","desc":"说明白内障、近视激光等眼科手术的术前准备、禁食要求、停药事项与到院流程。"},{"name":"tousu-shouli","desc":"受理患者对就诊体验、服务质量与收费的投诉，登记工单并跟进处理进度。"}],"matrix":[[8,0,2,0,0,0,0,0],[0,7,0,1,0,0,0,0],[0,0,5,0,0,0,0,0],[0,1,0,6,0,0,0,0],[0,0,0,0,5,0,0,0],[0,0,0,0,0,5,0,0]],"cols":["baogao-jiedu","fuzhen-tixing","guahao-yuyue","huiyuan-yingxiao","shuqian-xuzhi","tousu-shouli","NONE","其他"],"conflicts":[{"task":"视力下降了，之前的报告还在吗？帮我查查。","expected":"baogao-jiedu","chosen":"guahao-yuyue","votes":"5/5"},{"task":"报告咨询窗口怎么走？我要问一下报告结果。","expected":"baogao-jiedu","chosen":"guahao-yuyue","votes":"5/5"},{"task":"我是黄金会员，复诊有折扣吗？","expected":"huiyuan-yingxiao","chosen":"fuzhen-tixing","votes":"5/5"},{"task":"复诊的时候顺便帮我查下会员积分余额。","expected":"fuzhen-tixing","chosen":"huiyuan-yingxiao","votes":"5/5"}],"meta":{"total":40,"hits":36,"unstable":0,"model":"qwen3.8-flash","note":"数据来自 SkillSeam CLI 对 6 个眼科客服 skill 的真实模拟（qwen3.8-flash，40 条任务 × 5 采样）；灰区任务刻意写成两两语义交界，因此同时暴露两处撞车。可用 demo-skills 与 --demo-tasks 复现。"}},
+  "en": {"skills":[{"name":"appointment-desk","desc":"Handles booking, rescheduling and cancelling of ophthalmology clinic visits, logs and routes acuity-test and report-related enquiries, and briefs patients on pre-visit preparation."},{"name":"complaint-intake","desc":"Logs patient complaints about visit experience, service quality and billing, and tracks the ticket through to resolution."},{"name":"followup-planner","desc":"Builds follow-up plans for post-op and chronic patients, sends revisit reminders, and answers how membership benefits apply in a follow-up visit."},{"name":"membership-offers","desc":"Manages membership tiers, points redemption and exclusive event sign-ups, and verifies member identity and benefit eligibility."},{"name":"preop-briefing","desc":"Explains pre-operative preparation for cataract and refractive laser surgery — fasting, medication holds and the day-of-visit procedure."},{"name":"report-reader","desc":"Interprets ophthalmology test reports — visual acuity, intraocular pressure, OCT, visual field and fundus photography — explaining what each measurement means and what follow-up is advised."}],"matrix":[[5,0,0,0,0,0,0,0],[0,5,0,0,0,0,0,0],[1,0,6,1,0,0,0,0],[0,0,1,6,0,0,0,0],[1,0,0,0,4,0,0,0],[2,0,0,0,0,8,0,0]],"cols":["appointment-desk","complaint-intake","followup-planner","membership-offers","preop-briefing","report-reader","NONE","other"],"conflicts":[{"task":"Arrange my follow-up visit for next week.","expected":"followup-planner","chosen":"appointment-desk","votes":"5/5"},{"task":"What time should I arrive on the day, and what documents do I need to bring?","expected":"preop-briefing","chosen":"appointment-desk","votes":"5/5"},{"task":"My eyesight got worse, is my earlier report still on file? Please check.","expected":"report-reader","chosen":"appointment-desk","votes":"5/5"},{"task":"Where's the report enquiry desk? I want to ask about my results.","expected":"report-reader","chosen":"appointment-desk","votes":"5/5"},{"task":"I'm a Gold member, is there a discount on follow-up visits?","expected":"membership-offers","chosen":"followup-planner","votes":"5/5"},{"task":"While I'm in for the follow-up, check my points balance too.","expected":"followup-planner","chosen":"membership-offers","votes":"5/5"}],"meta":{"total":40,"hits":34,"unstable":0,"model":"qwen3.8-flash","note":"Real CLI run over 6 ophthalmology support skills (qwen3.8-flash, 40 tasks × 5 samples). The gray-zone tasks sit right on the semantic seam, so two collision points show up at once. Reproduce with demo-skills-en and examples/tasks-demo-en.json."}}
+};
 
 var $ = function(id) { return document.getElementById(id); };
 var PROVIDER_BASE = { openrouter: "https://openrouter.ai/api/v1",
@@ -1222,12 +1223,12 @@ function loadDemo() {
 
 function renderDemo() {
   hideErr();
-  var D = DEMO;
+  // 演示数据分语言内置（各语言配自己的技能集与真实运行结果）
+  var D = DEMO_BY_LANG[LANG] || DEMO_BY_LANG.zh;
   $("skills").value = D.skills.map(function(s) { return s.name + ": " + s.desc; }).join("\n");
   $("fixCard").classList.add("hidden");  // 演示模式无修复建议，清掉 BYOK 运行残留
   var skills = D.skills.map(function(s) { return { name: s.name, description: s.desc }; });
-  var demoCols = D.cols.map(function(c) { return c === "其他" ? t("col_other") : c; });
-  var svg = matrixSvg(D.matrix, skills, demoCols);
+  var svg = matrixSvg(D.matrix, skills, D.cols);
   $("s-hit").textContent = D.meta.hits + "/" + D.meta.total;
   $("s-conf").textContent = D.conflicts.length;
   $("s-unstable").textContent = D.meta.unstable;
@@ -1243,7 +1244,7 @@ function renderDemo() {
           t("votes_raw", { x: esc(c.votes) }) + "</div>";
   });
   $("conflicts").innerHTML = ch;
-  $("plains").innerHTML = '<div class="plain">' + t("demo_note") + '</div>';
+  $("plains").innerHTML = '<div class="plain">' + esc(D.meta.note) + '</div>';
   $("result").classList.remove("hidden");
   $("result").scrollIntoView({ behavior: "smooth" });
 }
@@ -1255,13 +1256,28 @@ function estTextW(str, cjkPx, asciiPx) {
   return w;
 }
 
+// 行标签的辅助词：中文取首段中文（≤8 字），英文取前几个词（≤26 字符、掐掉尾部虚词）
+function shortLabel(desc, fallback) {
+  var d = String(desc || "");
+  var m = d.match(/[\u4e00-\u9fff]+/);
+  if (m) return m[0].slice(0, 8);
+  var words = d.replace(/^[^A-Za-z0-9]+/, "").split(/\s+/).filter(Boolean);
+  var STOP = { for: 1, and: 1, of: 1, the: 1, a: 1, an: 1, to: 1, in: 1, on: 1, with: 1 };
+  var out = [];
+  for (var i = 0; i < words.length; i++) {
+    var next = out.length ? out.join(" ") + " " + words[i] : words[i];
+    if (out.length >= 2 && next.length > 26) break;   // 至少留两个词，之后超长就停
+    out.push(words[i]);
+  }
+  while (out.length > 2 && STOP[out[out.length - 1].toLowerCase().replace(/[^a-z-]/g, "")]) out.pop();
+  return out.join(" ").replace(/[,\u2014-]+$/, "") || fallback;
+}
+
 function matrixSvg(mat, skills, cols) {
   var cellW = 86, cellH = 52, topH = 30;
   // 行标签做成玻璃胶囊，并按最长名字动态确定标签列宽（长技能名不再被裁切）
   var rowLabels = skills.map(function(s) {
-    var m = s.description.match(/[\u4e00-\u9fff]+/);
-    var lab = m ? m[0].slice(0, 8) : s.name;
-    return s.name + "\u00b7" + lab;
+    return s.name + "\u00b7" + shortLabel(s.description, s.name);
   });
   var labW = 190;
   rowLabels.forEach(function(t) {

@@ -1458,10 +1458,17 @@ def main():
 
     fix_suggestions = []
     if conflicts and not (mock or cfg is None):
-        print(f"为 {len(conflicts)} 个冲突生成修复建议...")
-        fix_suggestions = [] if no_fixes else generate_fix_suggestions(
-            cfg, rows, {s["name"]: s for s in skills})
-        print(f"  生成 {len(fix_suggestions)} 组建议")
+        if no_fixes:
+            # 说清楚是「按参数跳过」而不是「生成失败」：否则会先打印「正在生成」再打印「生成 0 组」，观感像出错
+            print(f"\n检测到 {len(conflicts)} 个冲突；已按 --no-fixes 跳过修复建议生成。")
+        else:
+            print(f"为 {len(conflicts)} 个冲突生成修复建议...")
+            fix_suggestions = generate_fix_suggestions(
+                cfg, rows, {s["name"]: s for s in skills})
+            print(f"  生成 {len(fix_suggestions)} 组建议")
+            if not fix_suggestions:
+                print("  [warn] 未能生成任何建议（模型输出不可解析或请求失败）；"
+                      "可重跑，或按冲突明细的截胡关键词手动收紧边界。")
     elif conflicts:
         print("（mock 模式跳过修复建议生成）")
 
