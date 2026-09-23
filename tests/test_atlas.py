@@ -783,6 +783,34 @@ class TestCLIExitCodes(unittest.TestCase):
             finally:
                 os.chdir(old_cwd)
 
+    def test_ssl_cert_failure_gets_specific_hint(self):
+        """证书校验失败要给出针对性指引（换 key/换 provider 都没用）。"""
+        import urllib.error
+
+        def ssl_fail(cfg, catalog, task_text):
+            raise urllib.error.URLError("[SSL: CERTIFICATE_VERIFY_FAILED] unable to get local issuer certificate")
+
+        with tempfile.TemporaryDirectory() as td:
+            sdir, tfile = make_clean_fixture(Path(td))
+            cfg = {"base_url": "https://example.invalid/v1", "model": "m", "api_key": "x"}
+            old_cwd = os.getcwd()
+            os.chdir(td)
+            try:
+                with patch.object(sys, "argv", [str(SCRIPT), str(sdir), "--tasks", str(tfile)]), \
+                        patch.object(ad, "load_config", return_value=cfg), \
+                        patch.object(ad, "chat_once", side_effect=ssl_fail), \
+                        patch.object(ad.time, "sleep"), \
+                        patch.object(sys, "stdout", new_callable=io.StringIO), \
+                        patch.object(sys, "stderr", new_callable=io.StringIO) as stderr:
+                    with self.assertRaises(SystemExit) as result:
+                        ad.main()
+                    err = stderr.getvalue()
+                    self.assertEqual(result.exception.code, 2)
+                    self.assertIn("Install Certificates.command", err)
+                    self.assertIn("SSL_CERT_FILE", err)
+            finally:
+                os.chdir(old_cwd)
+
     def test_workers_flag_accepted(self):
         """--workers 的值不能被当成技能目录参数。"""
         r = run_cli(["./demo-skills", "--demo-tasks", "--mock", "--workers", "2"])

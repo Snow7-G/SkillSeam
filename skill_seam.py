@@ -1483,6 +1483,14 @@ def main():
         if all_error:
             if run_errors:
                 eprint(f"       首个失败原因: {run_errors[0]}")
+                if "CERTIFICATE_VERIFY_FAILED" in run_errors[0]:
+                    # python.org 版 Python 在 macOS 上常见的根证书缺失问题：所有 HTTPS 都会失败，
+                    # 换 provider 或 key 都没用，必须修解释器或用 SSL_CERT_FILE 指定证书包
+                    eprint("       → 这是本机 Python 的根证书问题，与 key/额度无关（任何 HTTPS 站点都会失败）。"
+                           "macOS 上可运行 \"/Applications/Python X.Y/Install Certificates.command\"，"
+                           "或设置环境变量 SSL_CERT_FILE 指向 certifi 的 cacert.pem，"
+                           "或改用另一个 Python 解释器。")
+                    sys.exit(2)
             eprint("       常见原因: key 或端点错误 · 额度用尽或触发限流（可加 --workers 2 降低并发）"
                    " · 网络不通 · 模型名不存在")
         else:

@@ -7,6 +7,9 @@
 ## [Unreleased]
 
 ### Added
+- 证书校验失败（`CERTIFICATE_VERIFY_FAILED`）时给出针对性指引：这是本机 Python 根证书问题，换 key / 换 provider 都无效，需运行 `Install Certificates.command` 或设置 `SSL_CERT_FILE`。
+
+### Added
 - CLI `--workers <N>`：并发请求数可调（默认 8），免费额度被平台限流时调小即可。
 - CLI `--no-fixes`：跳过 AI 修复建议生成（更快、更省额度，适合 CI）。
 - 修复建议生成阶段打印进度（每对冲突一行），并注明可用 `--no-fixes` 跳过；该阶段每对只重试一次（此前最坏 3×90 秒静默阻塞，看起来像卡死）。
