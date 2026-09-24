@@ -404,21 +404,36 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   // 这里把它们钉住：CLI 用例数可静态推导（一个 def test_ 就是一个用例，无参数化），
   // 网页断言数就是本文件刚跑出的总数。六份 README 写得不对，这里直接变红。
   const READMES = ["README.md", "README.zh-CN.md", "README.ja.md", "README.ko.md", "README.es.md", "README.de.md"];
+  // PROJECT.md / CONTRIBUTING.md 也写测试数，一起管（PROJECT.md 曾停在「34 项测试」）
+  const DOCS = READMES.concat(["PROJECT.md", "CONTRIBUTING.md"]);
   const cliCount = (fs.readFileSync(path.join(__dirname, "test_atlas.py"), "utf-8").match(/def test_/g) || []).length;
   const webCount = productTotal;   // 只算产品断言，不含本节自校验
-  const hasNum = (line, n) => (String(line).match(/\d+/g) || []).indexOf(String(n)) >= 0;
-  check("自校验前提：CLI 用例数可静态推导", cliCount > 50 && webCount > 50);
+  // 按 token 边界取数字：否则徽章颜色码 "0f6e56"/"3b6d11"（含数字）会被误判成过期测试数
+  const NUM_RE = /(?<![0-9A-Za-z])\d+(?![0-9A-Za-z])/g;
+  const numsIn = (line) => String(line).match(NUM_RE) || [];
+  const hasNum = (line, n) => numsIn(line).indexOf(String(n)) >= 0;
+  // 只看「提到测试脚本的行」上的数字，且忽略 <30 的（"node >= 18"、"Python 3.10" 之类不是测试数）
+  const counts = [cliCount, webCount];
+  DOCS.forEach(function(f) {
+    const lines = fs.readFileSync(path.join(__dirname, "..", f), "utf-8").split("\n")
+      .filter(l => /test_atlas\.py|web_smoke\.cjs/.test(l));
+    const stale = [].concat.apply([], lines.map(numsIn))
+      .filter(n => Number(n) >= 30 && counts.indexOf(Number(n)) < 0);
+    check("文档数字[" + f + "] 提到测试数的行无过期计数", lines.length > 0 && stale.length === 0);
+  });
   READMES.forEach(function(f) {
     const lines = fs.readFileSync(path.join(__dirname, "..", f), "utf-8").split("\n");
     const cliLines = lines.filter(l => l.indexOf("test_atlas.py") >= 0);
     const webLines = lines.filter(l => l.indexOf("web_smoke.cjs") >= 0);
-    check("文档数字[" + f + "] 写了 CLI 数 " + cliCount + "（徽章 + 命令注释）",
+    check("文档数字[" + f + "] 明确写了 CLI 数 " + cliCount + "（徽章 + 命令注释）",
       cliLines.length > 0 && cliLines.every(l => hasNum(l, cliCount)));
-    check("文档数字[" + f + "] 写了网页断言数 " + webCount,
+    check("文档数字[" + f + "] 明确写了网页断言数 " + webCount,
       webLines.length === 1 && hasNum(webLines[0], webCount));
-    check("文档数字[" + f + "] 无过期的旧计数",
-      !cliLines.concat(webLines).some(l => /\b(58|73|84|90|91|99)\b/.test(l)));
   });
+  check("文档数字[PROJECT.md] 明确写了 CLI 数 " + cliCount, (function() {
+    return fs.readFileSync(path.join(__dirname, "..", "PROJECT.md"), "utf-8")
+      .split("\n").filter(l => l.indexOf("test_atlas.py") >= 0).every(l => hasNum(l, cliCount));
+  })());
 
   const metaTotal = (pass + fail) - metaStart;
   console.log(`web smoke: ${productTotal} 项产品断言 + ${metaTotal} 项文档自校验，通过 ${pass}`);
