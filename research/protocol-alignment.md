@@ -44,12 +44,16 @@ Verdict legend: **✅ measured** · **◐ partially** · **✗ not measured**
 | 1 | Persistence Gradient | loaded-skill tokens per session | +59.5%, accuracy unchanged | No token accounting. Records `body_lines` per skill only. | ✗ |
 | 2 | System Coherence | total tokens / accuracy, after a dangling anchor | +64.0% tokens, −3.1pp | No token accounting, and no static check for unreachable references. | ✗ |
 | 3 | Regime Gating | noncanonical routes; paraphrase flip rate | 0/32 → 15/32; 0/16 → 8/16 | Detects the behavioural consequence (two skills trading a task) but has no canonical-vs-alias notion and no matched paraphrase pairs. | ◐ |
-| 4 | Orthogonal Coverage | candidate-ownership conflict (audit) | 0/16 → 14/16 | **Core capability.** Counts tasks whose declared owner loses the vote, with vote counts and the losing candidate named. | ✅ |
+| 4 | Orthogonal Coverage | candidate-ownership conflict (audit) | 0/16 → 14/16 | Counts tasks whose declared owner loses the vote, and names the winner. But that is the *behavioural* slice, not the audit. The paper's own direct-execution slice for this principle was 0/32 → 3/32 at p = .25, so an instrument that watches only selection should be expected to miss overlaps that never leak into routing. | ◐ |
 | 5 | Flow | routing conflict count; loaded-skill tokens | 3/32 → 30/32; tokens ×3.7 | **Closest match.** Counts stably-misrouted tasks and reports the majority route. | ✅ |
 | 6 | Granularity Discipline | accuracy | 0.906 → 0.781 | Reports an accuracy-equivalent (hits / declared-owner tasks), but not output-contract violations. | ◐ |
 | 7 | Self-Contained Verification | *(repo, not paper)* | — | Not a measurement target, but this repo satisfies it: 98 CLI tests, 103 web assertions, CI on every push. | n/a |
 
-Detail worth flagging on rows 3 and 6: this tool's granularity signal is
+Detail worth flagging on rows 3, 4 and 6. Row 4 is the one I would most expect to be
+wrong. The tool does surface overlap when the overlap is strong enough to shift routing
+(both demo sets show it), but the paper's own evidence says that behavioural path is weak,
+and the instrument cannot see an overlap that never changes a selection. Row 6: this tool's
+granularity signal is
 **`chosen == expected`, over the tasks in the suite**. Every task in a CLI run must declare
 an owner (a skill name, or `NONE` for "nothing should fire", which counts as a hit when the
 model also answers `NONE`). So the shape is accuracy-like, but the denominator is a
@@ -72,9 +76,12 @@ one skill name or `NONE`, record it, repeat. Step 3 of the same loop — *"give 
 must-fire and must-not-fire input. 0 skills firing = gap; multiple = conflict"* — maps to
 the tool's declared-owner marking and its `=> NONE` support.
 
-So on the routing side the tool is not an analogue of the methodology; it is one
-implementation of the measurement the methodology asks for, run on collections nobody
-perturbed.
+So on the routing side this is a lower-fidelity version of the same observation, and the
+difference matters. The recipe assumes an agent that is doing the task and can be asked what
+it would fire before it acts. This tool never runs an agent. It shows a model a catalog of
+names and descriptions plus one user turn and asks for a name: no prior turns, no tool
+results, no system state. Same question, much thinner context, and that is the first thing I
+would expect to be wrong about the mapping below.
 
 ---
 
@@ -153,5 +160,6 @@ per-task record `{votes, chosen, consistency, stable, conflict}`.
 
 ---
 
-*Corrections welcome. Rows 3 and 6 are the ones I would most expect to have wrong —
-they are marked ◐ precisely because the mapping is arguable.*
+*Corrections welcome. Rows 3, 4 and 6 are marked ◐ precisely because the mapping is
+arguable. If you read only one, read row 4: that is where I am most likely to be claiming a
+diagnostic the instrument cannot really deliver.*
