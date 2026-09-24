@@ -96,6 +96,9 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 
 冲突不住在 skill 内部，住在两个 skill 的接缝上。布料各自完好，衣服总在缝合处开线。SkillSeam 检查的就是这些接缝。
 
+**关于重名。** 有一篇无关的论文与我们同名：《SkillSeam: Six Principles for Auditing Agent Skill Collections》（Kang Ruiyuan，X32 Studio，[arXiv:2609.13321](https://arxiv.org/abs/2609.13321)），2026 年 9 月发表，早于本项目。它用受控扰动审计技能集合，并附一个[可安装 skill](https://github.com/X32Studio/best-practice-for-skills-system)。本项目与之无关，也不是它的测量工具；名字取自「接缝」这个意象，当时并不知道该论文存在。如果你是顺着那篇论文找到这里的，这就是名字眼熟的原因。[两者的差异 →](research/protocol-alignment.md)
+
+
 检测报告叫塞壬报告（Sirens Report），来自罗蕾莱。海涅写过：
 
 > Ich weiß nicht, was soll es bedeuten,

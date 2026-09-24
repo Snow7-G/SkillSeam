@@ -114,6 +114,7 @@ skill-seam/
 ├── demo-skills/           # 眼科客服样例（中文），6 个 skill，埋 2 处撞车
 ├── demo-skills-en/        # 同一场景的英文样例，网页 ?lang=en 的演示数据来源
 ├── examples/              # 真实运行归档（报告/结果/任务，qwen3.8-flash；含英文 demo 一套）
+├── research/              # 与同领域独立工作（arXiv:2609.13321）的协议对齐笔记
 ├── README.md              # 快速上手
 └── output/                # 每次运行覆盖写入 results.json + report.html
 ```

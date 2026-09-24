@@ -90,6 +90,9 @@ Die Simulation ist dem Injektionsformat treu, treibt aber keine echten Agent-Pro
 
 Konflikte wohnen nicht in einem Skill. Sie wohnen in der Naht zwischen zwei Skills, wo der Stoff hält, bis jemand zieht. SkillSeam prüft die Nähte.
 
+**Zum Namen.** Es gibt eine unabhängige Arbeit mit demselben Namen: *SkillSeam: Six Principles for Auditing Agent Skill Collections* (Kang Ruiyuan, X32 Studio, [arXiv:2609.13321](https://arxiv.org/abs/2609.13321)), veröffentlicht im September 2026, also vor diesem Projekt. Sie auditiert Skill-Sammlungen mittels kontrollierter Perturbation und liefert einen [installierbaren Skill](https://github.com/X32Studio/best-practice-for-skills-system) mit. Dieses Projekt ist davon unabhängig, ist nicht ihr Messinstrument, und der Name stammt aus der Idee der Naht — die Arbeit war damals nicht bekannt. Wer über die Arbeit hierher kommt, kennt den Namen daher. [Worin sie sich unterscheiden →](research/protocol-alignment.md)
+
+
 Der Prüfbericht heißt Sirens Report, nach der Lorelei. Heine hat es am besten gesagt:
 
 > Ich weiß nicht, was soll es bedeuten,

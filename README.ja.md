@@ -90,6 +90,9 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 
 競合はスキルの中には住んでいません。2 つのスキルの縫い目に住んでいて、誰かが引っ張るとほどけます。SkillSeam は縫い目を検査します。
 
+**名前について。** 同名の無関係な論文があります：『SkillSeam: Six Principles for Auditing Agent Skill Collections』（Kang Ruiyuan、X32 Studio、[arXiv:2609.13321](https://arxiv.org/abs/2609.13321)）。2026 年 9 月に公開され、本プロジェクトより前に存在していました。統制された摂動によってスキル集合を監査する方法論で、[インストール可能な skill](https://github.com/X32Studio/best-practice-for-skills-system) も配布されています。本プロジェクトはこれとは無関係で、その測定ツールでもありません。名前は「縫い目」から本プロジェクト自身が付けたもので、論文の存在は後から知りました。論文から来た方には、そのため名前が見覚えあるはずです。[両者の違い →](research/protocol-alignment.md)
+
+
 検出レポートは Sirens Report（セイレーン報告）と呼びます。ハイネの言葉が最も良い:
 
 > Ich weiß nicht, was soll es bedeuten,

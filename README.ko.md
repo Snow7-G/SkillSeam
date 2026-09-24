@@ -90,6 +90,9 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 
 충돌은 스킬 안에 살지 않습니다. 두 스킬 사이의 이음선에 살고, 누군가 당기면 풀립니다. SkillSeam은 이음선을 검사합니다.
 
+**이름에 대하여.** 같은 이름의 무관한 논문이 있습니다: 『SkillSeam: Six Principles for Auditing Agent Skill Collections』 (Kang Ruiyuan, X32 Studio, [arXiv:2609.13321](https://arxiv.org/abs/2609.13321)). 2026년 9월에 공개되어 이 프로젝트보다 먼저 존재했습니다. 통제된 교란으로 스킬 집합을 감사하는 방법론이며 [설치 가능한 skill](https://github.com/X32Studio/best-practice-for-skills-system)도 함께 배포됩니다. 이 프로젝트는 그와 무관하고 그 측정 도구도 아니며, 이름은 「이음선」에서 이 프로젝트가 직접 붙인 것으로 논문의 존재는 나중에 알게 되었습니다. 논문에서 오셨다면 그래서 이름이 익숙할 것입니다. [둘의 차이 →](research/protocol-alignment.md)
+
+
 탐지 리포트는 Sirens Report(세이렌 보고서)라고 부릅니다. 하이네가 가장 잘 표현했습니다:
 
 > Ich weiß nicht, was soll es bedeuten,

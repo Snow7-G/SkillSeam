@@ -90,6 +90,9 @@ La simulación es fiel al formato de inyección pero no maneja procesos reales d
 
 Los conflictos no viven dentro de un skill. Viven en la costura entre dos skills, donde la tela aguanta hasta que alguien tira. SkillSeam revisa las costuras.
 
+**Sobre el nombre.** Hay un artículo no relacionado con el mismo nombre: *SkillSeam: Six Principles for Auditing Agent Skill Collections* (Kang Ruiyuan, X32 Studio, [arXiv:2609.13321](https://arxiv.org/abs/2609.13321)), publicado en septiembre de 2026, antes de que existiera este proyecto. Audita colecciones de skills mediante perturbación controlada y distribuye una [skill instalable](https://github.com/X32Studio/best-practice-for-skills-system). Este proyecto es independiente, no es su instrumento de medición, y tomó el nombre de la idea de costura sin conocer el artículo. Si llegaste desde el artículo, esa es la razón del nombre familiar. [En qué difieren →](research/protocol-alignment.md)
+
+
 El informe se llama Sirens Report, por la Lorelei. Heiné lo dijo mejor que nadie:
 
 > Ich weiß nicht, was soll es bedeuten,

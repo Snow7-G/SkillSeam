@@ -21,6 +21,10 @@
 - 六份 README 的测试计数再次统一（CLI **98** / 网页 **103**），并删掉 CI 步骤名里会随测试增长而漂移的断言数（数字由测试自己打印）。
 
 ### Added
+- `research/protocol-alignment.md`：与同领域**独立**工作（*SkillSeam: Six Principles for Auditing Agent Skill Collections*，arXiv:2609.13321，Kang Ruiyuan / X32 Studio）的协议对齐笔记。逐条列出该文七条原则各自能否被本工具测量、测得的是哪个通道，并把本工具的四个缺口（无 token 通道、无对照臂、无同义改写配对、无静态图检查）逐条命名与估价；另含一组可比性声明（采样温度、阈值 vs 显著性检验、行为截胡 ≠ 所有权审计、规模差），避免数字被跨协议引用。
+- 六份 README 的「名字的来历」一节补重名说明：同名论文早于本项目、本项目与其无关且不是它的测量工具、名字取自「接缝」意象，并链接到对齐笔记。此前只解释名字的来历，没有解释**为什么搜索结果里有一个同名的东西**。
+
+### Added
 - 网页演示数据分语言内置两套，各自来自**仓库内存档的真实运行**：中文集（`demo-skills` + `--demo-tasks`，6 skill × 40 任务 → 4 处冲突 / 36-40 命中）与英文集（`demo-skills-en` + `examples/tasks-demo-en.json`，6 skill × 40 任务 → 6 处冲突 / 34-40 命中，qwen3.8-flash）。切换界面语言时演示数据整体切换（技能框、矩阵、统计、脚注）。
 - 新增 `demo-skills-en/`（6 个英文眼科客服 skill）与 `examples/tasks-demo-en.json`（40 条英文任务，灰区任务落在 `appointment-desk↔report-reader`、`followup-planner↔membership-offers` 两条语义交界上），以及存档结果 `examples/results-demo-en-qwen.json`——英文 demo 可复现。
 - 演示数据不再手写：`docs/index.html` 内嵌的两套数据均由存档结果**派生**，并新增断言校验内嵌数据与存档文件一致（矩阵总数 = 任务数、命中 + 冲突 + 不稳定 = 任务数、矩阵截胡格数 = 冲突条数、技能名与描述逐字一致）。

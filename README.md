@@ -116,6 +116,9 @@ The simulation is faithful to the injection format but doesn't drive real agent 
 
 Conflicts don't live inside a skill. They live in the seam between two skills, where the fabric holds until someone pulls. SkillSeam checks the seams.
 
+**Note on the name.** An unrelated paper shares it: *SkillSeam: Six Principles for Auditing Agent Skill Collections* (Kang Ruiyuan, X32 Studio, [arXiv:2609.13321](https://arxiv.org/abs/2609.13321)), published in September 2026, before this project existed. It audits skill collections through controlled perturbation and ships with an [installable skill](https://github.com/X32Studio/best-practice-for-skills-system). This project is independent of it, is not its measurement instrument, and took its name from the seam metaphor without knowing the paper existed. If you arrived here from the paper, that is why the name looks familiar. [How the two differ →](research/protocol-alignment.md)
+
+
 The detection report is called the Sirens Report, after the Lorelei. Heine put it best:
 
 > Ich weiß nicht, was soll es bedeuten,
