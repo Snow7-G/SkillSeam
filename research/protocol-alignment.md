@@ -82,11 +82,11 @@ shows a model a catalog of names and descriptions plus one user turn and asks fo
 prior turns, no tool results, no system state. Same question, much thinner context.
 
 Two smaller mismatches are worth stating rather than leaving to be discovered. A `=> NONE`
-task that gets picked is an over-trigger, not the coverage gap step 3 looks for; a gap is a
-state where nothing fires when something should, and this tool always asks for an answer, so
-it cannot produce that observation. And a "conflict" here means disagreement with a declared
-label, while the guide's routing conflict means ambiguity between competing candidates.
-Related, not identical.
+task that gets picked is an over-trigger, not the coverage gap step 3 looks for. The gap is
+the mirror case, and the tool does record it: a task with a declared owner that the model
+answers `NONE` for is something that should have fired and did not. And a "conflict" here
+means disagreement with a declared label, while the guide's routing conflict means ambiguity
+between competing candidates. Related, not identical.
 
 ---
 
@@ -121,10 +121,12 @@ Stated up front because they bound what any number from this tool can be compare
 4. **Scale differs.** Our collections are 6 skills / 40 tasks / 5 samples. The paper's
    ladder is N16 with 32 tasks per rung and 1,100 sessions. Different power; a difference
    this tool does not detect is not evidence of absence.
-5. **`=> NONE` measures over-triggering, not coverage gaps.** The instrument can quantify
-   "no skill should fire, but one took it". A coverage gap is the opposite: a state where
-   something should fire and nothing does, which this tool cannot express. Our archived runs
-   do not exercise `=> NONE` at all yet.
+5. **`=> NONE` measures over-triggering; the mirror image measures coverage gaps.** The
+   instrument can quantify "no skill should fire, but one took it". The reverse — a task
+   with a declared owner where the model answers `NONE` — is a coverage gap, and that it
+   does record: on 2026-09-24 a run over a three-skill personal collection returned `NONE`
+   in 4 of 5 samples for a task declared to belong to one of the skills, i.e. nothing in the
+   collection claimed it. Neither direction appears in the archived demo runs.
 
 ---
 
