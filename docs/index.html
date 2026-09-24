@@ -1221,10 +1221,15 @@ function loadDemo() {
   renderDemo();
 }
 
+// 取演示数据集：优先当前语言；缺该语言时回落英文（比回落到中文对非中文读者更可读）
+function demoFor(lang) {
+  return DEMO_BY_LANG[lang] || DEMO_BY_LANG.en || DEMO_BY_LANG.zh;
+}
+
 function renderDemo() {
   hideErr();
   // 演示数据分语言内置（各语言配自己的技能集与真实运行结果）
-  var D = DEMO_BY_LANG[LANG] || DEMO_BY_LANG.zh;
+  var D = demoFor(LANG);
   $("skills").value = D.skills.map(function(s) { return s.name + ": " + s.desc; }).join("\n");
   $("fixCard").classList.add("hidden");  // 演示模式无修复建议，清掉 BYOK 运行残留
   var skills = D.skills.map(function(s) { return { name: s.name, description: s.desc }; });

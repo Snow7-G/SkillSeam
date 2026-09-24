@@ -977,5 +977,85 @@ class TestOutputArtifacts(unittest.TestCase):
         self.assertEqual(first, second)
 
 
+class TestEnglishDemoFixture(unittest.TestCase):
+    """英文演示技能集/任务集/存档结果必须互相自洽（网页内嵌数据由存档派生，改一处就要对一处）。"""
+
+    TASKS = ROOT / "examples" / "tasks-demo-en.json"
+    RESULTS = ROOT / "examples" / "results-demo-en-qwen.json"
+    SKILLS_DIR = ROOT / "demo-skills-en"
+
+    def setUp(self):
+        self.tasks = json.loads(self.TASKS.read_text(encoding="utf-8"))
+        self.results = json.loads(self.RESULTS.read_text(encoding="utf-8"))
+        self.names = {p.parent.name for p in self.SKILLS_DIR.glob("*/SKILL.md")}
+
+    def test_skills_dir_matches_frontmatter_names(self):
+        self.assertEqual(len(self.names), 6)
+        for p in self.SKILLS_DIR.glob("*/SKILL.md"):
+            fm, issues = ad.parse_frontmatter(p.read_text(encoding="utf-8"), p)   # path 需为 Path（内部用 .parent）
+            self.assertEqual(issues, [], f"{p}: {issues}")
+            self.assertEqual(fm.get("name"), p.parent.name, f"{p} 的 name 与目录名不一致")
+            self.assertTrue(str(fm.get("description", "")).strip(), f"{p} 缺 description")
+
+    def test_task_mix_is_5_positive_per_skill_plus_10_gray(self):
+        self.assertEqual(len(self.tasks), 40)
+        pos = Counter(t["e"] for t in self.tasks if t.get("kind") == "positive")
+        self.assertEqual(len(pos), 6, "正向任务应覆盖全部 6 个技能")
+        self.assertEqual(set(pos.values()), {5}, f"每技能应恰好 5 条正向，实际 {dict(pos)}")
+        self.assertEqual(sum(1 for t in self.tasks if t.get("kind") == "gray"), 10)
+
+    def test_every_expected_is_a_real_skill(self):
+        for t in self.tasks:
+            self.assertIn(t["e"], self.names | {"NONE"}, t["t"])
+
+    def test_gray_pairs_use_the_tool_own_label_format(self):
+        """pair 会渲染进 report.html（[gray·pair]），格式须与 CLI 生成的一致：全名↔全名（Unicode 箭头）。"""
+        pairs = {t["pair"] for t in self.tasks if t.get("kind") == "gray"}
+        self.assertEqual(len(pairs), 2)
+        for pair in pairs:
+            self.assertIn("\u2194", pair, f"pair 应使用 ↔ 而非 ASCII 箭头: {pair}")
+            self.assertNotIn("<->", pair)
+            a, b = pair.split("\u2194")
+            self.assertIn(a, self.names)
+            self.assertIn(b, self.names)
+        for t in self.tasks:
+            if t.get("kind") == "gray":
+                self.assertIn(t["e"], t["pair"].split("\u2194"), t["t"])
+
+    def test_archive_aligns_with_task_file_row_by_row(self):
+        rows = self.results["rows"]
+        self.assertEqual(len(rows), len(self.tasks))
+        for task, row in zip(self.tasks, rows):
+            self.assertEqual(row["task"], task["t"])
+            self.assertEqual(row["expected"], task["e"])
+            self.assertEqual(row["kind"], task.get("kind", "positive"))
+            self.assertEqual(row.get("pair") or "", task.get("pair") or "")
+
+    def test_archive_meta_counts_are_internally_consistent(self):
+        rows = self.results["rows"]
+        hits = sum(1 for r in rows if r["chosen"] == r["expected"] and r["stable"])
+        conflicts = [r for r in rows if r["conflict"]]
+        unstable = sum(1 for r in rows if not r["stable"])
+        self.assertEqual(hits + len(conflicts) + unstable, len(rows))
+        self.assertEqual(hits, 34)
+        self.assertEqual(len(conflicts), 6)
+        self.assertEqual(unstable, 0)
+        self.assertEqual({r["expected"] for r in self.results["meta"]["skills"] and rows}, self.names)
+
+    def test_archive_rows_satisfy_the_aggregation_invariants(self):
+        """存档必须是忠实的聚合结果——同步分组标签时不得扰动任何测量值。"""
+        d = self.results
+        rows, n, thr = d["rows"], d["meta"]["samples"], d["meta"]["consistency_min"]
+        allowed = self.names | {"NONE", "ERROR", "INVALID"}
+        for r in rows:
+            self.assertEqual(len(r["votes"]), n, r["task"])
+            self.assertTrue(set(r["votes"]) <= allowed, r["votes"])
+            # chosen = 众数票；consistency = 该选项占比；stable/conflict 由阈值与是否选错推出
+            self.assertEqual(r["chosen"], Counter(r["votes"]).most_common(1)[0][0], r["task"])
+            self.assertAlmostEqual(r["consistency"], r["votes"].count(r["chosen"]) / n, places=9)
+            self.assertEqual(r["stable"], r["consistency"] >= thr and r["chosen"] not in ("ERROR", "INVALID"))
+            self.assertEqual(r["conflict"], r["stable"] and r["chosen"] != r["expected"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

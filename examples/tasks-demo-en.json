@@ -35,15 +35,15 @@
   {"t": "The doctor misdiagnosed me, I want to file a formal complaint.", "e": "complaint-intake", "kind": "positive"},
   {"t": "What does the complaint process look like, and what do I need to prepare?", "e": "complaint-intake", "kind": "positive"},
 
-  {"t": "I had an acuity test last week, can you take a look at the results for me?", "e": "report-reader", "kind": "gray", "pair": "appointment-desk<->report-reader"},
-  {"t": "Send me my test report, and tell me whether anything looks off.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk<->report-reader"},
-  {"t": "My eyesight got worse, is my earlier report still on file? Please check.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk<->report-reader"},
-  {"t": "I'd like to ask about the retinal problem written in my report.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk<->report-reader"},
-  {"t": "Where's the report enquiry desk? I want to ask about my results.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk<->report-reader"},
+  {"t": "I had an acuity test last week, can you take a look at the results for me?", "e": "report-reader", "kind": "gray", "pair": "appointment-desk↔report-reader"},
+  {"t": "Send me my test report, and tell me whether anything looks off.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk↔report-reader"},
+  {"t": "My eyesight got worse, is my earlier report still on file? Please check.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk↔report-reader"},
+  {"t": "I'd like to ask about the retinal problem written in my report.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk↔report-reader"},
+  {"t": "Where's the report enquiry desk? I want to ask about my results.", "e": "report-reader", "kind": "gray", "pair": "appointment-desk↔report-reader"},
 
-  {"t": "Can I pay for my post-op follow-up visit with membership points?", "e": "followup-planner", "kind": "gray", "pair": "followup<->membership"},
-  {"t": "How do I book the free re-check event for members?", "e": "membership-offers", "kind": "gray", "pair": "followup<->membership"},
-  {"t": "Can the follow-up reminder be sent to my membership mini-app?", "e": "followup-planner", "kind": "gray", "pair": "followup<->membership"},
-  {"t": "I'm a Gold member, is there a discount on follow-up visits?", "e": "membership-offers", "kind": "gray", "pair": "followup<->membership"},
-  {"t": "While I'm in for the follow-up, check my points balance too.", "e": "followup-planner", "kind": "gray", "pair": "followup<->membership"}
+  {"t": "Can I pay for my post-op follow-up visit with membership points?", "e": "followup-planner", "kind": "gray", "pair": "followup-planner↔membership-offers"},
+  {"t": "How do I book the free re-check event for members?", "e": "membership-offers", "kind": "gray", "pair": "followup-planner↔membership-offers"},
+  {"t": "Can the follow-up reminder be sent to my membership mini-app?", "e": "followup-planner", "kind": "gray", "pair": "followup-planner↔membership-offers"},
+  {"t": "I'm a Gold member, is there a discount on follow-up visits?", "e": "membership-offers", "kind": "gray", "pair": "followup-planner↔membership-offers"},
+  {"t": "While I'm in for the follow-up, check my points balance too.", "e": "followup-planner", "kind": "gray", "pair": "followup-planner↔membership-offers"}
 ]

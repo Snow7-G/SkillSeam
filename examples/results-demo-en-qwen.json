@@ -1,967 +1,967 @@
 {
-  "meta": {
-    "mode_label": "真实 LLM 模拟",
-    "model": "qwen3.8-flash",
-    "samples": 5,
-    "consistency_min": 0.8,
-    "skills": [
-      {
-        "name": "appointment-desk",
-        "description": "Handles booking, rescheduling and cancelling of ophthalmology clinic visits, logs and routes acuity-test and report-related enquiries, and briefs patients on pre-visit preparation.",
-        "body_lines": 6
-      },
-      {
-        "name": "complaint-intake",
-        "description": "Logs patient complaints about visit experience, service quality and billing, and tracks the ticket through to resolution.",
-        "body_lines": 5
-      },
-      {
-        "name": "followup-planner",
-        "description": "Builds follow-up plans for post-op and chronic patients, sends revisit reminders, and answers how membership benefits apply in a follow-up visit.",
-        "body_lines": 5
-      },
-      {
-        "name": "membership-offers",
-        "description": "Manages membership tiers, points redemption and exclusive event sign-ups, and verifies member identity and benefit eligibility.",
-        "body_lines": 5
-      },
-      {
-        "name": "preop-briefing",
-        "description": "Explains pre-operative preparation for cataract and refractive laser surgery — fasting, medication holds and the day-of-visit procedure.",
-        "body_lines": 5
-      },
-      {
-        "name": "report-reader",
-        "description": "Interprets ophthalmology test reports — visual acuity, intraocular pressure, OCT, visual field and fundus photography — explaining what each measurement means and what follow-up is advised.",
-        "body_lines": 5
-      }
-    ],
-    "task_source": "user",
-    "fix_suggestions": [],
-    "generated_at": "2026-09-23T18:54:58.268213"
-  },
-  "tasks": [
-    {
-      "text": "I'd like to book an eye clinic appointment for next Wednesday morning.",
-      "expected": "appointment-desk",
-      "kind": "positive"
-    },
-    {
-      "text": "Please cancel tomorrow's appointment and move it to Friday.",
-      "expected": "appointment-desk",
-      "kind": "positive"
-    },
-    {
-      "text": "Any specialist slots left on Saturday? Book one for me.",
-      "expected": "appointment-desk",
-      "kind": "positive"
-    },
-    {
-      "text": "I booked the wrong time, I want to change it to Tuesday afternoon.",
-      "expected": "appointment-desk",
-      "kind": "positive"
-    },
-    {
-      "text": "Can you look up the time and location of my appointment?",
-      "expected": "appointment-desk",
-      "kind": "positive"
-    },
-    {
-      "text": "My OCT report says the retinal nerve fibre layer is thinner than normal, how serious is that?",
-      "expected": "report-reader",
-      "kind": "positive"
-    },
-    {
-      "text": "Can you explain the numbers on my intraocular pressure test?",
-      "expected": "report-reader",
-      "kind": "positive"
-    },
-    {
-      "text": "What do the dark spots on my visual field report mean?",
-      "expected": "report-reader",
-      "kind": "positive"
-    },
-    {
-      "text": "What do the sphere and cylinder values on my prescription mean?",
-      "expected": "report-reader",
-      "kind": "positive"
-    },
-    {
-      "text": "The doctor said there are lesions in my fundus photo, please walk me through the report.",
-      "expected": "report-reader",
-      "kind": "positive"
-    },
-    {
-      "text": "It's been a month since my cataract surgery, when should I come back for a check?",
-      "expected": "followup-planner",
-      "kind": "positive"
-    },
-    {
-      "text": "Arrange my follow-up visit for next week.",
-      "expected": "followup-planner",
-      "kind": "positive"
-    },
-    {
-      "text": "Can the follow-up reminder reach me two days in advance?",
-      "expected": "followup-planner",
-      "kind": "positive"
-    },
-    {
-      "text": "What tests will my post-op check-up include?",
-      "expected": "followup-planner",
-      "kind": "positive"
-    },
-    {
-      "text": "How often should a chronic glaucoma patient come back?",
-      "expected": "followup-planner",
-      "kind": "positive"
-    },
-    {
-      "text": "I'm having refractive laser surgery the day after tomorrow, what should I prepare?",
-      "expected": "preop-briefing",
-      "kind": "positive"
-    },
-    {
-      "text": "Do I need to fast before cataract surgery? For how many hours?",
-      "expected": "preop-briefing",
-      "kind": "positive"
-    },
-    {
-      "text": "What time should I arrive on the day, and what documents do I need to bring?",
-      "expected": "preop-briefing",
-      "kind": "positive"
-    },
-    {
-      "text": "Can I wear contact lenses before the surgery?",
-      "expected": "preop-briefing",
-      "kind": "positive"
-    },
-    {
-      "text": "Which eye drops do I need to stop before the operation?",
-      "expected": "preop-briefing",
-      "kind": "positive"
-    },
-    {
-      "text": "How do I redeem my membership points for an examination package?",
-      "expected": "membership-offers",
-      "kind": "positive"
-    },
-    {
-      "text": "What perks does a Gold membership include?",
-      "expected": "membership-offers",
-      "kind": "positive"
-    },
-    {
-      "text": "Sign me up for this month's free fundus photography event for members.",
-      "expected": "membership-offers",
-      "kind": "positive"
-    },
-    {
-      "text": "How do I level up my membership tier?",
-      "expected": "membership-offers",
-      "kind": "positive"
-    },
-    {
-      "text": "When do my points expire?",
-      "expected": "membership-offers",
-      "kind": "positive"
-    },
-    {
-      "text": "I want to complain about the nurse's attitude during yesterday's visit.",
-      "expected": "complaint-intake",
-      "kind": "positive"
-    },
-    {
-      "text": "Your clinic overcharged me, I'd like to file a complaint.",
-      "expected": "complaint-intake",
-      "kind": "positive"
-    },
-    {
-      "text": "How long until I get a result after filing a complaint?",
-      "expected": "complaint-intake",
-      "kind": "positive"
-    },
-    {
-      "text": "The doctor misdiagnosed me, I want to file a formal complaint.",
-      "expected": "complaint-intake",
-      "kind": "positive"
-    },
-    {
-      "text": "What does the complaint process look like, and what do I need to prepare?",
-      "expected": "complaint-intake",
-      "kind": "positive"
-    },
-    {
-      "text": "I had an acuity test last week, can you take a look at the results for me?",
-      "expected": "report-reader",
-      "kind": "gray"
-    },
-    {
-      "text": "Send me my test report, and tell me whether anything looks off.",
-      "expected": "report-reader",
-      "kind": "gray"
-    },
-    {
-      "text": "My eyesight got worse, is my earlier report still on file? Please check.",
-      "expected": "report-reader",
-      "kind": "gray"
-    },
-    {
-      "text": "I'd like to ask about the retinal problem written in my report.",
-      "expected": "report-reader",
-      "kind": "gray"
-    },
-    {
-      "text": "Where's the report enquiry desk? I want to ask about my results.",
-      "expected": "report-reader",
-      "kind": "gray"
-    },
-    {
-      "text": "Can I pay for my post-op follow-up visit with membership points?",
-      "expected": "followup-planner",
-      "kind": "gray"
-    },
-    {
-      "text": "How do I book the free re-check event for members?",
-      "expected": "membership-offers",
-      "kind": "gray"
-    },
-    {
-      "text": "Can the follow-up reminder be sent to my membership mini-app?",
-      "expected": "followup-planner",
-      "kind": "gray"
-    },
-    {
-      "text": "I'm a Gold member, is there a discount on follow-up visits?",
-      "expected": "membership-offers",
-      "kind": "gray"
-    },
-    {
-      "text": "While I'm in for the follow-up, check my points balance too.",
-      "expected": "followup-planner",
-      "kind": "gray"
-    }
+ "meta": {
+  "mode_label": "真实 LLM 模拟",
+  "model": "qwen3.8-flash",
+  "samples": 5,
+  "consistency_min": 0.8,
+  "skills": [
+   {
+    "name": "appointment-desk",
+    "description": "Handles booking, rescheduling and cancelling of ophthalmology clinic visits, logs and routes acuity-test and report-related enquiries, and briefs patients on pre-visit preparation.",
+    "body_lines": 6
+   },
+   {
+    "name": "complaint-intake",
+    "description": "Logs patient complaints about visit experience, service quality and billing, and tracks the ticket through to resolution.",
+    "body_lines": 5
+   },
+   {
+    "name": "followup-planner",
+    "description": "Builds follow-up plans for post-op and chronic patients, sends revisit reminders, and answers how membership benefits apply in a follow-up visit.",
+    "body_lines": 5
+   },
+   {
+    "name": "membership-offers",
+    "description": "Manages membership tiers, points redemption and exclusive event sign-ups, and verifies member identity and benefit eligibility.",
+    "body_lines": 5
+   },
+   {
+    "name": "preop-briefing",
+    "description": "Explains pre-operative preparation for cataract and refractive laser surgery — fasting, medication holds and the day-of-visit procedure.",
+    "body_lines": 5
+   },
+   {
+    "name": "report-reader",
+    "description": "Interprets ophthalmology test reports — visual acuity, intraocular pressure, OCT, visual field and fundus photography — explaining what each measurement means and what follow-up is advised.",
+    "body_lines": 5
+   }
   ],
-  "rows": [
-    {
-      "id": 0,
-      "task": "I'd like to book an eye clinic appointment for next Wednesday morning.",
-      "expected": "appointment-desk",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk"
-      ],
-      "chosen": "appointment-desk",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 1,
-      "task": "Please cancel tomorrow's appointment and move it to Friday.",
-      "expected": "appointment-desk",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk"
-      ],
-      "chosen": "appointment-desk",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 2,
-      "task": "Any specialist slots left on Saturday? Book one for me.",
-      "expected": "appointment-desk",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk"
-      ],
-      "chosen": "appointment-desk",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 3,
-      "task": "I booked the wrong time, I want to change it to Tuesday afternoon.",
-      "expected": "appointment-desk",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk"
-      ],
-      "chosen": "appointment-desk",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 4,
-      "task": "Can you look up the time and location of my appointment?",
-      "expected": "appointment-desk",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk"
-      ],
-      "chosen": "appointment-desk",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 5,
-      "task": "My OCT report says the retinal nerve fibre layer is thinner than normal, how serious is that?",
-      "expected": "report-reader",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader"
-      ],
-      "chosen": "report-reader",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 6,
-      "task": "Can you explain the numbers on my intraocular pressure test?",
-      "expected": "report-reader",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader"
-      ],
-      "chosen": "report-reader",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 7,
-      "task": "What do the dark spots on my visual field report mean?",
-      "expected": "report-reader",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader"
-      ],
-      "chosen": "report-reader",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 8,
-      "task": "What do the sphere and cylinder values on my prescription mean?",
-      "expected": "report-reader",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader"
-      ],
-      "chosen": "report-reader",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 9,
-      "task": "The doctor said there are lesions in my fundus photo, please walk me through the report.",
-      "expected": "report-reader",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader"
-      ],
-      "chosen": "report-reader",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 10,
-      "task": "It's been a month since my cataract surgery, when should I come back for a check?",
-      "expected": "followup-planner",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner"
-      ],
-      "chosen": "followup-planner",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 11,
-      "task": "Arrange my follow-up visit for next week.",
-      "expected": "followup-planner",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk"
-      ],
-      "chosen": "appointment-desk",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": true
-    },
-    {
-      "id": 12,
-      "task": "Can the follow-up reminder reach me two days in advance?",
-      "expected": "followup-planner",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner"
-      ],
-      "chosen": "followup-planner",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 13,
-      "task": "What tests will my post-op check-up include?",
-      "expected": "followup-planner",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner"
-      ],
-      "chosen": "followup-planner",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 14,
-      "task": "How often should a chronic glaucoma patient come back?",
-      "expected": "followup-planner",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner"
-      ],
-      "chosen": "followup-planner",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 15,
-      "task": "I'm having refractive laser surgery the day after tomorrow, what should I prepare?",
-      "expected": "preop-briefing",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing"
-      ],
-      "chosen": "preop-briefing",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 16,
-      "task": "Do I need to fast before cataract surgery? For how many hours?",
-      "expected": "preop-briefing",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing"
-      ],
-      "chosen": "preop-briefing",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 17,
-      "task": "What time should I arrive on the day, and what documents do I need to bring?",
-      "expected": "preop-briefing",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk"
-      ],
-      "chosen": "appointment-desk",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": true
-    },
-    {
-      "id": 18,
-      "task": "Can I wear contact lenses before the surgery?",
-      "expected": "preop-briefing",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing"
-      ],
-      "chosen": "preop-briefing",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 19,
-      "task": "Which eye drops do I need to stop before the operation?",
-      "expected": "preop-briefing",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing",
-        "preop-briefing"
-      ],
-      "chosen": "preop-briefing",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 20,
-      "task": "How do I redeem my membership points for an examination package?",
-      "expected": "membership-offers",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers"
-      ],
-      "chosen": "membership-offers",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 21,
-      "task": "What perks does a Gold membership include?",
-      "expected": "membership-offers",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers"
-      ],
-      "chosen": "membership-offers",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 22,
-      "task": "Sign me up for this month's free fundus photography event for members.",
-      "expected": "membership-offers",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers"
-      ],
-      "chosen": "membership-offers",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 23,
-      "task": "How do I level up my membership tier?",
-      "expected": "membership-offers",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers"
-      ],
-      "chosen": "membership-offers",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 24,
-      "task": "When do my points expire?",
-      "expected": "membership-offers",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers"
-      ],
-      "chosen": "membership-offers",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 25,
-      "task": "I want to complain about the nurse's attitude during yesterday's visit.",
-      "expected": "complaint-intake",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake"
-      ],
-      "chosen": "complaint-intake",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 26,
-      "task": "Your clinic overcharged me, I'd like to file a complaint.",
-      "expected": "complaint-intake",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake"
-      ],
-      "chosen": "complaint-intake",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 27,
-      "task": "How long until I get a result after filing a complaint?",
-      "expected": "complaint-intake",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake"
-      ],
-      "chosen": "complaint-intake",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 28,
-      "task": "The doctor misdiagnosed me, I want to file a formal complaint.",
-      "expected": "complaint-intake",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake"
-      ],
-      "chosen": "complaint-intake",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 29,
-      "task": "What does the complaint process look like, and what do I need to prepare?",
-      "expected": "complaint-intake",
-      "kind": "positive",
-      "pair": "",
-      "votes": [
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake",
-        "complaint-intake"
-      ],
-      "chosen": "complaint-intake",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 30,
-      "task": "I had an acuity test last week, can you take a look at the results for me?",
-      "expected": "report-reader",
-      "kind": "gray",
-      "pair": "appointment-desk<->report-reader",
-      "votes": [
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader"
-      ],
-      "chosen": "report-reader",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 31,
-      "task": "Send me my test report, and tell me whether anything looks off.",
-      "expected": "report-reader",
-      "kind": "gray",
-      "pair": "appointment-desk<->report-reader",
-      "votes": [
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader"
-      ],
-      "chosen": "report-reader",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 32,
-      "task": "My eyesight got worse, is my earlier report still on file? Please check.",
-      "expected": "report-reader",
-      "kind": "gray",
-      "pair": "appointment-desk<->report-reader",
-      "votes": [
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk"
-      ],
-      "chosen": "appointment-desk",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": true
-    },
-    {
-      "id": 33,
-      "task": "I'd like to ask about the retinal problem written in my report.",
-      "expected": "report-reader",
-      "kind": "gray",
-      "pair": "appointment-desk<->report-reader",
-      "votes": [
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader",
-        "report-reader"
-      ],
-      "chosen": "report-reader",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 34,
-      "task": "Where's the report enquiry desk? I want to ask about my results.",
-      "expected": "report-reader",
-      "kind": "gray",
-      "pair": "appointment-desk<->report-reader",
-      "votes": [
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk",
-        "appointment-desk"
-      ],
-      "chosen": "appointment-desk",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": true
-    },
-    {
-      "id": 35,
-      "task": "Can I pay for my post-op follow-up visit with membership points?",
-      "expected": "followup-planner",
-      "kind": "gray",
-      "pair": "followup<->membership",
-      "votes": [
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner"
-      ],
-      "chosen": "followup-planner",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 36,
-      "task": "How do I book the free re-check event for members?",
-      "expected": "membership-offers",
-      "kind": "gray",
-      "pair": "followup<->membership",
-      "votes": [
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers"
-      ],
-      "chosen": "membership-offers",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 37,
-      "task": "Can the follow-up reminder be sent to my membership mini-app?",
-      "expected": "followup-planner",
-      "kind": "gray",
-      "pair": "followup<->membership",
-      "votes": [
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner"
-      ],
-      "chosen": "followup-planner",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": false
-    },
-    {
-      "id": 38,
-      "task": "I'm a Gold member, is there a discount on follow-up visits?",
-      "expected": "membership-offers",
-      "kind": "gray",
-      "pair": "followup<->membership",
-      "votes": [
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner",
-        "followup-planner"
-      ],
-      "chosen": "followup-planner",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": true
-    },
-    {
-      "id": 39,
-      "task": "While I'm in for the follow-up, check my points balance too.",
-      "expected": "followup-planner",
-      "kind": "gray",
-      "pair": "followup<->membership",
-      "votes": [
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers",
-        "membership-offers"
-      ],
-      "chosen": "membership-offers",
-      "consistency": 1.0,
-      "stable": true,
-      "conflict": true
-    }
-  ]
+  "task_source": "user",
+  "fix_suggestions": [],
+  "generated_at": "2026-09-23T18:54:58.268213"
+ },
+ "tasks": [
+  {
+   "text": "I'd like to book an eye clinic appointment for next Wednesday morning.",
+   "expected": "appointment-desk",
+   "kind": "positive"
+  },
+  {
+   "text": "Please cancel tomorrow's appointment and move it to Friday.",
+   "expected": "appointment-desk",
+   "kind": "positive"
+  },
+  {
+   "text": "Any specialist slots left on Saturday? Book one for me.",
+   "expected": "appointment-desk",
+   "kind": "positive"
+  },
+  {
+   "text": "I booked the wrong time, I want to change it to Tuesday afternoon.",
+   "expected": "appointment-desk",
+   "kind": "positive"
+  },
+  {
+   "text": "Can you look up the time and location of my appointment?",
+   "expected": "appointment-desk",
+   "kind": "positive"
+  },
+  {
+   "text": "My OCT report says the retinal nerve fibre layer is thinner than normal, how serious is that?",
+   "expected": "report-reader",
+   "kind": "positive"
+  },
+  {
+   "text": "Can you explain the numbers on my intraocular pressure test?",
+   "expected": "report-reader",
+   "kind": "positive"
+  },
+  {
+   "text": "What do the dark spots on my visual field report mean?",
+   "expected": "report-reader",
+   "kind": "positive"
+  },
+  {
+   "text": "What do the sphere and cylinder values on my prescription mean?",
+   "expected": "report-reader",
+   "kind": "positive"
+  },
+  {
+   "text": "The doctor said there are lesions in my fundus photo, please walk me through the report.",
+   "expected": "report-reader",
+   "kind": "positive"
+  },
+  {
+   "text": "It's been a month since my cataract surgery, when should I come back for a check?",
+   "expected": "followup-planner",
+   "kind": "positive"
+  },
+  {
+   "text": "Arrange my follow-up visit for next week.",
+   "expected": "followup-planner",
+   "kind": "positive"
+  },
+  {
+   "text": "Can the follow-up reminder reach me two days in advance?",
+   "expected": "followup-planner",
+   "kind": "positive"
+  },
+  {
+   "text": "What tests will my post-op check-up include?",
+   "expected": "followup-planner",
+   "kind": "positive"
+  },
+  {
+   "text": "How often should a chronic glaucoma patient come back?",
+   "expected": "followup-planner",
+   "kind": "positive"
+  },
+  {
+   "text": "I'm having refractive laser surgery the day after tomorrow, what should I prepare?",
+   "expected": "preop-briefing",
+   "kind": "positive"
+  },
+  {
+   "text": "Do I need to fast before cataract surgery? For how many hours?",
+   "expected": "preop-briefing",
+   "kind": "positive"
+  },
+  {
+   "text": "What time should I arrive on the day, and what documents do I need to bring?",
+   "expected": "preop-briefing",
+   "kind": "positive"
+  },
+  {
+   "text": "Can I wear contact lenses before the surgery?",
+   "expected": "preop-briefing",
+   "kind": "positive"
+  },
+  {
+   "text": "Which eye drops do I need to stop before the operation?",
+   "expected": "preop-briefing",
+   "kind": "positive"
+  },
+  {
+   "text": "How do I redeem my membership points for an examination package?",
+   "expected": "membership-offers",
+   "kind": "positive"
+  },
+  {
+   "text": "What perks does a Gold membership include?",
+   "expected": "membership-offers",
+   "kind": "positive"
+  },
+  {
+   "text": "Sign me up for this month's free fundus photography event for members.",
+   "expected": "membership-offers",
+   "kind": "positive"
+  },
+  {
+   "text": "How do I level up my membership tier?",
+   "expected": "membership-offers",
+   "kind": "positive"
+  },
+  {
+   "text": "When do my points expire?",
+   "expected": "membership-offers",
+   "kind": "positive"
+  },
+  {
+   "text": "I want to complain about the nurse's attitude during yesterday's visit.",
+   "expected": "complaint-intake",
+   "kind": "positive"
+  },
+  {
+   "text": "Your clinic overcharged me, I'd like to file a complaint.",
+   "expected": "complaint-intake",
+   "kind": "positive"
+  },
+  {
+   "text": "How long until I get a result after filing a complaint?",
+   "expected": "complaint-intake",
+   "kind": "positive"
+  },
+  {
+   "text": "The doctor misdiagnosed me, I want to file a formal complaint.",
+   "expected": "complaint-intake",
+   "kind": "positive"
+  },
+  {
+   "text": "What does the complaint process look like, and what do I need to prepare?",
+   "expected": "complaint-intake",
+   "kind": "positive"
+  },
+  {
+   "text": "I had an acuity test last week, can you take a look at the results for me?",
+   "expected": "report-reader",
+   "kind": "gray"
+  },
+  {
+   "text": "Send me my test report, and tell me whether anything looks off.",
+   "expected": "report-reader",
+   "kind": "gray"
+  },
+  {
+   "text": "My eyesight got worse, is my earlier report still on file? Please check.",
+   "expected": "report-reader",
+   "kind": "gray"
+  },
+  {
+   "text": "I'd like to ask about the retinal problem written in my report.",
+   "expected": "report-reader",
+   "kind": "gray"
+  },
+  {
+   "text": "Where's the report enquiry desk? I want to ask about my results.",
+   "expected": "report-reader",
+   "kind": "gray"
+  },
+  {
+   "text": "Can I pay for my post-op follow-up visit with membership points?",
+   "expected": "followup-planner",
+   "kind": "gray"
+  },
+  {
+   "text": "How do I book the free re-check event for members?",
+   "expected": "membership-offers",
+   "kind": "gray"
+  },
+  {
+   "text": "Can the follow-up reminder be sent to my membership mini-app?",
+   "expected": "followup-planner",
+   "kind": "gray"
+  },
+  {
+   "text": "I'm a Gold member, is there a discount on follow-up visits?",
+   "expected": "membership-offers",
+   "kind": "gray"
+  },
+  {
+   "text": "While I'm in for the follow-up, check my points balance too.",
+   "expected": "followup-planner",
+   "kind": "gray"
+  }
+ ],
+ "rows": [
+  {
+   "id": 0,
+   "task": "I'd like to book an eye clinic appointment for next Wednesday morning.",
+   "expected": "appointment-desk",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk"
+   ],
+   "chosen": "appointment-desk",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 1,
+   "task": "Please cancel tomorrow's appointment and move it to Friday.",
+   "expected": "appointment-desk",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk"
+   ],
+   "chosen": "appointment-desk",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 2,
+   "task": "Any specialist slots left on Saturday? Book one for me.",
+   "expected": "appointment-desk",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk"
+   ],
+   "chosen": "appointment-desk",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 3,
+   "task": "I booked the wrong time, I want to change it to Tuesday afternoon.",
+   "expected": "appointment-desk",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk"
+   ],
+   "chosen": "appointment-desk",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 4,
+   "task": "Can you look up the time and location of my appointment?",
+   "expected": "appointment-desk",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk"
+   ],
+   "chosen": "appointment-desk",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 5,
+   "task": "My OCT report says the retinal nerve fibre layer is thinner than normal, how serious is that?",
+   "expected": "report-reader",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader"
+   ],
+   "chosen": "report-reader",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 6,
+   "task": "Can you explain the numbers on my intraocular pressure test?",
+   "expected": "report-reader",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader"
+   ],
+   "chosen": "report-reader",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 7,
+   "task": "What do the dark spots on my visual field report mean?",
+   "expected": "report-reader",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader"
+   ],
+   "chosen": "report-reader",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 8,
+   "task": "What do the sphere and cylinder values on my prescription mean?",
+   "expected": "report-reader",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader"
+   ],
+   "chosen": "report-reader",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 9,
+   "task": "The doctor said there are lesions in my fundus photo, please walk me through the report.",
+   "expected": "report-reader",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader"
+   ],
+   "chosen": "report-reader",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 10,
+   "task": "It's been a month since my cataract surgery, when should I come back for a check?",
+   "expected": "followup-planner",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner"
+   ],
+   "chosen": "followup-planner",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 11,
+   "task": "Arrange my follow-up visit for next week.",
+   "expected": "followup-planner",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk"
+   ],
+   "chosen": "appointment-desk",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": true
+  },
+  {
+   "id": 12,
+   "task": "Can the follow-up reminder reach me two days in advance?",
+   "expected": "followup-planner",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner"
+   ],
+   "chosen": "followup-planner",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 13,
+   "task": "What tests will my post-op check-up include?",
+   "expected": "followup-planner",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner"
+   ],
+   "chosen": "followup-planner",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 14,
+   "task": "How often should a chronic glaucoma patient come back?",
+   "expected": "followup-planner",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner"
+   ],
+   "chosen": "followup-planner",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 15,
+   "task": "I'm having refractive laser surgery the day after tomorrow, what should I prepare?",
+   "expected": "preop-briefing",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing"
+   ],
+   "chosen": "preop-briefing",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 16,
+   "task": "Do I need to fast before cataract surgery? For how many hours?",
+   "expected": "preop-briefing",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing"
+   ],
+   "chosen": "preop-briefing",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 17,
+   "task": "What time should I arrive on the day, and what documents do I need to bring?",
+   "expected": "preop-briefing",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk"
+   ],
+   "chosen": "appointment-desk",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": true
+  },
+  {
+   "id": 18,
+   "task": "Can I wear contact lenses before the surgery?",
+   "expected": "preop-briefing",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing"
+   ],
+   "chosen": "preop-briefing",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 19,
+   "task": "Which eye drops do I need to stop before the operation?",
+   "expected": "preop-briefing",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing",
+    "preop-briefing"
+   ],
+   "chosen": "preop-briefing",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 20,
+   "task": "How do I redeem my membership points for an examination package?",
+   "expected": "membership-offers",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers"
+   ],
+   "chosen": "membership-offers",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 21,
+   "task": "What perks does a Gold membership include?",
+   "expected": "membership-offers",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers"
+   ],
+   "chosen": "membership-offers",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 22,
+   "task": "Sign me up for this month's free fundus photography event for members.",
+   "expected": "membership-offers",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers"
+   ],
+   "chosen": "membership-offers",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 23,
+   "task": "How do I level up my membership tier?",
+   "expected": "membership-offers",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers"
+   ],
+   "chosen": "membership-offers",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 24,
+   "task": "When do my points expire?",
+   "expected": "membership-offers",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers"
+   ],
+   "chosen": "membership-offers",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 25,
+   "task": "I want to complain about the nurse's attitude during yesterday's visit.",
+   "expected": "complaint-intake",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake"
+   ],
+   "chosen": "complaint-intake",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 26,
+   "task": "Your clinic overcharged me, I'd like to file a complaint.",
+   "expected": "complaint-intake",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake"
+   ],
+   "chosen": "complaint-intake",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 27,
+   "task": "How long until I get a result after filing a complaint?",
+   "expected": "complaint-intake",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake"
+   ],
+   "chosen": "complaint-intake",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 28,
+   "task": "The doctor misdiagnosed me, I want to file a formal complaint.",
+   "expected": "complaint-intake",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake"
+   ],
+   "chosen": "complaint-intake",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 29,
+   "task": "What does the complaint process look like, and what do I need to prepare?",
+   "expected": "complaint-intake",
+   "kind": "positive",
+   "pair": "",
+   "votes": [
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake",
+    "complaint-intake"
+   ],
+   "chosen": "complaint-intake",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 30,
+   "task": "I had an acuity test last week, can you take a look at the results for me?",
+   "expected": "report-reader",
+   "kind": "gray",
+   "pair": "appointment-desk↔report-reader",
+   "votes": [
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader"
+   ],
+   "chosen": "report-reader",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 31,
+   "task": "Send me my test report, and tell me whether anything looks off.",
+   "expected": "report-reader",
+   "kind": "gray",
+   "pair": "appointment-desk↔report-reader",
+   "votes": [
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader"
+   ],
+   "chosen": "report-reader",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 32,
+   "task": "My eyesight got worse, is my earlier report still on file? Please check.",
+   "expected": "report-reader",
+   "kind": "gray",
+   "pair": "appointment-desk↔report-reader",
+   "votes": [
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk"
+   ],
+   "chosen": "appointment-desk",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": true
+  },
+  {
+   "id": 33,
+   "task": "I'd like to ask about the retinal problem written in my report.",
+   "expected": "report-reader",
+   "kind": "gray",
+   "pair": "appointment-desk↔report-reader",
+   "votes": [
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader",
+    "report-reader"
+   ],
+   "chosen": "report-reader",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 34,
+   "task": "Where's the report enquiry desk? I want to ask about my results.",
+   "expected": "report-reader",
+   "kind": "gray",
+   "pair": "appointment-desk↔report-reader",
+   "votes": [
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk",
+    "appointment-desk"
+   ],
+   "chosen": "appointment-desk",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": true
+  },
+  {
+   "id": 35,
+   "task": "Can I pay for my post-op follow-up visit with membership points?",
+   "expected": "followup-planner",
+   "kind": "gray",
+   "pair": "followup-planner↔membership-offers",
+   "votes": [
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner"
+   ],
+   "chosen": "followup-planner",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 36,
+   "task": "How do I book the free re-check event for members?",
+   "expected": "membership-offers",
+   "kind": "gray",
+   "pair": "followup-planner↔membership-offers",
+   "votes": [
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers"
+   ],
+   "chosen": "membership-offers",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 37,
+   "task": "Can the follow-up reminder be sent to my membership mini-app?",
+   "expected": "followup-planner",
+   "kind": "gray",
+   "pair": "followup-planner↔membership-offers",
+   "votes": [
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner"
+   ],
+   "chosen": "followup-planner",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": false
+  },
+  {
+   "id": 38,
+   "task": "I'm a Gold member, is there a discount on follow-up visits?",
+   "expected": "membership-offers",
+   "kind": "gray",
+   "pair": "followup-planner↔membership-offers",
+   "votes": [
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner",
+    "followup-planner"
+   ],
+   "chosen": "followup-planner",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": true
+  },
+  {
+   "id": 39,
+   "task": "While I'm in for the follow-up, check my points balance too.",
+   "expected": "followup-planner",
+   "kind": "gray",
+   "pair": "followup-planner↔membership-offers",
+   "votes": [
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers",
+    "membership-offers"
+   ],
+   "chosen": "membership-offers",
+   "consistency": 1.0,
+   "stable": true,
+   "conflict": true
+  }
+ ]
 }

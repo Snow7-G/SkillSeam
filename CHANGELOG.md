@@ -7,6 +7,15 @@
 ## [Unreleased]
 
 ### Added
+- **文档数字自校验**（网页冒烟，19 项）：六份 README 的 CLI / 网页测试数必须与当前实际一致，写过期数字直接变红。测试数已漂移过三次（四份译文停在 58/19、README.md 的 `# 90 tests`、CI 步骤名 `(25 assertions)`），此检查从根上掐掉这一类。产品断言数与元检查分开计数（`103 项产品断言 + 19 项文档自校验`），避免自校验把数字变成自己数自己的循环。
+- 英文演示 fixture 的自洽测试（8 项）：技能目录名与 frontmatter `name` 一致、40 条 = 每技能 5 正向 + 10 灰区、`e` 必为真实技能、灰区 `pair` 用工具自身的 `↔` 全名格式、存档与任务文件**逐条对齐**、以及存档的聚合不变量（`chosen` = 众数票、`consistency` = 该选项占比、`stable`/`conflict` 可由阈值与是否选错推导）。
+- 演示数据集回落抽出为 `demoFor(lang)`：缺当前语言时回落**英文**（此前回落中文，第二批加语言时会让日文/韩文界面显示中文数据集）。
+
+### Fixed
+- `examples/tasks-demo-en.json` 的灰区 `pair` 标签此前写成 ASCII `<->`，其中一处还用缩写（`followup<->membership`）。该标签会渲染进 `report.html` 的冲突行（`[灰区·…]`），已改为与 CLI 生成格式一致的 `appointment-desk↔report-reader` / `followup-planner↔membership-offers`；存档文件同步，票数与选择等测量值一律未动。
+- 六份 README 的测试计数再次统一（CLI **98** / 网页 **103**），并删掉 CI 步骤名里会随测试增长而漂移的断言数（数字由测试自己打印）。
+
+### Added
 - 网页演示数据分语言内置两套，各自来自**仓库内存档的真实运行**：中文集（`demo-skills` + `--demo-tasks`，6 skill × 40 任务 → 4 处冲突 / 36-40 命中）与英文集（`demo-skills-en` + `examples/tasks-demo-en.json`，6 skill × 40 任务 → 6 处冲突 / 34-40 命中，qwen3.8-flash）。切换界面语言时演示数据整体切换（技能框、矩阵、统计、脚注）。
 - 新增 `demo-skills-en/`（6 个英文眼科客服 skill）与 `examples/tasks-demo-en.json`（40 条英文任务，灰区任务落在 `appointment-desk↔report-reader`、`followup-planner↔membership-offers` 两条语义交界上），以及存档结果 `examples/results-demo-en-qwen.json`——英文 demo 可复现。
 - 演示数据不再手写：`docs/index.html` 内嵌的两套数据均由存档结果**派生**，并新增断言校验内嵌数据与存档文件一致（矩阵总数 = 任务数、命中 + 冲突 + 不稳定 = 任务数、矩阵截胡格数 = 冲突条数、技能名与描述逐字一致）。

@@ -42,5 +42,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Web JS syntax + logic smoke (25 assertions)
+      - name: Web JS syntax + logic smoke
         run: node tests/web_smoke.cjs

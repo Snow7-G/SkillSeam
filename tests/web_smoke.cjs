@@ -255,6 +255,16 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
         raw.meta.model === D.meta.model;
     });
   })());
+  check("有对应语言的演示数据时用它自己那套",
+    demoFor("zh") === DEMO_BY_LANG.zh && demoFor("en") === DEMO_BY_LANG.en);
+  check("缺该语言时演示数据回落英文（非中文读者更可读）", demoFor("ja") === DEMO_BY_LANG.en);
+  // 兜底链的最后一环：连英文都没有时仍要有数据，不能白屏
+  const savedEn = DEMO_BY_LANG.en;
+  delete DEMO_BY_LANG.en;
+  check("两套都缺时兜底到中文", demoFor("ja") === DEMO_BY_LANG.zh);
+  DEMO_BY_LANG.en = savedEn;
+  check("兜底测试后状态已还原", demoFor("en") === DEMO_BY_LANG.en && !!DEMO_BY_LANG.en);
+
   // 行标签：英文描述取前几个词，不能退化成 name·name
   check("行标签 中文取首段中文", shortLabel("解读眼科检查报告，涵盖视力、眼压", "x") === "解读眼科检查报告");
   check("行标签 英文取前几个词", shortLabel("Handles booking, rescheduling and cancelling", "x") === "Handles booking");
@@ -385,6 +395,32 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   check("saveCfg 勾选写入配置", store["atlas_cfg"] !== undefined && store["atlas_cfg"].indexOf("sk-x") >= 0);
   llmCall = savedLlm2;
 
-  console.log(`web smoke: ${pass + fail} 项，通过 ${pass}`);
+  // 文档自校验是元检查，不计入产品断言数；先冻结计数器，否则会出现「自己数自己」的循环
+  const productTotal = pass + fail;
+  const metaStart = pass + fail;
+
+  // ===== 文档数字自校验 =====
+  // 测试数已经漂移过三次（四份译文停在 58/19、CI 步骤名停在 25、徽章停在 90/91），
+  // 这里把它们钉住：CLI 用例数可静态推导（一个 def test_ 就是一个用例，无参数化），
+  // 网页断言数就是本文件刚跑出的总数。六份 README 写得不对，这里直接变红。
+  const READMES = ["README.md", "README.zh-CN.md", "README.ja.md", "README.ko.md", "README.es.md", "README.de.md"];
+  const cliCount = (fs.readFileSync(path.join(__dirname, "test_atlas.py"), "utf-8").match(/def test_/g) || []).length;
+  const webCount = productTotal;   // 只算产品断言，不含本节自校验
+  const hasNum = (line, n) => (String(line).match(/\d+/g) || []).indexOf(String(n)) >= 0;
+  check("自校验前提：CLI 用例数可静态推导", cliCount > 50 && webCount > 50);
+  READMES.forEach(function(f) {
+    const lines = fs.readFileSync(path.join(__dirname, "..", f), "utf-8").split("\n");
+    const cliLines = lines.filter(l => l.indexOf("test_atlas.py") >= 0);
+    const webLines = lines.filter(l => l.indexOf("web_smoke.cjs") >= 0);
+    check("文档数字[" + f + "] 写了 CLI 数 " + cliCount + "（徽章 + 命令注释）",
+      cliLines.length > 0 && cliLines.every(l => hasNum(l, cliCount)));
+    check("文档数字[" + f + "] 写了网页断言数 " + webCount,
+      webLines.length === 1 && hasNum(webLines[0], webCount));
+    check("文档数字[" + f + "] 无过期的旧计数",
+      !cliLines.concat(webLines).some(l => /\b(58|73|84|90|91|99)\b/.test(l)));
+  });
+
+  const metaTotal = (pass + fail) - metaStart;
+  console.log(`web smoke: ${productTotal} 项产品断言 + ${metaTotal} 项文档自校验，通过 ${pass}`);
   process.exit(fail ? 1 : 0);
 })();

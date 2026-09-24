@@ -102,8 +102,8 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 개발
 
 ```bash
-python3 tests/test_atlas.py   # 91 테스트, 표준 라이브러리만 사용
-node tests/web_smoke.cjs      # 99 웹 어설션, node >= 18
+python3 tests/test_atlas.py   # 98 테스트, 표준 라이브러리만 사용
+node tests/web_smoke.cjs      # 103 웹 어설션, node >= 18
 ```
 
 CI는 Python 3.10 / 3.12 / 3.13에서 둘 다 실행합니다. PR 전에 CONTRIBUTING.md를 확인하세요.
