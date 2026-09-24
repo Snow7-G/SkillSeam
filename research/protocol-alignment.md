@@ -1,15 +1,16 @@
 # Protocol Alignment: seven system-design principles vs. a naturalistic routing audit
 
-**Scope.** This is not a replication. It is a mapping exercise: for each of the seven
-principles described in *SkillSeam: Six Principles for Auditing Agent Skill Collections*
-(Kang Ruiyuan, X32 Studio — [arXiv:2609.13321](https://arxiv.org/abs/2609.13321)), can a tool
-that audits skill routing **without perturbation** measure it, and through which channel?
-Where the answer is no, the gap is named and costed.
+**Scope.** This is not a replication. It is a mapping exercise: for each design principle
+below, can a tool that audits skill routing **without perturbation** measure it, and through
+which channel? Where the answer is no, the gap is named and costed.
 
 Written 2026-09-24. The principles are quoted from the [System-of-Skills
-skill](https://github.com/X32Studio/best-practice-for-skills-system/blob/main/skill/SKILL.md)
-(v7 — one ahead of the paper's six, which is why P7 appears below), so the wording is the
-author's rather than a paraphrase.
+skill](https://github.com/X32Studio/best-practice-for-skills-system/blob/main/skill/SKILL.md),
+the practitioner guide behind *SkillSeam: Six Principles for Auditing Agent Skill
+Collections* (Kang Ruiyuan, X32 Studio, [arXiv:2609.13321](https://arxiv.org/abs/2609.13321)).
+The guide lists seven principles. The paper presents six and treats self-contained
+verification as the substrate the other six are verified against, so P7 below comes from the
+guide rather than the paper.
 
 **Independence.** The tool audited is
 [SkillSeam](https://github.com/Snow7-G/SkillSeam), a separate project that happens to share
@@ -45,25 +46,25 @@ Verdict legend: **✅ measured** · **◐ partially** · **✗ not measured**
 | 2 | System Coherence | total tokens / accuracy, after a dangling anchor | +64.0% tokens, −3.1pp | No token accounting, and no static check for unreachable references. | ✗ |
 | 3 | Regime Gating | noncanonical routes; paraphrase flip rate | 0/32 → 15/32; 0/16 → 8/16 | Detects the behavioural consequence (two skills trading a task) but has no canonical-vs-alias notion and no matched paraphrase pairs. | ◐ |
 | 4 | Orthogonal Coverage | candidate-ownership conflict (audit) | 0/16 → 14/16 | Counts tasks whose declared owner loses the vote, and names the winner. But that is the *behavioural* slice, not the audit. The paper's own direct-execution slice for this principle was 0/32 → 3/32 at p = .25, so an instrument that watches only selection should be expected to miss overlaps that never leak into routing. | ◐ |
-| 5 | Flow | routing conflict count; loaded-skill tokens | 3/32 → 30/32; tokens ×3.7 | **Closest match.** Counts stably-misrouted tasks and reports the majority route. | ✅ |
-| 6 | Granularity Discipline | accuracy | 0.906 → 0.781 | Reports an accuracy-equivalent (hits / declared-owner tasks), but not output-contract violations. | ◐ |
-| 7 | Self-Contained Verification | *(repo, not paper)* | — | Not a measurement target, but this repo satisfies it: 98 CLI tests, 103 web assertions, CI on every push. | n/a |
+| 5 | Flow | routing conflict count; loaded-skill tokens | 3/32 → 30/32; tokens ×3.7 | Closest of the seven, and still partial. Counts tasks a stable majority routes away from their declared owner, and names the winner. No token channel, and "conflict" is not the same object on both sides: the paper counts states where routing is ambiguous, this counts disagreement with a declared label. Nobody has reconciled the two definitions. | ◐ |
+| 6 | Granularity Discipline | accuracy | 0.906 → 0.781 | Neither granularity nor task correctness is measured directly. The run's headline number says a skill was picked, not that the work was done right, and output contracts are invisible to it. | ✗ |
+| 7 | Self-Contained Verification | *(guide, not paper)* | — | Not a measurement target. It is a property of each skill under audit, which this tool does not inspect. | n/a |
 
-Detail worth flagging on rows 3, 4 and 6. Row 4 is the one I would most expect to be
-wrong. The tool does surface overlap when the overlap is strong enough to shift routing
-(both demo sets show it), but the paper's own evidence says that behavioural path is weak,
-and the instrument cannot see an overlap that never changes a selection. Row 6: this tool's
-granularity signal is
-**`chosen == expected`, over the tasks in the suite**. Every task in a CLI run must declare
-an owner (a skill name, or `NONE` for "nothing should fire", which counts as a hit when the
-model also answers `NONE`). So the shape is accuracy-like, but the denominator is a
-user-authored suite of uneven difficulty rather than a fixed one — the two numbers are not
-interchangeable, and this tool has no way to say whether a miss was granularity or
-something else.
+Rows 3, 4 and 6 are the arguable ones. Row 4 is where I would most expect to be wrong: the
+tool does surface overlap on tasks that were not written to collide, so the effect is not
+purely an artefact of task design (in the English set, two of the six conflicts are ordinary
+positive tasks). But the paper's own evidence says the behavioural path is weak, and an
+instrument that watches only selection cannot see an overlap that never changes a selection.
+
+Row 6 is worth arguing about too. The headline number in a run is `chosen == expected`,
+counted over the tasks in the suite, and every task must declare an owner (a skill name, or
+`NONE` for "nothing should fire"). Reading it as accuracy would be a mistake. It says a skill
+was chosen, not that the work succeeded, and the suite is user-authored with uneven
+difficulty rather than fixed.
 
 ---
 
-## 3. Where the tool already mechanises the methodology
+## 3. The closest point of contact, and where it diverges
 
 The methodology's evaluation loop, step 2, specifies an observation recipe:
 
@@ -71,17 +72,21 @@ The methodology's evaluation loop, step 2, specifies an observation recipe:
 > as the firing observation (reconciles should-fire vs actually-fired, **no harness hook
 > needed**)"*
 
-That is, mechanically, this tool's core loop: send the full catalog plus one task, ask for
-one skill name or `NONE`, record it, repeat. Step 3 of the same loop — *"give each skill a
-must-fire and must-not-fire input. 0 skills firing = gap; multiple = conflict"* — maps to
-the tool's declared-owner marking and its `=> NONE` support.
+Step 3 asks for a must-fire and a must-not-fire input per skill, which is roughly what a
+declared owner and `=> NONE` provide. So the shape of the measurement matches: name the
+candidates, ask one question, record one answer.
 
-So on the routing side this is a lower-fidelity version of the same observation, and the
-difference matters. The recipe assumes an agent that is doing the task and can be asked what
-it would fire before it acts. This tool never runs an agent. It shows a model a catalog of
-names and descriptions plus one user turn and asks for a name: no prior turns, no tool
-results, no system state. Same question, much thinner context, and that is the first thing I
-would expect to be wrong about the mapping below.
+The difference is what surrounds the question. The recipe assumes an agent that is doing the
+task and can be asked what it would fire before it acts. This tool never runs an agent. It
+shows a model a catalog of names and descriptions plus one user turn and asks for a name: no
+prior turns, no tool results, no system state. Same question, much thinner context.
+
+Two smaller mismatches are worth stating rather than leaving to be discovered. A `=> NONE`
+task that gets picked is an over-trigger, not the coverage gap step 3 looks for; a gap is a
+state where nothing fires when something should, and this tool always asks for an answer, so
+it cannot produce that observation. And a "conflict" here means disagreement with a declared
+label, while the guide's routing conflict means ambiguity between competing candidates.
+Related, not identical.
 
 ---
 
@@ -116,9 +121,10 @@ Stated up front because they bound what any number from this tool can be compare
 4. **Scale differs.** Our collections are 6 skills / 40 tasks / 5 samples. The paper's
    ladder is N16 with 32 tasks per rung and 1,100 sessions. Different power; a difference
    this tool does not detect is not evidence of absence.
-5. **`=> NONE` is the coverage-gap side and is unused so far.** The instrument supports
-   quantifying "0 skills should fire, but one took it", which is the coverage-gap
-   complement to conflict counting. Our archived runs do not exercise it.
+5. **`=> NONE` measures over-triggering, not coverage gaps.** The instrument can quantify
+   "no skill should fire, but one took it". A coverage gap is the opposite: a state where
+   something should fire and nothing does, which this tool cannot express. Our archived runs
+   do not exercise `=> NONE` at all yet.
 
 ---
 
@@ -126,9 +132,14 @@ Stated up front because they bound what any number from this tool can be compare
 
 **If the byte-differenced variants and task slices referenced in the paper are available:**
 run this tool against L0 and one perturbed rung with a paired comparison (needs G3), then
-report deltas in channels 4 and 5. That answers a question the paper's design cannot:
-whether the routing-side signals are **visible without the harness**, on tasks nobody
-wrote to induce them.
+report the delta in the channel row 5 covers. That answers a question the paper's design
+cannot: whether the routing-side signal is visible without the harness.
+
+One caveat on task sources, because it decides what any such run would mean. If the run uses
+the paper's slices, those tasks were written to probe specific failure classes, so the result
+is a second reading of a designed suite rather than evidence about natural traffic. The claim
+that the tasks were not written to induce a failure holds only for this tool's own sets,
+where the questions came from the people running the support desk.
 
 **If they are not available:** the tool can build an equivalent pair itself by perturbing
 one principle at a time and byte-differencing the two collections. More work, but it does
