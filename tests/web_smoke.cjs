@@ -216,6 +216,33 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   global.fetch = savedFetchB;
   delete globalThis.__atlasHook;
 
+  const originalFetch = global.fetch;
+  el("tasks").value = "test task => a-b";
+  el("samples").value = "5";
+  for (const valid of [1, 3, 4, 5]) {
+    let count = 0;
+    global.fetch = function() {
+      return Promise.resolve({ok: true, json: () => Promise.resolve({choices: [
+        {message: {content: count++ < valid ? "a-b" : "unparseable"}}
+      ]})});
+    };
+    run();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    check("web coverage boundary " + valid, valid < 4 ?
+      els.errbox.textContent.includes("80%") && els.errbox.style.display !== "none" :
+      els.errbox.style.display === "none");
+  }
+  const diagnostics = [{task: "x", expected: "a-b", votes: ["a-b", "a-b", "a-b", "INVALID", "INVALID"]}];
+  render(diagnostics, [{name:"a-b", description:"a"}, {name:"c-d", description:"b"}], 5, "test");
+  check("incomplete report never claims no conflicts", els.conflicts.innerHTML.includes("80%") &&
+    !els.conflicts.innerHTML.includes(t("no_conflicts")));
+  setLang("en");
+  render(diagnostics, [{name:"a-b", description:"a"}, {name:"c-d", description:"b"}], 5, "test");
+  check("English redraw preserves diagnostic warning", els.conflicts.innerHTML.includes("Evaluation failed") &&
+    !els.conflicts.innerHTML.includes(t("no_conflicts")));
+  setLang("zh");
+  global.fetch = originalFetch;
+
   // ===== 演示数据（中英各一套，均由仓库内真实运行结果派生）=====
   check("演示数据含 zh/en 两套", !!DEMO_BY_LANG && Object.keys(DEMO_BY_LANG).sort().join() === "en,zh");
   Object.keys(DEMO_BY_LANG || {}).forEach(function(lang) {
@@ -325,7 +352,7 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   const p3 = parseSkillMd("---\nname: fold\ndescription: >-\n  line one\n  line two\n---\n", "fb");
   check("parseSkillMd 折行块", p3.description === "line one line two");
   const p4 = parseSkillMd("---\nname: lit\ndescription: |\n  l1\n  l2\n---\n", "fb");
-  check("parseSkillMd 字面块", p4.description === "l1\nl2");
+  check("parseSkillMd 字面块", p4.description === "l1\nl2\n");
   const p5 = parseSkillMd("没有 frontmatter", "fallback-name");
   check("parseSkillMd 无 frontmatter 回退目录名", p5.name === "fallback-name" && p5.issues.length === 1);
 
@@ -394,6 +421,17 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   saveCfg();
   check("saveCfg 勾选写入配置", store["atlas_cfg"] !== undefined && store["atlas_cfg"].indexOf("sk-x") >= 0);
   llmCall = savedLlm2;
+
+  const cases = JSON.parse(fs.readFileSync(path.join(__dirname, "frontmatter_cases.json"), "utf8"));
+  check("CLI/web frontmatter shared cases", cases.every(function(c) {
+    const parsed = parseSkillMd(c.text, "a-b");
+    return !!parsed.fatal === c.fatal && (c.fatal || parsed.description === c.description);
+  }));
+  const rejected = skillFolderRows([
+    {path: "good/SKILL.md", folder: "good", text: "---\nname: good\ndescription: valid\n---"},
+    {path: "bad/SKILL.md", folder: "bad", text: "---\nname: bad\ndescription: >2\n  text\n---"}
+  ]);
+  check("invalid folder import blocks entire batch", rejected.rows.length === 0 && rejected.errors.length === 1);
 
   // 文档自校验是元检查，不计入产品断言数；先冻结计数器，否则会出现「自己数自己」的循环
   const productTotal = pass + fail;

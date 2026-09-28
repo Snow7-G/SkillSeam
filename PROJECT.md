@@ -1,6 +1,6 @@
 # SkillSeam 项目文档
 
-> 版本 v1.1（CLI + 网页全功能）· 2026-09-21 · 状态：待建仓发布
+> 包版本 v0.1.0（后续修改见 CHANGELOG Unreleased）· 2026-09-28 · 状态：公开 Beta
 > 一句话：模拟 agent 挑选 skill 的真实过程，在你上线之前告诉你——**哪些任务会被接住、哪些会被别的 skill 截胡、改哪句 description 能修好**。
 
 ---
@@ -63,7 +63,7 @@ open output/report.html
 | `--gray-pairs <K>` | 自动生成时挑选的灰区技能对数（默认 2） |
 | `--mock` | 离线关键词打分模式 |
 
-退出码：`0` 无冲突（可接 CI）· `1` 有稳定冲突 · `2` 配置/参数错误。
+退出码：`0` 无冲突（可接 CI）· `1` 有稳定冲突 · `2` 配置/参数错误或任一任务有效采样不足 80%（优先于冲突判定，保留诊断报告）。
 
 ### 任务来源（三级优先级）
 
@@ -109,8 +109,8 @@ open output/report.html
 ```
 skill-seam/
 ├── skill_seam.py          # 主脚本（scan → generate → simulate → report）
-├── tests/test_atlas.py    # 98 项测试（unittest，纯标准库）
-├── tests/web_smoke.cjs    # 103 项网页断言（node，无需依赖）
+├── tests/test_atlas.py    # 102 项测试（unittest，纯标准库）
+├── tests/web_smoke.cjs    # 111 项网页断言（node，无需依赖）
 ├── demo-skills/           # 眼科客服样例（中文），6 个 skill，埋 2 处撞车
 ├── demo-skills-en/        # 同一场景的英文样例，网页 ?lang=en 的演示数据来源
 ├── examples/              # 真实运行归档（报告/结果/任务，qwen3.8-flash；含英文 demo 一套）
@@ -121,7 +121,7 @@ skill-seam/
 
 ## 5. 已知局限（诚实清单）
 
-- frontmatter 解析支持单行 `key: value`，不支持 YAML 多行折叠（`>-`）语法。
+- frontmatter 支持单行值及 `>` / `|` 块标量；不支持显式缩进指示符、块头行内注释、Tab 和折叠块中的更深缩进，遇到这些语法会拒绝评测。
 - 模拟环境是"复现式"的（同样的 name+description 注入格式），不是在真实 agent 进程里跑——跨 agent 的真实行为差异属于 v1.1 路线（本机驱动 codex/claude CLI）。
 - **自动生成任务存在生成者偏见**（见 §2 实测警告）：生成问法对自身 description 的命中率系统性偏高，不能替代真实问法做冲突结论。
 - 灰区对的 LLM 预筛基于单次判断，可能漏对（demo 中首轮词面相似度就漏了埋的撞车对）——用户补充灰区任务仍是必要的。
@@ -143,5 +143,5 @@ skill-seam/
 ### 产品形态定位
 
 **网页版 = 个人用户的完整形态**：打开链接 → 看演示 → 粘自己的 skill → 自动生成任务 → 模拟 → 按修复建议改 → 网页内重跑验证。零安装，覆盖个人场景全部需求。
-**CLI = 团队与自动化的引擎**：直读本地 skill 目录（无需粘贴）、CI 退出码门禁、大批量任务、跨 agent 批测。
+**CLI = 团队与自动化的引擎**：直读本地 skill 目录（无需粘贴）、CI 退出码门禁、大批量任务；跨 agent 真实批测尚未实现。
 两者的 SYSTEM_PROMPT、一致率阈值（0.8）、冲突判定规则保持同步（两份文件头部有互指注释），改动必须两边一起。

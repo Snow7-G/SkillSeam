@@ -35,7 +35,7 @@ python3 skill_seam.py ~/.agents/skills
 open output/report.html
 ```
 
-終了コード: 0 は競合なし、1 は競合あり、2 は設定ミス。CI への組み込みは一行です:
+終了コード: 0 は競合なし、1 は競合あり、2 は設定ミス、またはいずれかのタスクの有効サンプルが80%未満。CI への組み込みは一行です:
 
 ```bash
 python3 skill_seam.py ./skills --tasks ci-tasks.json
@@ -105,8 +105,8 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 開発
 
 ```bash
-python3 tests/test_atlas.py   # 98 テスト、標準ライブラリのみ
-node tests/web_smoke.cjs      # 103 web アサーション、node >= 18
+python3 tests/test_atlas.py   # 102 テスト、標準ライブラリのみ
+node tests/web_smoke.cjs      # 111 web アサーション、node >= 18
 ```
 
 CI は Python 3.10 / 3.12 / 3.13 で両方を実行します。PR の前に CONTRIBUTING.md をご覧ください。

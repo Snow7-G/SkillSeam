@@ -35,7 +35,7 @@ python3 skill_seam.py ~/.agents/skills
 open output/report.html
 ```
 
-Exit-Codes: 0 heißt keine Konflikte, 1 heißt Konflikte gefunden, 2 heißt Fehlkonfiguration. Das CI-Gate ist eine Zeile:
+Exit-Codes: 0 heißt keine Konflikte, 1 heißt Konflikte gefunden, 2 heißt Fehlkonfiguration oder weniger als 80% gültige Stichproben bei mindestens einer Aufgabe. Das CI-Gate ist eine Zeile:
 
 ```bash
 python3 skill_seam.py ./skills --tasks ci-tasks.json
@@ -105,8 +105,8 @@ Jede Description singt. Manche Lieder locken deine Aufgaben auf die Klippen.
 ## Entwicklung
 
 ```bash
-python3 tests/test_atlas.py   # 98 Tests, nur Stdlib
-node tests/web_smoke.cjs      # 103 Web-Assertions, node >= 18
+python3 tests/test_atlas.py   # 102 Tests, nur Stdlib
+node tests/web_smoke.cjs      # 111 Web-Assertions, node >= 18
 ```
 
 CI läuft beides auf Python 3.10, 3.12 und 3.13. Vor einem PR bitte CONTRIBUTING.md lesen.

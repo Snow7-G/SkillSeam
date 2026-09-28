@@ -268,6 +268,7 @@ var I18N = {
     conflict_overtake: "应不触发任何技能，却被 {b} 接管",
     votes: "（{n}/{m} 票）", keywords: "截胡关键词：",
     eval_failed: "评测失败：没有取得任何有效的选择结果（请求失败或响应不可解析）。不能视为无冲突。请检查 Key、模型名或端点后重试。",
+    insufficient_samples: "评测失败：部分任务有效采样不足 80%，请重试。报告仅供诊断。",
     no_conflicts: "标注任务中未发现稳定冲突。想暴露边界问题，多写几条两两语义交界的模糊问法（用 => 标注你认为是正确归属的一方）。",
     plain_line: "「{task}」→ agent 选中 {chosen}",
     unstable_note: "（不稳定 {n}/{m} 票，仅供参考）",
@@ -350,6 +351,7 @@ var I18N = {
     conflict_overtake: "no skill should fire, but {b} took it",
     votes: " ({n}/{m} votes)", keywords: "Stealing keywords:",
     eval_failed: "Evaluation failed: no valid selection was obtained (requests failed or responses were unparseable). This is not the same as no conflicts. Check the key, model name and endpoint, then retry.",
+    insufficient_samples: "Evaluation failed: some tasks have fewer than 80% valid samples. Retry; results are diagnostic only.",
     no_conflicts: "No stable conflicts among marked tasks. To surface boundary problems, add a few genuinely ambiguous questions at the semantic seam (mark the side you believe is correct with =>).",
     plain_line: "\u201c{task}\u201d → the agent picked {chosen}",
     unstable_note: " (unstable {n}/{m}, reference only)",
@@ -472,28 +474,49 @@ function hideErr() { $("errbox").style.display = "none"; }
 // ---------- 本机技能文件夹读取（纯前端，不上传任何文件）----------
 // 解析 SKILL.md 的 frontmatter（name/description，支持 > 折行与 | 字面块标量）
 function parseSkillMd(text, fallbackName) {
-  var body = String(text).replace(/\r\n/g, "\n");
-  var m = body.match(/^---\n([\s\S]*?)\n---/);
-  if (!m) return { name: fallbackName || "", description: "", issues: ["缺少 frontmatter"] };
-  var lines = m[1].split("\n"), fm = {};
-  for (var i = 0; i < lines.length; i++) {
+  var lines = String(text).replace(/\r\n/g, "\n").split("\n"), fm = {};
+  function reject(reason) {
+    return { name: fallbackName || "", description: "", issues: [reason], fatal: true };
+  }
+  if (lines[0].trimEnd() !== "---") return reject("缺少 frontmatter");
+  var end = lines.findIndex(function(l, i) { return i > 0 && l.trimEnd() === "---"; });
+  if (end < 0) return reject("frontmatter 未闭合");
+  for (var i = 1; i < end; i++) {
     var line = lines[i];
-    if (!line.trim() || line.trim().charAt(0) === "#" || line.indexOf(":") < 0) continue;
-    var idx = line.indexOf(":");
-    var key = line.slice(0, idx).trim();
+    if (line.charAt(0) === "\t") return reject("frontmatter 不支持 Tab 缩进");
+    if (!line.trim() || line.indexOf(":") < 0) continue;
+    var idx = line.indexOf(":"), key = line.slice(0, idx).trim();
     var val = line.slice(idx + 1).trim();
-    if (/^[>|][+-]?$/.test(val)) {
-      var block = [];
-      for (i++; i < lines.length; i++) {
-        var l = lines[i];
-        if (l.charAt(0) !== " " && l.charAt(0) !== "\t" && l.trim()) break;
-        block.push(l.trim());
+    if (/^[>|]/.test(val)) {
+      if (!/^[>|][+-]?$/.test(val)) return reject("不支持的块标量头: " + val);
+      var block = [], indent = null, headerIndent = line.length - line.trimStart().length;
+      for (i++; i < end; i++) {
+        var l = lines[i], n = l.length - l.replace(/^ */, "").length;
+        if (l.indexOf("\t") >= 0) return reject("块标量不支持 Tab");
+        if (l.trim() && n <= headerIndent) break;
+        if (l.trim() && indent === null) indent = n;
+        if (l.trim() && n < indent) break;
+        if (val.charAt(0) === ">" && indent !== null && n > indent)
+          return reject("折叠标量不支持更深缩进");
+        block.push(indent !== null && l.length > indent ? l.slice(indent) : "");
       }
       i--;
-      while (block.length && !block[block.length - 1]) block.pop();
-      fm[key] = val.charAt(0) === ">" ? block.filter(Boolean).join(" ") : block.join("\n");
+      var trailing = 0;
+      while (block.length && block[block.length - 1] === "") { block.pop(); trailing++; }
+      var core = "";
+      if (val.charAt(0) === "|") core = block.join("\n");
+      else {
+        var blanks = 0;
+        block.forEach(function(l) {
+          if (!l) { blanks++; return; }
+          core += blanks ? "\n".repeat(blanks) : (core ? " " : "");
+          core += l; blanks = 0;
+        });
+      }
+      fm[key] = val.endsWith("-") ? core : val.endsWith("+") ?
+        (core ? core + "\n" : "") + "\n".repeat(trailing) : (core ? core + "\n" : "");
     } else {
-      fm[key] = val.replace(/^["']|["']$/g, "");
+      fm[key] = val.replace(/^"+|"+$/g, "").replace(/^'+|'+$/g, "");
     }
   }
   return { name: fm.name || fallbackName || "", description: fm.description || "", issues: [] };
@@ -501,13 +524,14 @@ function parseSkillMd(text, fallbackName) {
 
 // 纯函数：把 [{path, folder, text}] 转成网页粘贴行（便于测试）
 function skillFolderRows(items) {
-  var rows = [], skipped = [];
+  var rows = [], skipped = [], errors = [];
   items.forEach(function(it) {
     var e = parseSkillMd(it.text, it.folder);
+    if (e.fatal) { errors.push(it.path + ": " + e.issues.join("; ")); return; }
     if (!e.description) { skipped.push((e.name || it.folder || it.path) + t("skip_no_desc")); return; }
     rows.push({ name: e.name, description: e.description.replace(/\s*\n\s*/g, " ").trim() });
   });
-  return { rows: rows, skipped: skipped };
+  return { rows: errors.length ? [] : rows, skipped: skipped, errors: errors };
 }
 
 // 纯函数：从文件列表挑出 SKILL.md（跳过隐藏目录与噪音目录，与 CLI 的 _iter_skill_mds 一致）
@@ -569,6 +593,11 @@ function handleFolderPicked(input) {
     return it.file.text().then(function(t) { it.text = t; }, function() { it.text = ""; });
   })).then(function() {
     var res = skillFolderRows(items);
+    if (res.errors.length) {
+      showErr(res.errors.join("\n"));
+      window.__pickState = { kind: "noDesc" };
+      refreshPickHint(); input.value = ""; return;
+    }
     if (!res.rows.length) {
       window.__pickState = { kind: "noDesc" };
       refreshPickHint();
@@ -1062,6 +1091,10 @@ function run() {
     }
     window.__lastRender = { byTask: byTask, skills: ps.skills, samples: samples, model: cfg.model };
     render(byTask, ps.skills, samples, cfg.model);
+    if (!stopped && hasInsufficientSamples(byTask, names, samples)) {
+      showErr(t("insufficient_samples"));
+      return;
+    }
     if (stopped) {
       showErr(t("run_stopped"));
       return;
@@ -1095,6 +1128,12 @@ function triggerFixGeneration(conflicts, byName, skills, cfg, base) {
     renderFixes(suggestions, skills);
   });
   return true;
+}
+
+function hasInsufficientSamples(byTask, names, samples) {
+  return byTask.some(function(bt) {
+    return bt.votes.filter(function(v) { return v === "NONE" || names.indexOf(v) >= 0; }).length / samples < CONSISTENCY_MIN;
+  });
 }
 
 function allSamplesInvalid(rows) {
@@ -1194,7 +1233,10 @@ function render(byTask, skills, samples, model) {
           (badges ? "<br>" + t("keywords") + badges : "") + "</div>";
   });
   // 与 CLI 一致：没有任何有效选择结果时，明确报告评测失败，不给"无冲突"结论
-  if (allSamplesInvalid(rows)) {
+  var stopped = byTask.some(function(bt) { return bt.votes.indexOf("STOPPED") >= 0; });
+  if (!stopped && hasInsufficientSamples(byTask, names, samples)) {
+    ch = '<div class="conflict">' + t("insufficient_samples") + '</div>' + ch;
+  } else if (allSamplesInvalid(rows)) {
     ch = '<div class="conflict">' + t("eval_failed") + '</div>';
   }
   $("conflicts").innerHTML = ch ||

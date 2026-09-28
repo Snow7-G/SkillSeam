@@ -267,6 +267,26 @@ class TestCaptureHarvest(unittest.TestCase):
         ups2 = data2["hooks"]["UserPromptSubmit"]
         self.assertEqual(len(ups2), 2)
 
+    def test_hook_quoted_path_executes(self):
+        import shlex
+        with tempfile.TemporaryDirectory(prefix="skill seam ' ") as td:
+            root = Path(td)
+            script = root / "skill_seam.py"
+            script.write_text(SCRIPT.read_text())
+            settings = root / "settings.json"
+            for _ in range(2):
+                result = subprocess.run([sys.executable, str(script), "capture", "--install-claude",
+                                         "--settings", str(settings)], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+            hooks = json.loads(settings.read_text())["hooks"]["UserPromptSubmit"]
+            self.assertEqual(len(hooks), 1)
+            command = hooks[0]["hooks"][0]["command"]
+            queries = root / "queries.jsonl"
+            result = subprocess.run(command + " --queries " + shlex.quote(str(queries)),
+                                    shell=True, input='{"prompt":"test prompt"}', capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(queries.read_text())["text"], "test prompt")
+
     def test_codex_parser_shapes(self):
         fixture = Path(self.td.name) / "session.jsonl"
         fixture.write_text("\n".join([
@@ -635,6 +655,50 @@ def make_clean_fixture(base: Path):
 
 
 class TestCLIExitCodes(unittest.TestCase):
+    def test_empty_task_array_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            sdir, tfile = make_clean_fixture(Path(td))
+            tfile.write_text("[]")
+            result = run_cli([str(sdir), "--mock", "--tasks", str(tfile), "--out", str(Path(td) / "out")])
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("至少包含一条任务", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_sample_coverage_gate(self):
+        for valid, expected in [(1, 2), (3, 2), (4, 0), (5, 0)]:
+            for failed in ("ERROR", "INVALID"):
+                with self.subTest(valid=valid, failed=failed), tempfile.TemporaryDirectory() as td:
+                    sdir, tfile = make_clean_fixture(Path(td))
+                    tasks = json.loads(tfile.read_text())[:1]
+                    tfile.write_text(json.dumps(tasks))
+                    votes = {(0, i): tasks[0]["e"] if i < valid else failed for i in range(5)}
+                    with patch.object(sys, "argv", [str(SCRIPT), str(sdir), "--tasks", str(tfile),
+                                                   "--out", str(Path(td) / "out"), "--no-fixes"]), \
+                            patch.object(ad, "TASKS", []), \
+                            patch.object(ad, "load_config", return_value={"base_url": "https://example.invalid", "model": "test"}), \
+                            patch.object(ad, "simulate_real", return_value=votes), \
+                            patch.object(sys, "stdout", new_callable=io.StringIO), \
+                            patch.object(sys, "stderr", new_callable=io.StringIO):
+                        with self.assertRaises(SystemExit) as result:
+                            ad.main()
+                        self.assertEqual(result.exception.code, expected)
+                    report = (Path(td) / "out/report.html").read_text()
+                    self.assertIn("2(评测失败" if expected == 2 else "0(无冲突)", report)
+                    if expected == 2:
+                        self.assertNotIn("未发现稳定冲突", report)
+                    result = json.loads((Path(td) / "out/results.json").read_text())
+                    self.assertEqual(result["meta"]["evaluation_failed"], expected == 2)
+
+    def test_shared_frontmatter_cases(self):
+        cases = json.loads((SCRIPT.parent / "tests/frontmatter_cases.json").read_text())
+        for case in cases:
+            with self.subTest(text=case["text"]):
+                skill, issues = ad.parse_frontmatter(case["text"], Path("a-b/SKILL.md"))
+                fatal = skill is None or any(x.startswith("[fatal]") for x in issues)
+                self.assertEqual(fatal, case["fatal"])
+                if not fatal:
+                    self.assertEqual(skill["description"], case["description"])
+
     def test_real_evaluation_exit_codes(self):
         cases = [
             ("request_errors", OSError("endpoint unavailable"), OSError("endpoint unavailable"), 2),
@@ -643,7 +707,7 @@ class TestCLIExitCodes(unittest.TestCase):
             ("correct", "tianqi-chaxun", "canting-yuding", 0),
             ("conflict", "canting-yuding", "canting-yuding", 1),
             ("none_is_valid", "NONE", "NONE", 1),
-            ("partial_failure", "tianqi-chaxun", OSError("endpoint unavailable"), 0),
+            ("partial_failure", "tianqi-chaxun", OSError("endpoint unavailable"), 2),
         ]
         for name, first, second, expected_code in cases:
             with self.subTest(name=name), tempfile.TemporaryDirectory() as td:

@@ -15,7 +15,7 @@
   <a href="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml"><img src="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-0f6e56.svg" alt="License: MIT"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg" alt="Python 3.10+"></a>
-  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-98%20passing-3b6d11.svg" alt="Tests: 98 passing"></a>
+  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-102%20passing-3b6d11.svg" alt="Tests: 102 passing"></a>
 </p>
 
 Simulate the way your agent picks skills, and find out which skill steals whose tasks. Before your users find out.
@@ -57,9 +57,7 @@ python3 skill_seam.py ~/.agents/skills
 open output/report.html
 ```
 
-Exit codes: 0 means no stable conflicts, 1 means stable conflicts found, and 2 means a configuration/argument error or an evaluation with no valid samples (all requests failed or all responses were unparseable, including a mix of both).
-
-Failed evaluations still write diagnostic reports. Partial-failure handling is unchanged: if any valid sample exists, the existing conflict rules determine the exit code.
+Exit codes: 0 means no stable conflicts, 1 means stable conflicts found, and 2 means a configuration/argument error or insufficient valid samples. Every task must have at least 80% valid selections (4 of 5); ERROR and INVALID do not count. Insufficient coverage takes precedence over conflicts. Diagnostic reports are still written. Valid but unstable selections keep the existing aggregation rules; exit 0 does not guarantee every task is stable.
 
 That's a CI gate in one line:
 
@@ -131,8 +129,8 @@ Every description sings. Some songs lure your tasks onto the rocks.
 ## Development
 
 ```bash
-python3 tests/test_atlas.py   # 98 tests, stdlib only
-node tests/web_smoke.cjs      # 103 web assertions, node >= 18
+python3 tests/test_atlas.py   # 102 tests, stdlib only
+node tests/web_smoke.cjs      # 111 web assertions, node >= 18
 ```
 
 CI runs both on Python 3.10, 3.12 and 3.13. See CONTRIBUTING.md before opening a PR.

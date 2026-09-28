@@ -6,7 +6,7 @@
   <img src="assets/banner.svg" alt="SkillSeam" width="720">
 </p>
 
-[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-98%20passing-3b6d11.svg)](tests/test_atlas.py)
+[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-102%20passing-3b6d11.svg)](tests/test_atlas.py)
 
 模拟 agent 真实挑选 skill 的过程，找出哪个 skill 抢了谁的活。在用户发现问题之前。
 
@@ -39,7 +39,7 @@ python3 skill_seam.py ~/.agents/skills
 open output/report.html
 ```
 
-退出码：0 无冲突，1 有冲突，2 配置错了。接 CI 一行：
+退出码：0 无稳定冲突，1 有稳定冲突，2 配置错误或任一任务有效采样不足 80%（5 次中至少 4 次有效）。ERROR / INVALID 不算有效；采样不足优先返回 2，仍保留诊断报告。有效但不稳定的选择沿用原判定，返回 0 不代表所有任务稳定。接 CI 一行：
 
 ```bash
 python3 skill_seam.py ./skills --tasks ci-tasks.json
@@ -111,8 +111,8 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 开发
 
 ```bash
-python3 tests/test_atlas.py   # 98 项测试，纯标准库
-node tests/web_smoke.cjs      # 103 项网页断言，node >= 18
+python3 tests/test_atlas.py   # 102 项测试，纯标准库
+node tests/web_smoke.cjs      # 111 项网页断言，node >= 18
 ```
 
 CI 覆盖 Python 3.10 / 3.12 / 3.13。提 PR 前看 CONTRIBUTING.md。MIT 许可证。

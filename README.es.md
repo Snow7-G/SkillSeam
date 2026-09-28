@@ -35,7 +35,7 @@ python3 skill_seam.py ~/.agents/skills
 open output/report.html
 ```
 
-Códigos de salida: 0 sin conflictos, 1 conflictos encontrados, 2 configuración incorrecta. El gate de CI cabe en una línea:
+Códigos de salida: 0 sin conflictos, 1 conflictos encontrados, 2 configuración incorrecta o menos del 80% de muestras válidas en alguna tarea. El gate de CI cabe en una línea:
 
 ```bash
 python3 skill_seam.py ./skills --tasks ci-tasks.json
@@ -105,8 +105,8 @@ Cada description canta. Algunas canciones llevan tus tareas contra las rocas.
 ## Desarrollo
 
 ```bash
-python3 tests/test_atlas.py   # 98 tests, solo stdlib
-node tests/web_smoke.cjs      # 103 aserciones web, node >= 18
+python3 tests/test_atlas.py   # 102 tests, solo stdlib
+node tests/web_smoke.cjs      # 111 aserciones web, node >= 18
 ```
 
 CI ejecuta ambos en Python 3.10, 3.12 y 3.13. Lee CONTRIBUTING.md antes de abrir un PR.

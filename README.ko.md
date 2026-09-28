@@ -35,7 +35,7 @@ python3 skill_seam.py ~/.agents/skills
 open output/report.html
 ```
 
-종료 코드: 0 충돌 없음, 1 충돌 발견, 2 설정 오류. CI 게이트는 한 줄입니다:
+종료 코드: 0 충돌 없음, 1 충돌 발견, 2 설정 오류 또는 하나 이상의 태스크에서 유효 샘플 80% 미만. CI 게이트는 한 줄입니다:
 
 ```bash
 python3 skill_seam.py ./skills --tasks ci-tasks.json
@@ -105,8 +105,8 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 개발
 
 ```bash
-python3 tests/test_atlas.py   # 98 테스트, 표준 라이브러리만 사용
-node tests/web_smoke.cjs      # 103 웹 어설션, node >= 18
+python3 tests/test_atlas.py   # 102 테스트, 표준 라이브러리만 사용
+node tests/web_smoke.cjs      # 111 웹 어설션, node >= 18
 ```
 
 CI는 Python 3.10 / 3.12 / 3.13에서 둘 다 실행합니다. PR 전에 CONTRIBUTING.md를 확인하세요.

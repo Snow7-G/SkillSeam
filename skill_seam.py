@@ -27,6 +27,7 @@ import sys
 import time
 import random
 import shutil
+import shlex
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -882,6 +883,8 @@ def render_report(rows, skills, meta):
             f'（{int(r["consistency"] * SAMPLES)}/{SAMPLES} 票，一致率 {r["consistency"]:.0%}）'
             + (f'<br>截胡关键词：{badges}' if badges else "")
             + "</div>")
+    if meta.get("evaluation_failed"):
+        conf_html = '<div class="conflict">评测失败：有效采样不足，以下结果仅供诊断，请重试。</div>' + conf_html
     if not conf_html:
         conf_html = '<div class="conflict" style="border-color:#3b6d11;background:#eaf3de">未发现稳定冲突。</div>'
 
@@ -929,7 +932,7 @@ def render_report(rows, skills, meta):
 {fix_section}
 <section><details><summary>全部 {len(rows)} 条任务的模拟明细</summary>
 <table><tr><th>任务</th><th>应选</th><th>实际选中</th><th>结果</th></tr>{trs}</table></details></section>
-<div class="note">SkillSeam · 仅注入 name+description 模拟 agent 技能选择 · 退出码 {"1(有冲突)" if conflicts else "0(无冲突)"}</div>
+<div class="note">SkillSeam · 仅注入 name+description 模拟 agent 技能选择 · 退出码 {"2(评测失败：有效采样不足，报告仅供诊断)" if meta.get("evaluation_failed") else "1(有冲突)" if conflicts else "0(无冲突)"}</div>
 </div></body></html>"""
     return html
 
@@ -1050,13 +1053,20 @@ def install_claude_hook(argv):
     settings = Path.home() / ".claude" / "settings.json"
     if "--settings" in argv and argv.index("--settings") + 1 < len(argv):
         settings = Path(argv[argv.index("--settings") + 1])
-    cmd = f'{sys.executable} {Path(__file__).resolve()} capture'
+    cmd = shlex.join([sys.executable, str(Path(__file__).resolve()), 'capture'])
     data = {}
     if settings.exists():
         data = json.loads(settings.read_text(encoding="utf-8"))
     hooks = data.setdefault("hooks", {})
     ups = hooks.setdefault("UserPromptSubmit", [])
-    already = any("skill_seam.py capture" in h.get("command", "")
+    def is_capture(command):
+        try:
+            parts = shlex.split(command)
+        except ValueError:
+            return False
+        return len(parts) >= 3 and Path(parts[1]).name == "skill_seam.py" and parts[2] == "capture"
+
+    already = any(is_capture(h.get("command", ""))
                   for entry in ups for h in entry.get("hooks", []))
     if already:
         print("Claude Code hook 已安装过，无需重复。")
@@ -1267,7 +1277,7 @@ HELP_TEXT = """SkillSeam {version} —— 模拟 agent 的 skill 选择过程，
   -V, --version          显示版本
 
 配置: .atlasrc.json（当前目录或脚本目录）→ 环境变量 DASHSCOPE_API_KEY / DEEPSEEK_API_KEY / OPENAI_API_KEY
-退出码: 0 无冲突 · 1 有冲突 · 2 配置、参数或评测失败（无有效采样）
+退出码: 0 无冲突 · 1 有冲突 · 2 配置、参数或评测失败（任一任务有效采样不足 80%）
 文档: https://github.com/Snow7-G/SkillSeam"""
 
 
@@ -1367,6 +1377,9 @@ def main():
         if not isinstance(loaded, list):
             eprint("错误: 任务文件必须是 JSON 数组（元素含 t/e/kind/pair 字段）")
             sys.exit(2)
+        if not loaded:
+            eprint("错误: 任务文件必须至少包含一条任务")
+            sys.exit(2)
         bad = []
         for idx, item in enumerate(loaded):
             if not isinstance(item, dict):
@@ -1454,10 +1467,12 @@ def main():
     print(f"模拟完成，耗时 {time.time() - t0:.1f}s")
 
     rows = aggregate(votes, valid_names)
+    insufficient = [r for r in rows if sum(
+        v in valid_names or v == "NONE" for v in r["votes"]) / SAMPLES < CONSISTENCY_MIN]
     conflicts = [r for r in rows if r["conflict"]]
 
     fix_suggestions = []
-    if conflicts and not (mock or cfg is None):
+    if conflicts and not (mock or cfg is None or insufficient):
         if no_fixes:
             # 说清楚是「按参数跳过」而不是「生成失败」：否则会先打印「正在生成」再打印「生成 0 组」，观感像出错
             print(f"\n检测到 {len(conflicts)} 个冲突；已按 --no-fixes 跳过修复建议生成。")
@@ -1470,11 +1485,12 @@ def main():
                 print("  [warn] 未能生成任何建议（模型输出不可解析或请求失败）；"
                       "可重跑，或按冲突明细的截胡关键词手动收紧边界。")
     elif conflicts:
-        print("（mock 模式跳过修复建议生成）")
+        print("（采样不足，跳过修复建议生成）" if insufficient else "（mock 模式跳过修复建议生成）")
 
     meta = {"mode_label": mode_label, "model": model, "samples": SAMPLES,
             "consistency_min": CONSISTENCY_MIN, "skills": skills, "task_source": task_source,
             "fix_suggestions": fix_suggestions,
+            "evaluation_failed": bool(insufficient) or not rows,
             "generated_at": datetime.now().isoformat()}
     (out / "results.json").write_text(
         json.dumps({"meta": meta, "tasks": [{"text": t["t"], "expected": t["e"], "kind": t.get("kind", "positive")} for t in TASKS],
@@ -1506,6 +1522,9 @@ def main():
         else:
             eprint("       请求有响应，但没有一条能解析出选择结果（模型未按约定格式输出）。"
                    "可换一个更强的模型重试。")
+        sys.exit(2)
+    if insufficient:
+        eprint(f"错误: 评测失败，{len(insufficient)} 条任务的有效采样不足 80%；请重试，诊断报告已保留。")
         sys.exit(2)
     sys.exit(1 if conflicts else 0)
 

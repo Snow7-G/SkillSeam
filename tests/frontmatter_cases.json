@@ -1,0 +1,137 @@
+[
+  {
+    "text": "---\nname: a-b\ndescription: >\n  line one\n  line two\n---\nbody",
+    "fatal": false,
+    "description": "line one line two\n"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >\n\n  line one\n\n  line two\n\n---\nbody",
+    "fatal": false,
+    "description": "\nline one\nline two\n"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >\n  line one\n    indented\n---\nbody",
+    "fatal": true,
+    "description": ""
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >-\n  line one\n  line two\n---\nbody",
+    "fatal": false,
+    "description": "line one line two"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >-\n\n  line one\n\n  line two\n\n---\nbody",
+    "fatal": false,
+    "description": "\nline one\nline two"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >-\n  line one\n    indented\n---\nbody",
+    "fatal": true,
+    "description": ""
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >+\n  line one\n  line two\n---\nbody",
+    "fatal": false,
+    "description": "line one line two\n"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >+\n\n  line one\n\n  line two\n\n---\nbody",
+    "fatal": false,
+    "description": "\nline one\nline two\n\n"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >+\n  line one\n    indented\n---\nbody",
+    "fatal": true,
+    "description": ""
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |\n  line one\n  line two\n---\nbody",
+    "fatal": false,
+    "description": "line one\nline two\n"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |\n\n  line one\n\n  line two\n\n---\nbody",
+    "fatal": false,
+    "description": "\nline one\n\nline two\n"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |\n  line one\n    indented\n---\nbody",
+    "fatal": false,
+    "description": "line one\n  indented\n"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |-\n  line one\n  line two\n---\nbody",
+    "fatal": false,
+    "description": "line one\nline two"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |-\n\n  line one\n\n  line two\n\n---\nbody",
+    "fatal": false,
+    "description": "\nline one\n\nline two"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |-\n  line one\n    indented\n---\nbody",
+    "fatal": false,
+    "description": "line one\n  indented"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |+\n  line one\n  line two\n---\nbody",
+    "fatal": false,
+    "description": "line one\nline two\n"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |+\n\n  line one\n\n  line two\n\n---\nbody",
+    "fatal": false,
+    "description": "\nline one\n\nline two\n\n"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |+\n  line one\n    indented\n---\nbody",
+    "fatal": false,
+    "description": "line one\n  indented\n"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >2\n  text\n---\nbody",
+    "fatal": true,
+    "description": ""
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >- # comment\n  text\n---\nbody",
+    "fatal": true,
+    "description": ""
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |2\n  text\n---\nbody",
+    "fatal": true,
+    "description": ""
+  },
+  {
+    "text": "---\nname: a-b\ndescription: | # comment\n  text\n---\nbody",
+    "fatal": true,
+    "description": ""
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >\n  line\n\tbad\n---\nbody",
+    "fatal": true,
+    "description": ""
+  },
+  {
+    "text": "---\nname: a-b\ndescription: >\n  line\n    \n  end\n---\nbody",
+    "fatal": true,
+    "description": ""
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |\n  first\n  ---\n  last\n---\nbody",
+    "fatal": false,
+    "description": "first\n---\nlast\n"
+  },
+  {
+    "text": "---\r\nname: a-b\r\ndescription: >-\r\n  hello\r\n  world\r\n---\r\nbody",
+    "fatal": false,
+    "description": "hello world"
+  },
+  {
+    "text": "---\nname: a-b\ndescription: |\n---\nbody",
+    "fatal": false,
+    "description": ""
+  }
+]
