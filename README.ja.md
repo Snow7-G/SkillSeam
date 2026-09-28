@@ -105,7 +105,7 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 開発
 
 ```bash
-python3 tests/test_atlas.py   # 102 テスト、標準ライブラリのみ
+python3 tests/test_atlas.py   # 109 テスト、標準ライブラリのみ
 node tests/web_smoke.cjs      # 111 web アサーション、node >= 18
 ```
 

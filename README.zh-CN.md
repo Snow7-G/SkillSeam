@@ -6,7 +6,7 @@
   <img src="assets/banner.svg" alt="SkillSeam" width="720">
 </p>
 
-[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-102%20passing-3b6d11.svg)](tests/test_atlas.py)
+[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-109%20passing-3b6d11.svg)](tests/test_atlas.py)
 
 模拟 agent 真实挑选 skill 的过程，找出哪个 skill 抢了谁的活。在用户发现问题之前。
 
@@ -17,6 +17,16 @@ Claude Code、Codex 这类 agent 加载 skill 时只读一两行 description。�
 两个 description 不重叠时没问题。一旦重叠就有事。我们医院项目里，挂号预约的 description 写了"受理视力检查、报告相关咨询"，而报告解读才是真正管这事的。病人要解读报告，agent 把话递给了挂号 skill，挂号 skill 开始瞎编。不报错，不留日志。最后是病人投诉了才知道。
 
 SkillSeam 把这个选择过程搬到上线之前重演。内置的两套 demo 都是 6 个眼科客服 skill、40 条任务的真实运行——中文集暴露 4 处边界问题，英文集 6 处，每一处都是一致率 5/5、无摇摆行。每条冲突报告都会指出截胡方 description 里惹祸的关键词。
+
+## 修改前后对照
+
+使用固定、人工审核的任务集，检查 description 修改是否改善路由、引入回归：
+
+```bash
+python3 skill_seam.py ./skills-candidate --baseline ./skills-baseline --tasks regression-tasks.json --out output/comparison
+```
+
+两组技能名称集合必须相同。对照退出码：0 无稳定回归，1 有回归，2 输入或评测失败，3 存在不稳定任务待复核。改善不抵消回归，0 不代表没有遗留冲突。[完整协议与输出说明](docs/comparison.md)。
 
 ## 快速开始（网页版，零安装）
 
@@ -111,7 +121,7 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 开发
 
 ```bash
-python3 tests/test_atlas.py   # 102 项测试，纯标准库
+python3 tests/test_atlas.py   # 109 项测试，纯标准库
 node tests/web_smoke.cjs      # 111 项网页断言，node >= 18
 ```
 

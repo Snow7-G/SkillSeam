@@ -15,7 +15,7 @@
   <a href="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml"><img src="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-0f6e56.svg" alt="License: MIT"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg" alt="Python 3.10+"></a>
-  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-102%20passing-3b6d11.svg" alt="Tests: 102 passing"></a>
+  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-109%20passing-3b6d11.svg" alt="Tests: 109 passing"></a>
 </p>
 
 Simulate the way your agent picks skills, and find out which skill steals whose tasks. Before your users find out.
@@ -27,6 +27,16 @@ Agent runtimes like Claude Code and Codex load skills by reading one or two line
 That works fine until two descriptions overlap. In our hospital demo, a booking skill's description claimed it also handled "vision report inquiries". The report-reading skill owned that job. So a patient asks for a report reading, the booking skill answers, and then it makes things up. Nothing errors, and nothing gets logged. We only found out because patients complained.
 
 SkillSeam replays that selection process before you ship. Both bundled demos are real 40-task runs over 6 ophthalmology support skills: the Chinese set surfaces 4 boundary problems, the English set 6 — every one of them unanimous at 5/5, with no flaky rows. Each conflict report points at the exact keywords in the thief's description that caused the theft.
+
+## Before/after comparison
+
+Use a fixed, reviewed task set to check whether description edits improve routing or introduce regressions:
+
+```bash
+python3 skill_seam.py ./skills-candidate --baseline ./skills-baseline --tasks regression-tasks.json --out output/comparison
+```
+
+Both collections must have the same skill names. Comparison exits: 0 no stable regressions, 1 regression, 2 failed evaluation/input, 3 unstable pairs requiring review. Improvements never cancel regressions; 0 does not mean no pre-existing conflicts. [Protocol, artifacts and limitations](docs/comparison.md).
 
 ## Quick start (web, no install)
 
@@ -129,7 +139,7 @@ Every description sings. Some songs lure your tasks onto the rocks.
 ## Development
 
 ```bash
-python3 tests/test_atlas.py   # 102 tests, stdlib only
+python3 tests/test_atlas.py   # 109 tests, stdlib only
 node tests/web_smoke.cjs      # 111 web assertions, node >= 18
 ```
 

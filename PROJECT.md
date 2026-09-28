@@ -109,7 +109,7 @@ open output/report.html
 ```
 skill-seam/
 ├── skill_seam.py          # 主脚本（scan → generate → simulate → report）
-├── tests/test_atlas.py    # 102 项测试（unittest，纯标准库）
+├── tests/test_atlas.py    # 109 项测试（unittest，纯标准库）
 ├── tests/web_smoke.cjs    # 111 项网页断言（node，无需依赖）
 ├── demo-skills/           # 眼科客服样例（中文），6 个 skill，埋 2 处撞车
 ├── demo-skills-en/        # 同一场景的英文样例，网页 ?lang=en 的演示数据来源

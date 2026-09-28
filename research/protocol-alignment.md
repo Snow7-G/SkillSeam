@@ -1,5 +1,7 @@
 # Protocol Alignment: seven system-design principles vs. a naturalistic routing audit
 
+> Implementation update (2026-09-28): the historical G3 gap below is now addressed by the CLI `--baseline` mode for same-name collections with a fixed task set. See [comparison protocol](../docs/comparison.md). It does not implement the paper's statistical tests, perturbation ladder, or real-agent harness. The original analysis below describes the earlier single-arm version.
+
 **Scope.** This is not a replication. It is a mapping exercise: for each design principle
 below, can a tool that audits skill routing **without perturbation** measure it, and through
 which channel? Where the answer is no, the gap is named and costed.

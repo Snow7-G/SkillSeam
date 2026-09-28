@@ -1121,5 +1121,169 @@ class TestEnglishDemoFixture(unittest.TestCase):
             self.assertEqual(r["conflict"], r["stable"] and r["chosen"] != r["expected"])
 
 
+class TestComparison(unittest.TestCase):
+    def fixture(self, root):
+        for arm in ('before', 'after'):
+            for name in ('a-b', 'c-d'):
+                folder = root / arm / name
+                folder.mkdir(parents=True)
+                (folder / 'SKILL.md').write_text(
+                    f'---\nname: {name}\ndescription: {arm} description {name}\n---\nbody')
+        tasks = [{'t': 'task ' + str(i), 'e': expected} for i, expected in enumerate(['a-b', 'c-d', 'NONE'])]
+        (root / 'tasks.json').write_text(json.dumps(tasks))
+        return [str(root / 'after'), '--baseline', str(root / 'before'), '--tasks',
+                str(root / 'tasks.json'), '--out', str(root / 'out'), '--workers', '1']
+
+    def test_transition_table_and_priority(self):
+        tasks = [{'t': 'x', 'e': 'a-b'}]
+        def row(votes):
+            return ad.aggregate({(0, i): v for i, v in enumerate(votes)}, ['a-b', 'c-d'], tasks)
+        cases = [(['c-d']*5, ['a-b']*5, 'improved', 0),
+                 (['a-b']*5, ['c-d']*5, 'regressed', 1),
+                 (['c-d']*5, ['NONE']*5, 'persistent_error', 0),
+                 (['a-b']*5, ['a-b']*5, 'unchanged_correct', 0),
+                 (['a-b']*3+['c-d']*2, ['a-b']*5, 'review', 3),
+                 (['a-b']*3+['ERROR']*2, ['a-b']*5, 'failed', 2),
+                 (['a-b']*4+['INVALID'], ['a-b']*5, 'unchanged_correct', 0)]
+        for before, after, status, code in cases:
+            with self.subTest(status=status):
+                pairs, counts, actual = ad.compare_rows(row(before), row(after), ['a-b', 'c-d'])
+                self.assertEqual((pairs[0]['status'], actual), (status, code))
+        before = row(['c-d']*5) + row(['a-b']*5) + row(['a-b']*5)
+        after = row(['a-b']*5) + row(['c-d']*5) + row(['ERROR']*5)
+        self.assertEqual(ad.compare_rows(before, after, ['a-b', 'c-d'])[2], 2)
+        self.assertEqual(ad.compare_rows(before[:2], after[:2], ['a-b', 'c-d'])[2], 1)
+
+    def test_paired_execution_and_artifacts(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); args = self.fixture(root)
+            calls = []
+            def chat(cfg, catalog, task):
+                arm = 'before' if 'before description' in catalog else 'after'
+                calls.append((arm, task, catalog))
+                return ('c-d' if arm == 'before' else 'a-b') if task == 'task 0' else (
+                    ('c-d' if arm == 'before' else 'a-b') if task == 'task 1' else 'NONE')
+            cfg = {'base_url': 'https://example.invalid', 'model': 'test', 'api_key': 'YOUR_API_KEY_HERE'}
+            original = list(ad.TASKS)
+            with patch.object(ad, 'load_config', return_value=cfg), patch.object(ad, 'chat_once', side_effect=chat), \
+                    patch.object(ad, 'generate_fix_suggestions') as fixes:
+                self.assertEqual(ad.cmd_compare(args), 1)
+                fixes.assert_not_called()
+            self.assertEqual(ad.TASKS, original)
+            self.assertEqual(len(calls), 30)
+            for i in range(0, len(calls), 2):
+                self.assertEqual({calls[i][0], calls[i+1][0]}, {'before', 'after'})
+                self.assertEqual(calls[i][1], calls[i+1][1])
+            self.assertTrue(all(c[2].index('a-b') < c[2].index('c-d') for c in calls))
+            raw = (root / 'out/comparison.json').read_text()
+            data = json.loads(raw)
+            self.assertEqual(data['counts']['improved'], 1)
+            self.assertEqual(data['counts']['regressed'], 1)
+            self.assertEqual(data['pairs'][2]['status'], 'unchanged_correct')
+            self.assertNotIn('YOUR_API_KEY_HERE', raw)
+            self.assertNotIn('base_url', raw)
+            self.assertEqual(len(data['meta']['tasks_sha256']), 64)
+            self.assertNotEqual(*data['meta']['collections_sha256'].values())
+            self.assertTrue((root / 'out/report.html').exists())
+            data['changes'][0]['after'] = '<script>alert(1)</script>'
+            data['pairs'][0]['baseline']['task'] = '<img onerror=x>'
+            html = ad.render_comparison(data)
+            self.assertNotIn('<script>', html)
+            self.assertNotIn('<img', html)
+            self.assertIn('&lt;script&gt;', html)
+
+    def test_invalid_inputs_before_provider(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); args = self.fixture(root)
+            for invalid in ([], {}, [None], [{'t': 'x', 'e': 'missing'}], [{'t': None, 'e': 'a-b'}]):
+                (root / 'tasks.json').write_text(json.dumps(invalid))
+                with patch.object(ad, 'load_config') as cfg:
+                    self.assertEqual(ad.cmd_compare(args), 2)
+                    cfg.assert_not_called()
+            (root / 'tasks.json').write_text('[{"t":"x","e":"a-b"}]')
+            shutil.rmtree(root / 'after/c-d')
+            with patch.object(ad, 'load_config') as cfg:
+                self.assertEqual(ad.cmd_compare(args), 2)
+                cfg.assert_not_called()
+            result = run_cli([str(root / 'after'), '--baseline', str(root / 'before'), '--mock'])
+            self.assertEqual(result.returncode, 2)
+
+    def test_invalid_skill_catalogs(self):
+        for content in ('---\nname: a-b\ndescription: >2\n  invalid\n---',
+                        '---\nname: a-b\ndescription: \n---',
+                        '---\nname: c-d\ndescription: duplicate\n---'):
+            with tempfile.TemporaryDirectory() as td:
+                root = Path(td); args = self.fixture(root)
+                (root / 'after/a-b/SKILL.md').write_text(content)
+                with patch.object(ad, 'load_config') as cfg:
+                    self.assertEqual(ad.cmd_compare(args), 2)
+                    cfg.assert_not_called()
+
+    def test_real_failure_and_unstable_reports(self):
+        for response, expected in ((OSError('failure'), 2), ('unparseable', 2), (None, 3)):
+            with tempfile.TemporaryDirectory() as td:
+                root = Path(td); args = self.fixture(root); counts = Counter()
+                def chat(cfg, catalog, task):
+                    if isinstance(response, Exception):
+                        raise response
+                    if response:
+                        return response
+                    counts[catalog, task] += 1
+                    return 'a-b' if counts[catalog, task] <= 3 else 'c-d'
+                with patch.object(ad, 'load_config', return_value={'model':'test', 'base_url':'https://example.invalid'}), \
+                        patch.object(ad, 'chat_once', side_effect=chat), patch.object(ad.time, 'sleep'):
+                    self.assertEqual(ad.cmd_compare(args), expected)
+                data = json.loads((root / 'out/comparison.json').read_text())
+                self.assertEqual(data['exit_code'], expected)
+                self.assertEqual(data['counts']['failed' if expected == 2 else 'review'], 3)
+
+    def test_http_transport_end_to_end(self):
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        from threading import Thread
+        requests = []
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+            def do_POST(self):
+                body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+                requests.append((self.path, body))
+                payload = json.dumps({'choices':[{'message':{'content':'NONE'}}]}).encode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(payload)
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = Thread(target=server.serve_forever, daemon=True); thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                root = Path(td); args = self.fixture(root)
+                (root / '.atlasrc.json').write_text(json.dumps({
+                    'base_url': f'http://127.0.0.1:{server.server_port}/v1',
+                    'api_key':'YOUR_API_KEY_HERE', 'model':'local-test'}))
+                result = run_cli(args, cwd=td)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                data = json.loads((root / 'out/comparison.json').read_text())
+                self.assertEqual(data['counts']['persistent_error'], 2)
+                self.assertEqual(data['counts']['unchanged_correct'], 1)
+                self.assertEqual(len(requests), 30)
+                self.assertTrue(all(path == '/v1/chat/completions' for path, _ in requests))
+                self.assertTrue(all(body['temperature'] == 0.7 and body['max_tokens'] == 60
+                                    and body['messages'][0]['content'] == ad.SYSTEM_PROMPT for _, body in requests))
+        finally:
+            server.shutdown(); server.server_close(); thread.join()
+
+    def test_mock_cli_reproducible(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td); args = self.fixture(root)
+            first = run_cli(args + ['--mock'])
+            self.assertEqual(first.returncode, 0, first.stderr)
+            data = json.loads((root / 'out/comparison.json').read_text())
+            second = run_cli(args + ['--mock'])
+            self.assertEqual(second.returncode, 0, second.stderr)
+            again = json.loads((root / 'out/comparison.json').read_text())
+            self.assertEqual(data['pairs'], again['pairs'])
+            self.assertIn('MOCK', data['meta']['mode'])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

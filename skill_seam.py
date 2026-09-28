@@ -21,6 +21,8 @@ output/tasks-generated.json 供人工审核后用 --tasks 复跑。
 输出: output/results.json + output/report.html；退出码 0=无冲突 1=有冲突 2=配置/运行错误
 """
 import json
+import argparse
+import hashlib
 import os
 import re
 import sys
@@ -412,6 +414,18 @@ def _err_text(e):
     return f"{msg} | {body}" if body else msg
 
 
+def select_sample(cfg, catalog, text, names, errors=None):
+    for attempt in range(3):
+        try:
+            return extract_chosen(chat_once(cfg, catalog, text), names)
+        except Exception as e:
+            if attempt == 2:
+                if errors is not None and len(errors) < 5:
+                    errors.append(_err_text(e))
+                return "ERROR"
+            time.sleep(1.5 * (attempt + 1))
+
+
 def simulate_real(cfg, catalog, valid_names, errors=None):
     jobs = [(ti, si) for ti in range(len(TASKS)) for si in range(SAMPLES)]
     results = {}
@@ -419,16 +433,7 @@ def simulate_real(cfg, catalog, valid_names, errors=None):
 
     def work(job):
         ti, si = job
-        for attempt in range(3):
-            try:
-                content = chat_once(cfg, catalog, TASKS[ti]["t"])
-                return ti, si, extract_chosen(content, valid_names)
-            except Exception as e:
-                if attempt == 2:
-                    if errors is not None and len(errors) < 5:
-                        errors.append(_err_text(e))
-                    return ti, si, "ERROR"
-                time.sleep(1.5 * (attempt + 1))
+        return ti, si, select_sample(cfg, catalog, TASKS[ti]["t"], valid_names, errors)
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
         for ti, si, chosen in ex.map(work, jobs):
@@ -451,11 +456,11 @@ def cjk_bigrams(s):
     return grams
 
 
-def simulate_mock(skills, valid_names):
+def simulate_mock(skills, valid_names, tasks=None):
     rng = random.Random(42)
     grams = {s["name"]: cjk_bigrams(s["description"]) for s in skills}
     results = {}
-    for ti, task in enumerate(TASKS):
+    for ti, task in enumerate(TASKS if tasks is None else tasks):
         tg = cjk_bigrams(task["t"])
         scores = {}
         for name in valid_names:
@@ -731,9 +736,9 @@ def generate_fix_suggestions(cfg, rows, skills_by_name, max_pairs=5, verbose=Tru
 
 
 # ---------------------------------------------------------------- aggregate (T5)
-def aggregate(votes_by_task, valid_names):
+def aggregate(votes_by_task, valid_names, tasks=None):
     rows = []
-    for ti, task in enumerate(TASKS):
+    for ti, task in enumerate(TASKS if tasks is None else tasks):
         votes = [votes_by_task[(ti, si)] for si in range(SAMPLES)]
         top, count = Counter(votes).most_common(1)[0]
         consistency = count / SAMPLES
@@ -1253,6 +1258,151 @@ def cmd_export(argv):
     return 0
 
 
+# ------------------------------------------------------ paired comparison
+
+def compare_rows(baseline, candidate, names):
+    paired = []
+    for before, after in zip(baseline, candidate):
+        if any(sum(v in names or v == "NONE" for v in r["votes"]) / SAMPLES < CONSISTENCY_MIN
+               for r in (before, after)):
+            status = "failed"
+        elif not before["stable"] or not after["stable"]:
+            status = "review"
+        else:
+            correct_before = before["chosen"] == before["expected"]
+            correct_after = after["chosen"] == after["expected"]
+            status = ("unchanged_correct" if correct_before else "improved") if correct_after else (
+                "regressed" if correct_before else "persistent_error")
+        paired.append({"id": before["id"], "status": status, "baseline": before, "candidate": after})
+    counts = dict.fromkeys(("improved", "regressed", "unchanged_correct", "persistent_error", "review", "failed"), 0)
+    counts.update(Counter(r["status"] for r in paired))
+    code = 2 if counts["failed"] else 1 if counts["regressed"] else 3 if counts["review"] else 0
+    return paired, counts, code
+
+
+def render_comparison(data):
+    labels = {"improved": "改善", "regressed": "回归", "unchanged_correct": "保持正确",
+              "persistent_error": "持续错误", "review": "待复核", "failed": "评测失败"}
+    rows = []
+    for pair in data["pairs"]:
+        before, after = pair["baseline"], pair["candidate"]
+        cells = [before["task"], before["expected"], labels[pair["status"]],
+                 before["chosen"] + " · " + ", ".join(before["votes"]),
+                 after["chosen"] + " · " + ", ".join(after["votes"])]
+        rows.append("<tr>" + "".join("<td>" + esc(c) + "</td>" for c in cells) + "</tr>")
+    changes = "".join("<tr><td>" + esc(c["name"]) + "</td><td>" + esc(c["before"]) +
+                      "</td><td>" + esc(c["after"]) + "</td></tr>" for c in data["changes"])
+    summary = " · ".join(labels[k] + ": " + str(v) for k, v in data["counts"].items())
+    return ("<!doctype html><html lang='zh'><meta charset='utf-8'><title>SkillSeam 对照报告</title>"
+            "<style>body{font:16px sans-serif;max-width:1200px;margin:40px auto;padding:20px}"
+            "table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:10px;"
+            "text-align:left;white-space:pre-wrap;overflow-wrap:anywhere}</style>"
+            "<h1>SkillSeam 修改前后对照</h1><p>模式：" + esc(data["meta"]["mode"]) +
+            " · 模型：" + esc(data["meta"]["model"]) +
+            " · 退出码：" + str(data["exit_code"]) + "</p><p>" + esc(summary) +
+            "</p><p>0 表示未发现稳定回归，不代表没有遗留冲突。待复核或失败不能视为通过。"
+            "配对单位为任务；五次采样不构成显著性证明。NONE 表示不触发技能。"
+            "预期为技能而选中 NONE 表示漏触发；预期 NONE 而选中技能表示过度触发。</p>"
+            "<h2>逐任务变化</h2><table><tr><th>任务</th><th>预期</th><th>变化</th>"
+            "<th>基线选择与原始票数</th><th>候选选择与原始票数</th></tr>" + "".join(rows) +
+            "</table><h2>Description 修改</h2><table><tr><th>技能</th><th>修改前</th>"
+            "<th>修改后</th></tr>" + changes + "</table></html>")
+
+
+def cmd_compare(argv):
+    parser = argparse.ArgumentParser(description="固定任务集上的技能描述对照；退出码 0 无回归 / 1 回归 / 2 失败 / 3 待复核")
+    parser.add_argument("skills", type=Path)
+    parser.add_argument("--baseline", type=Path, required=True)
+    parser.add_argument("--tasks", type=Path, required=True)
+    parser.add_argument("--out", type=Path, default=Path("output/comparison"))
+    parser.add_argument("--workers", type=int, default=MAX_WORKERS)
+    parser.add_argument("--mock", action="store_true")
+    parser.add_argument("--no-fixes", action="store_true", help="兼容参数；对照模式始终不自动生成建议")
+    args = parser.parse_args(argv)
+    if args.workers < 1:
+        parser.error("--workers 必须大于 0")
+    collections = {}
+    try:
+        for arm, root in (("baseline", args.baseline), ("candidate", args.skills)):
+            if not root.is_dir():
+                raise ValueError(f"{arm}: 技能目录不存在")
+            skills, issues, rejected = scan_skills(root)
+            for path, messages in issues:
+                for message in messages:
+                    eprint(f"[warn] {arm}: {path}: {message}")
+            if rejected or not skills:
+                raise ValueError(f"{arm}: 技能为空或存在无法解析的 frontmatter")
+            names = [sk["name"] for sk in skills]
+            if len(set(names)) != len(names) or any(not NAME_RE.fullmatch(n) for n in names):
+                raise ValueError(f"{arm}: 技能名称重复或不合法")
+            if any(not sk["description"].strip() for sk in skills):
+                raise ValueError(f"{arm}: description 为空")
+            collections[arm] = sorted(skills, key=lambda sk: sk["name"])
+        names = [sk["name"] for sk in collections["baseline"]]
+        if names != [sk["name"] for sk in collections["candidate"]]:
+            raise ValueError("两组技能名称集合必须相同；第一版不支持新增、删除或重命名")
+        tasks = json.loads(args.tasks.read_text(encoding="utf-8"))
+        if not isinstance(tasks, list) or not tasks:
+            raise ValueError("任务必须是非空 JSON 数组")
+        for i, task in enumerate(tasks):
+            if (not isinstance(task, dict) or not isinstance(task.get("t"), str) or not task["t"].strip()
+                    or not isinstance(task.get("e"), str) or task["e"] not in names + ["NONE"]):
+                raise ValueError(f"第 {i + 1} 条任务文本或预期技能无效")
+        args.out.mkdir(parents=True, exist_ok=True)
+    except (OSError, ValueError) as e:
+        eprint(f"错误: {e}")
+        return 2
+    cfg = None if args.mock else load_config()
+    if not args.mock and cfg is None:
+        eprint("错误: 对照评测需要模型配置；离线管线验证请显式使用 --mock")
+        return 2
+    started = datetime.now().isoformat()
+    catalogs = {arm: build_catalog(skills) for arm, skills in collections.items()}
+    votes = {arm: {} for arm in collections}
+    print(f"对照评测: {len(tasks)} 任务 × {SAMPLES} 采样 × 2 组；不自动生成修复建议")
+    if args.mock:
+        votes = {arm: simulate_mock(skills, names, tasks) for arm, skills in collections.items()}
+    else:
+        # 交错入队，轮换每对先提交的组；不假设两次调用共享随机性。
+        jobs = [(arm, ti, si) for ti in range(len(tasks)) for si in range(SAMPLES)
+                for arm in (("baseline", "candidate") if (ti + si) % 2 == 0 else ("candidate", "baseline"))]
+        def work(job):
+            arm, ti, si = job
+            return arm, ti, si, select_sample(cfg, catalogs[arm], tasks[ti]["t"], names)
+        with ThreadPoolExecutor(max_workers=args.workers) as executor:
+            for done, (arm, ti, si, chosen) in enumerate(executor.map(work, jobs), 1):
+                votes[arm][ti, si] = chosen
+                if done % 40 == 0:
+                    print(f"  进度 {done}/{len(jobs)}", flush=True)
+    arms = {arm: aggregate(values, names, tasks) for arm, values in votes.items()}
+    pairs, counts, code = compare_rows(arms["baseline"], arms["candidate"], names)
+    def digest(value):
+        return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+    snapshots = {arm: [{"name": sk["name"], "description": sk["description"]} for sk in skills]
+                 for arm, skills in collections.items()}
+    data = {"meta": {"schema_version": 1, "version": __version__, "started_at": started,
+                     "finished_at": datetime.now().isoformat(), "mode": "MOCK（仅验证管线）" if args.mock else "LLM selector simulation",
+                     "model": "keyword-mock" if args.mock else cfg["model"], "samples": SAMPLES,
+                     "temperature": 0.7, "max_tokens": 60, "consistency_min": CONSISTENCY_MIN,
+                     "workers": args.workers, "system_prompt": SYSTEM_PROMPT,
+                     "system_prompt_sha256": digest(SYSTEM_PROMPT),
+                     "endpoint_sha256": None if args.mock else digest(cfg["base_url"]),
+                     "tasks_sha256": digest(tasks), "collections_sha256": {a: digest(v) for a, v in snapshots.items()}},
+            "tasks": tasks, "collections": snapshots, "arms": arms, "pairs": pairs,
+            "counts": counts, "exit_code": code,
+            "changes": [{"name": b["name"], "before": b["description"], "after": c["description"]}
+                        for b, c in zip(snapshots["baseline"], snapshots["candidate"])
+                        if b["description"] != c["description"]]}
+    try:
+        (args.out / "comparison.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        (args.out / "report.html").write_text(render_comparison(data), encoding="utf-8")
+    except OSError as e:
+        eprint(f"错误: 无法写入对照报告: {e}")
+        return 2
+    print(f"对照结果: {counts}；退出码 {code}；报告 {args.out / 'report.html'}")
+    return code
+
+
 # ---------------------------------------------------------------- main
 HELP_TEXT = """SkillSeam {version} —— 模拟 agent 的 skill 选择过程，找出「谁抢了谁的活」
 
@@ -1264,6 +1414,7 @@ HELP_TEXT = """SkillSeam {version} —— 模拟 agent 的 skill 选择过程，
   skill-seam export <skills目录>        输出网页版粘贴格式（name: description）
 
 检测选项:
+  --baseline <目录>      修改前技能集（对照模式必须提供 --tasks；退出码 0/1/2/3）
   --tasks <file.json>    自定义任务清单（推荐：真实用户问法）
   --demo-tasks           内置 40 条眼科 demo 任务
   --gen-positive <N>     自动生成时每技能正向任务数（默认 5）
@@ -1301,6 +1452,8 @@ def main():
         sys.exit(cmd_harvest(args[1:]))
     if args and args[0] == "export":
         sys.exit(cmd_export(args[1:]))
+    if any(a == "--baseline" or a.startswith("--baseline=") for a in args):
+        sys.exit(cmd_compare(args))
     mock = "--mock" in args
     task_file = None
     if "--tasks" in args:
