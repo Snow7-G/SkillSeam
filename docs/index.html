@@ -105,6 +105,7 @@ svg text { font-family: inherit; }
 .rowbtns .hint { margin-top: 12px; }
 .hidden { display: none; }
 code { background: #efede7; border-radius: 4px; padding: 0 4px; font-size: 12px; }
+table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid #ddd;overflow-wrap:anywhere}details{margin:16px 0}summary{cursor:pointer;margin-bottom:12px}
 </style>
 </head>
 <body>
@@ -125,9 +126,21 @@ code { background: #efede7; border-radius: 4px; padding: 0 4px; font-size: 12px;
       <span class="hint" id="pickHint" data-i18n="pick_hint"></span>
     </div>
     <input type="file" id="folderInput" webkitdirectory multiple class="hidden">
+    <details><summary data-i18n="baseline_label"></summary>
+      <textarea id="baselineSkills" rows="6" aria-label="Baseline skills"></textarea>
+      <button class="ghost" onclick="document.getElementById('baselineFolder').click()" data-i18n="pick_folder"></button>
+      <input type="file" id="baselineFolder" webkitdirectory multiple class="hidden" onchange="handleFolderPicked(this,'baselineSkills')">
+    </details>
     <label data-i18n="tasks_label"></label>
     <textarea id="tasks" rows="6"></textarea>
     <div class="hint" data-i18n="tasks_hint"></div>
+    <details open><summary data-i18n="review_title"></summary>
+      <input type="file" accept=".json,application/json" aria-label="Import task draft" onchange="importTaskDraft(this)">
+      <button class="ghost" onclick="reviewCurrentTasks()" data-i18n="review_current"></button>
+      <div style="overflow:auto"><table><thead><tr><th data-i18n="review_task"></th><th data-i18n="review_expected"></th><th data-i18n="review_confirm"></th></tr></thead><tbody id="reviewTable"></tbody></table></div>
+      <button class="ghost" onclick="applyReviewedTasks()" data-i18n="review_apply"></button>
+      <button class="ghost" onclick="exportReviewedTasks()" data-i18n="review_export"></button>
+    </details>
   </div>
 
   <div class="card">
@@ -178,6 +191,10 @@ code { background: #efede7; border-radius: 4px; padding: 0 4px; font-size: 12px;
     </div>
     <button id="demoBtn" class="ghost" onclick="loadDemo()" data-i18n="demo_btn"></button>
     <button id="genBtn" class="ghost" onclick="genTasks()" data-i18n="gen_btn"></button>
+    <button class="ghost" onclick="checkConnection()" data-i18n="connection_btn"></button>
+    <button class="ghost" onclick="runComparison()" data-i18n="comparison_btn"></button>
+    <button class="ghost" onclick="runComparison(true)" data-i18n="aa_btn"></button>
+    <button class="ghost" onclick="showCoverage()" data-i18n="coverage_btn"></button>
     <button id="runBtn" onclick="run()" data-i18n="run_btn"></button>
     <button id="stopBtn" class="ghost hidden" onclick="stopEval()" data-i18n="stop_btn"></button>
     <div class="bar" id="bar"><div id="barfill"></div></div>
@@ -185,6 +202,13 @@ code { background: #efede7; border-radius: 4px; padding: 0 4px; font-size: 12px;
     <div class="hint" data-i18n="run_hint"></div>
   </div>
 
+  <div id="coverageResult" class="card hidden"></div>
+<div id="comparisonResult" class="card hidden">
+    <h2 data-i18n="comparison_btn"></h2><p id="comparisonSummary"></p><p data-i18n="comparison_note"></p>
+    <div style="overflow:auto"><table><thead><tr><th data-i18n="review_task"></th><th data-i18n="review_expected"></th><th data-i18n="comparison_change"></th><th data-i18n="baseline_label"></th><th data-i18n="candidate_label"></th></tr></thead><tbody id="comparisonRows"></tbody></table></div>
+    <h3>Description</h3><div style="overflow:auto"><table><tbody id="comparisonChanges"></tbody></table></div>
+    <button class="ghost" onclick="exportComparison()" data-i18n="comparison_export"></button>
+  </div>
   <div id="result" class="hidden">
     <div class="cards">
       <div class="stat green"><div class="num" id="s-hit">-</div><div class="lbl" data-i18n="stat_hit"></div></div>
@@ -208,6 +232,39 @@ code { background: #efede7; border-radius: 4px; padding: 0 4px; font-size: 12px;
 // 语言解析优先级：?lang=xx → localStorage → 浏览器语言（zh* → 中文，其余 → 英文）
 var I18N = {
   zh: {
+    failed: "评测失败",
+    review: "待复核",
+    persistent_error: "持续错误",
+    unchanged_correct: "保持正确",
+    regressed: "回归",
+    improved: "改善",
+    comparison_note: "每组固定采样 5 次。0 无回归，1 有回归，2 失败/停止，3 待复核。改善不抵消回归，0 不代表无遗留错误。",
+    comparison_change: "变化",
+    comparison_code: "结果码",
+    comparison_names: "两组必须具有相同且合法的技能名称集合。",
+    comparison_export: "下载对照 JSON",
+    aa_btn: "运行 A/A 波动检查",
+    aa_note: "A/A 同一集合独立采样；变化仅反映背景波动，不能证明修复有效",
+    coverage_btn: "查看任务覆盖",
+    coverage_title: "任务覆盖",
+    coverage_headers: ["技能", "正向", "灰区", "其他"],
+    coverage_none: "不触发任务", coverage_missing: "尚无任务覆盖", coverage_duplicates: "重复任务文本",
+    comparison_btn: "运行修改前后对照",
+    connection_ok: "连接与响应解析通过（不代表整批评测一定成功）。",
+    connection_config: "请配置真实模型、端点和 API Key。",
+    connection_btn: "测试连接",
+    review_applied: "已应用审核任务，可开始对照评测。",
+    review_required: "请逐条核对任务和技能标签并勾选确认，再应用任务。",
+    review_invalid: "导入失败：需要含非空 t 和字符串 e 的 JSON 数组；原内容保留。",
+    review_export: "导出任务 JSON",
+    review_apply: "应用已审核任务",
+    review_current: "审核当前任务",
+    review_confirm: "已核对",
+    review_expected: "预期技能 / NONE",
+    review_task: "任务",
+    review_title: "审核任务草稿（对照评测前必需）",
+    candidate_label: "修改后技能与票数",
+    baseline_label: "修改前技能（基线）",
     sub: "模拟 agent 挑选 skill 的真实过程，找出你整套 skill 里「谁抢了谁的活」。纯静态页面：API key 只存在你的浏览器 localStorage，请求从浏览器直达模型端点，不经过任何服务器。",
     card1_title: "1 · 输入",
     skills_label: "技能清单（每行一个，格式 <code>name: description</code>，至少 2 个）",
@@ -291,6 +348,39 @@ var I18N = {
     prompt_fix: "你是 prompt 工程专家。技能 {thief} 的 description 截胡了本应属于技能 {victim} 的用户任务。\n\n技能 {victim}（应选）：\n{vdesc}\n\n技能 {thief}（实际被选中）：\n{tdesc}\n\n被截胡的任务：\n{tasks}\n\n请给出改写建议（1-2 条），通过修改其中一个或两个技能的 description 使边界清晰、截胡消失。优先改截胡方（加'仅限/不含'等边界词）。new_description 必须是完整可替换的 description，长度不超过 1024 字符，除边界外不得删减原职责。\n两条硬性要求：\n1) 语言必须与原描述一致——原描述是英文就用英文改写，是中文就用中文改写，绝不翻译、不改变语气风格；\n2) 尽量做最小改动：在原描述基础上追加/收紧边界短句即可，不要整段重写（便于人工 review 与 diff）。只输出 JSON：{\"changes\": [{\"skill\": \"技能名\", \"new_description\": \"改写后的完整描述\", \"reason\": \"一句话理由\"}]}"
   },
   en: {
+    failed: "Failed",
+    review: "Needs review",
+    persistent_error: "Persistent error",
+    unchanged_correct: "Still correct",
+    regressed: "Regressed",
+    improved: "Improved",
+    comparison_note: "Five samples per arm. 0 no regression, 1 regression, 2 failed/stopped, 3 review. Improvements never cancel regressions; existing errors may remain.",
+    comparison_change: "Change",
+    comparison_code: "Result code",
+    comparison_names: "Both arms must have the same valid skill names.",
+    comparison_export: "Download comparison JSON",
+    aa_btn: "Run A/A noise check",
+    aa_note: "A/A samples the same catalog independently; changes indicate background variation, not repair effectiveness",
+    coverage_btn: "Task coverage",
+    coverage_title: "Task coverage",
+    coverage_headers: ["Skill", "Positive", "Gray", "Other"],
+    coverage_none: "NONE tasks", coverage_missing: "Uncovered skills", coverage_duplicates: "Repeated task text",
+    comparison_btn: "Compare baseline and candidate",
+    connection_ok: "Connection and parsing passed; batch success is not guaranteed.",
+    connection_config: "Configure a model, endpoint and API key.",
+    connection_btn: "Test connection",
+    review_applied: "Reviewed tasks applied. Ready to compare.",
+    review_required: "Review each task and label, confirm every row, then apply.",
+    review_invalid: "Invalid draft: expected an array of nonempty t and string e. Existing content retained.",
+    review_export: "Export task JSON",
+    review_apply: "Apply reviewed tasks",
+    review_current: "Review current tasks",
+    review_confirm: "Reviewed",
+    review_expected: "Expected skill / NONE",
+    review_task: "Task",
+    review_title: "Review task drafts (required for comparison)",
+    candidate_label: "Candidate and votes",
+    baseline_label: "Baseline skills",
     sub: "Simulate how an agent picks skills and find out which skill steals whose tasks. Static page: the API key stays in your browser localStorage and requests go straight to your provider, with no server in between.",
     card1_title: "1 · Input",
     skills_label: "Skills, one per line, as <code>name: description</code> (at least 2)",
@@ -436,6 +526,9 @@ function setLang(lang) {
     history.replaceState(null, "", u.toString());
   } catch (e) {}
   applyI18n();
+  if (window.__lastComparison) renderWebComparison(window.__lastComparison);
+  if (reviewDraft.length) renderReview();
+  if (window.__lastCoverage) renderCoverage(window.__lastCoverage);
   if (window.__lastDemoRendered) renderDemo();
   else if (window.__lastRender) {
     render(window.__lastRender.byTask, window.__lastRender.skills,
@@ -577,7 +670,8 @@ function refreshPickHint() {
   }
 }
 
-function handleFolderPicked(input) {
+function handleFolderPicked(input, target) {
+  target = target || "skills";
   var all = Array.prototype.slice.call(input.files || []);
   var sel = selectSkillMdFiles(all);
   var items = sel.picked;
@@ -604,7 +698,7 @@ function handleFolderPicked(input) {
       input.value = "";
       return;
     }
-    document.getElementById("skills").value = res.rows.map(function(r) {
+    document.getElementById(target).value = res.rows.map(function(r) {
       return r.name + ": " + r.description;
     }).join("\n");
     window.__pickState = { kind: "done", rows: res.rows.length, hidden: sel.hidden,
@@ -677,6 +771,12 @@ function parseSkills(text) {
 }
 
 function parseTasks(text) {
+  if (text.trim().charAt(0) === '[') {
+    try {
+      var draft = parseTaskDraft(JSON.parse(text));
+      return {tasks:draft.map(function(r){return {task:r.t,expected:r.e || null};}),errs:[]};
+    } catch(e) { return {tasks:[],errs:[t('review_invalid')]}; }
+  }
   var out = [], errs = [];
   text.split("\n").forEach(function(line, i) {
     line = line.trim();
@@ -713,9 +813,17 @@ function extractChosen(content, names) {
 
 var EVAL_TIMEOUT_MS = 90000;  // 单请求应用层超时
 
+var activeRunId = 0;
+function beginOperation() {
+  activeRunId++;
+  activeCtrls.forEach(function(ctrl){ctrl.abort();});
+  window.__lastFixes=null; window.__lastCoverage=null; $('coverageResult').classList.add('hidden');
+  $('fixCard').classList.add('hidden');
+  return activeRunId;
+}
 var activeCtrls = [];         // 在途请求的控制器，停止评测时统一 abort
 
-function llmCall(cfg, base, messages, maxTokens) {
+function rawLlmCall(cfg, base, messages, maxTokens) {
   var ctrl = new AbortController();
   activeCtrls.push(ctrl);
   var timer = setTimeout(function() { ctrl.abort(); }, EVAL_TIMEOUT_MS);
@@ -735,12 +843,13 @@ function llmCall(cfg, base, messages, maxTokens) {
       body: JSON.stringify({ model: cfg.model, temperature: 0.7, max_tokens: maxTokens,
         system: system, messages: userMsgs })
     }).then(function(r) {
-      if (!r.ok) return r.text().then(function(t) {
-        throw new Error("HTTP " + r.status + ": " + t.slice(0, 160)); });
+      if (!r.ok) { var error = new Error(); error.status = r.status; throw error; }
       return r.json();
     }).then(function(d) {
-      var part = (d.content || []).filter(function(c) { return c.type === "text"; })[0];
-      return part ? part.text : "";
+      if (!Array.isArray(d.content)) { var invalid=new Error(); invalid.code='invalid_response'; throw invalid; }
+      var part = d.content.filter(function(c) { return c.type === "text"; })[0];
+      if (!part || typeof part.text!=='string') { var invalid=new Error(); invalid.code='invalid_response'; throw invalid; }
+      return part.text;
     }).finally(function() {
       // 覆盖正文读取、网络失败与用户取消三种情况
       clearTimeout(timer);
@@ -755,10 +864,13 @@ function llmCall(cfg, base, messages, maxTokens) {
     body: JSON.stringify({ model: cfg.model, temperature: 0.7, max_tokens: maxTokens,
       messages: messages })
   }).then(function(r) {
-    if (!r.ok) return r.text().then(function(t) {
-      throw new Error("HTTP " + r.status + ": " + t.slice(0, 160)); });
+    if (!r.ok) { var error = new Error(); error.status = r.status; throw error; }
     return r.json();
-  }).then(function(d) { return d.choices[0].message.content; })
+  }).then(function(d) {
+    var content=d && d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content;
+    if (typeof content!=='string') { var invalid=new Error(); invalid.code='invalid_response'; throw invalid; }
+    return content;
+  })
     .finally(function() {
       clearTimeout(timer);
       var i = activeCtrls.indexOf(ctrl);
@@ -881,9 +993,12 @@ function genTasks() {
   var base = cfg.provider === "openai" ? cfg.base : PROVIDER_BASE[cfg.provider];
   var nPos = parseInt($("genPos").value, 10);
   var kPairs = parseInt($("grayPairs").value, 10);
-  setRunning(true);
+  beginOperation(); evalStopped=false; setRunning(true);
   showStatus(t("gen_status", { s: ps.skills.length, p: nPos, k: kPairs }));
-  genTasksAuto(cfg, base, ps.skills, nPos, kPairs).then(function(r) {
+  return connectionPreflight(cfg, base).then(function() {
+    if (evalStopped) { var stopped=new Error(); stopped.name="AbortError"; throw stopped; }
+    return genTasksAuto(cfg, base, ps.skills, nPos, kPairs);
+  }).then(function(r) {
     setRunning(false);
     hideStatus();
     if (!r.tasks.length) { showErr(t("gen_empty") + (r.warnings.length ? "：" + r.warnings.join("；") : "")); return; }
@@ -892,10 +1007,15 @@ function genTasks() {
       return t.t + " => " + t.e;
     }).join("\n");
     var existing = $("tasks").value.trim();
-    $("tasks").value = existing ? existing + "\n" + generated : generated;
+    if (existing.charAt(0) === '[') {
+      var oldTasks=parseTasks(existing);
+      if(oldTasks.errs.length){showErr(t('review_invalid'));return;}
+      $("tasks").value=JSON.stringify(JSON.parse(existing).concat(r.tasks),null,2);
+    } else $("tasks").value = existing ? existing + "\n" + generated : generated;
     if (r.warnings.length) showErr(t("gen_partial", { w: r.warnings.join("；"), n: r.tasks.length }));
     else showStatus(t("gen_done", { n: r.tasks.length }));
-  });
+  }).catch(function(e) { showErr(diagnosticText(e.diagnostic || safeDiagnostic(e))); })
+    .finally(function() { setRunning(false); });
 }
 
 function showStatus(msg) {
@@ -1000,6 +1120,7 @@ function stopEval() {
 }
 
 function setRunning(on) {
+  document.querySelectorAll("button, input, textarea, select").forEach(function(el) { el.disabled = on; });
   $("runBtn").disabled = on; $("demoBtn").disabled = on; $("genBtn").disabled = on;
   var sb = $("stopBtn");
   sb.classList.toggle("hidden", !on);
@@ -1052,13 +1173,19 @@ function run() {
     }
   });
 
+  beginOperation();
   evalStopped = false;
+  window.__lastComparison=null; window.__lastRender=null; window.__lastDemoRendered=false;
+  $("comparisonResult").classList.add("hidden"); $("result").classList.add("hidden");
   setRunning(true);
   $("bar").style.display = "block";
   var done = 0;
-  pool(jobs, 4, function(n) {
+  return connectionPreflight(cfg, base).then(function() {
+    if (evalStopped) { var stopped = new Error(); stopped.name="AbortError"; throw stopped; }
+    return pool(jobs, 4, function(n) {
     done = n;
     $("barfill").style.width = (100 * n / jobs.length).toFixed(1) + "%";
+  });
   }).then(function(results) {
     setRunning(false);
     $("bar").style.display = "none";
@@ -1111,11 +1238,13 @@ function run() {
     var byName = {};
     ps.skills.forEach(function(s) { byName[s.name] = s; });
     triggerFixGeneration(conflicts, byName, ps.skills, cfg, base);
-  });
+  }).catch(function(e) { showErr(diagnosticText(e.diagnostic || safeDiagnostic(e))); })
+    .finally(function() { setRunning(false); $("bar").style.display="none"; });
 }
 
 // 检测到稳定冲突后触发建议生成：预期 NONE（无受害技能可改写）自动跳过
 function triggerFixGeneration(conflicts, byName, skills, cfg, base) {
+  var runId=activeRunId;
   var fixable = conflicts.filter(function(r) { return byName[r.expected]; });
   if (!fixable.length) {
     hideStatus();
@@ -1124,8 +1253,11 @@ function triggerFixGeneration(conflicts, byName, skills, cfg, base) {
   }
   showStatus("发现 " + conflicts.length + " 个稳定冲突，正在生成修复建议...");
   genFixes(cfg, base, fixable, byName).then(function(suggestions) {
+    if(runId!==activeRunId || evalStopped)return;
     hideStatus();
     renderFixes(suggestions, skills);
+  }).catch(function(e){
+    if(runId===activeRunId && !evalStopped)showErr(diagnosticText(e.diagnostic || safeDiagnostic(e)));
   });
   return true;
 }
@@ -1269,6 +1401,7 @@ function demoFor(lang) {
 }
 
 function renderDemo() {
+  beginOperation();
   hideErr();
   // 演示数据分语言内置（各语言配自己的技能集与真实运行结果）
   var D = demoFor(LANG);
@@ -1372,6 +1505,211 @@ function matrixSvg(mat, skills, cols) {
   });
   svg.push("</svg>");
   return svg.join("\n");
+}
+
+function safeDiagnostic(e) {
+  var status = e && e.status;
+  var code = status === 401 || status === 403 ? 'authentication' : status === 429 ? 'rate_limit' :
+    [400,404,422].indexOf(status) >= 0 ? 'endpoint_or_model' : status ? 'http_error' :
+    e && e.name === 'AbortError' ? 'timeout_or_cancelled' :
+    e && (e.name === 'SyntaxError' || e.code === 'invalid_response') ? 'invalid_response' : 'network';
+  return {code:code, http_status:status || null};
+}
+function diagnosticText(d) {
+  var hints = LANG === 'zh' ? {
+    authentication:'检查 API Key 和访问权限。', rate_limit:'检查额度或降低并发。',
+    endpoint_or_model:'检查端点、模型名和参数。', http_error:'服务端错误，请稍后重试。',
+    timeout_or_cancelled:'请求超时或已取消。', invalid_response:'响应无法解析为有效选择。',
+    network:'网络连接失败；浏览器无法区分 CORS、TLS 或代理故障，请检查端点。'
+  } : {authentication:'Check API key and access.', rate_limit:'Check quota or reduce concurrency.',
+    endpoint_or_model:'Check endpoint, model and parameters.', http_error:'Server error; retry later.',
+    timeout_or_cancelled:'Request timed out or was cancelled.', invalid_response:'Unparseable selection response.',
+    network:'Network failure: browsers cannot distinguish CORS, TLS and proxy errors.'};
+  return d.code + (d.http_status ? ' (HTTP '+d.http_status+')' : '') + ': ' + hints[d.code];
+}
+function llmCall(cfg, base, messages, maxTokens) {
+  return rawLlmCall(cfg, base, messages, maxTokens).catch(function(e) {
+    var d = e.diagnostic || safeDiagnostic(e), safe = new Error(diagnosticText(d));
+    safe.diagnostic = d; throw safe;
+  });
+}
+function connectionPreflight(cfg, base) {
+  return llmCall(cfg, base, [{role:'system',content:SYSTEM_PROMPT},
+    {role:'user',content:'Available skill: connection-check — reply to a connection test. Task: Connection test.'}],60)
+    .then(function(content) {
+      if (extractChosen(content, ['connection-check']) === 'INVALID') {
+        var error = new Error(); error.code='invalid_response';
+        error.diagnostic=safeDiagnostic(error); throw error;
+      }
+      return {ok:true, code:'ok'};
+    });
+}
+async function checkConnection() {
+  hideErr(); var cfg=getCfg(), base=cfg.provider==='openai'?cfg.base:PROVIDER_BASE[cfg.provider];
+  if (!cfg.key || !cfg.model || !base || cfg.provider==='demo') { showErr(t('connection_config')); return; }
+  beginOperation(); setRunning(true); evalStopped=false;
+  try { await connectionPreflight(cfg,base); showStatus(t('connection_ok')); }
+  catch(e) { showErr(diagnosticText(e.diagnostic || safeDiagnostic(e))); }
+  finally { setRunning(false); }
+}
+
+var reviewDraft = [], reviewedText = null;
+function parseTaskDraft(value) {
+  if (!Array.isArray(value) || !value.length) throw new Error(t('review_invalid'));
+  return value.map(function(item) {
+    if (!item || typeof item.t!=='string' || !item.t.trim() || (item.e!==undefined && typeof item.e!=='string'))
+      throw new Error(t('review_invalid'));
+    return {...item, t:item.t, e:item.e || '', reviewed:false};
+  });
+}
+async function importTaskDraft(input) {
+  if (!input.files || !input.files[0]) return;
+  try { reviewDraft=parseTaskDraft(JSON.parse(await input.files[0].text())); reviewedText=null; renderReview(); }
+  catch(e) { showErr(t('review_invalid')); }
+  finally { input.value=''; }
+}
+function reviewCurrentTasks() {
+  try {
+    var parsed=parseTasks($('tasks').value); if(parsed.errs.length)throw new Error();
+    reviewDraft=parseTaskDraft($('tasks').value.trim().charAt(0)==='[' ? JSON.parse($('tasks').value) : parsed.tasks.map(function(r){return {t:r.task,e:r.expected || ''};}));
+    reviewedText=null; renderReview();
+  } catch(e) { showErr(t('review_invalid')); }
+}
+function editReview(i, field, value) {
+  reviewDraft[i][field]=value; reviewedText=null;
+  if (field!=='reviewed') { reviewDraft[i].reviewed=false; renderReview(); }
+}
+function renderReview() {
+  $('reviewTable').innerHTML=reviewDraft.map(function(r,i){
+    return '<tr><td><textarea aria-label="'+esc(t('review_task'))+'" onchange="editReview('+i+',\'t\',this.value)">'+esc(r.t)+
+      '</textarea></td><td><input aria-label="'+esc(t('review_expected'))+'" value="'+esc(r.e)+'" onchange="editReview('+i+',\'e\',this.value)"></td>'+
+      '<td><label><input type="checkbox" '+(r.reviewed?'checked':'')+' onchange="editReview('+i+',\'reviewed\',this.checked)">'+esc(t('review_confirm'))+'</label></td></tr>';
+  }).join('');
+}
+function reviewedTasks() {
+  var ps=parseSkills($('skills').value), names=ps.skills.map(function(s){return s.name;});
+  if (ps.errs.length || !names.length || !reviewDraft.length || reviewDraft.some(function(r){
+    return !r.reviewed || !r.t.trim() || names.concat(['NONE']).indexOf(r.e)<0;
+  })) throw new Error(t('review_required'));
+  return reviewDraft.map(function(r){var row={...r,t:r.t.trim()}; delete row.reviewed; return row;});
+}
+function applyReviewedTasks() {
+  try {
+    var rows=reviewedTasks(); $('tasks').value=JSON.stringify(rows,null,2);
+    reviewedText=$('tasks').value; showStatus(t('review_applied'));
+  } catch(e) { showErr(t('review_required')); }
+}
+function downloadJSON(name, value) {
+  var url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));
+  var a=document.createElement('a'); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
+}
+function exportReviewedTasks() {
+  try { downloadJSON('reviewed-tasks.json',reviewedTasks()); }
+  catch(e) { showErr(t('review_required')); }
+}
+function pairedComparison(before, after, names, samples) {
+  var counts={improved:0,regressed:0,unchanged_correct:0,persistent_error:0,review:0,failed:0};
+  function aggregateRow(bt) {
+    var m=majority(bt.votes);
+    return {task:bt.task, expected:bt.expected, votes:bt.votes, chosen:m.chosen,
+      stable:m.consistency>=0.8 && names.concat(['NONE']).indexOf(m.chosen)>=0, consistency:m.consistency};
+  }
+  var pairs=before.map(function(b,i){
+    var a=aggregateRow(after[i]); b=aggregateRow(b); var status;
+    if (hasInsufficientSamples([b,a],names,samples)) status='failed';
+    else if (!b.stable || !a.stable) status='review';
+    else if (a.chosen===a.expected) status=b.chosen===b.expected?'unchanged_correct':'improved';
+    else status=b.chosen===b.expected?'regressed':'persistent_error';
+    counts[status]++; return {id:i,status:status,baseline:b,candidate:a};
+  });
+  return {pairs:pairs,counts:counts,exit_code:counts.failed?2:counts.regressed?1:counts.review?3:0};
+}
+function renderWebComparison(result) {
+  $('comparisonResult').classList.remove('hidden');
+  if(result.diagnostics && result.diagnostics.length)showErr(diagnosticText(result.diagnostics[0]));
+  else if(result.exit_code===2 && !result.stopped)showErr(t('insufficient_samples'));
+  $('comparisonSummary').textContent=(result.meta && result.meta.comparison_type==='AA'?t('aa_note')+' · ':'')+t('comparison_code')+' '+result.exit_code+' · '+Object.keys(result.counts).map(function(k){return t(k)+': '+result.counts[k];}).join(' · ');
+  $('comparisonRows').innerHTML=result.pairs.map(function(p){
+    return '<tr>'+[p.baseline.task,p.baseline.expected,t(p.status),p.baseline.chosen+' ['+p.baseline.votes.join(', ')+']',
+      p.candidate.chosen+' ['+p.candidate.votes.join(', ')+']'].map(function(v){return '<td>'+esc(v)+'</td>';}).join('')+'</tr>';
+  }).join('');
+  $('comparisonChanges').innerHTML=result.changes.map(function(c){return '<tr><td>'+esc(c.name)+'</td><td>'+esc(c.before)+'</td><td>'+esc(c.after)+'</td></tr>';}).join('');
+}
+async function runComparison(aa) {
+  hideErr();
+  var b=parseSkills($('baselineSkills').value), c=parseSkills($('skills').value), pt=parseTasks($('tasks').value);
+  if(aa)b={skills:c.skills.slice(),errs:c.errs.slice()};
+  b.skills.sort(function(x,y){return x.name < y.name ? -1 : x.name > y.name ? 1 : 0;}); c.skills.sort(function(x,y){return x.name < y.name ? -1 : x.name > y.name ? 1 : 0;});
+  var names=c.skills.map(function(s){return s.name;});
+  if (b.errs.length || c.errs.length || !names.length || JSON.stringify(names)!==JSON.stringify(b.skills.map(function(s){return s.name;}))) {
+    showErr(t('comparison_names')); return;
+  }
+  if (!pt.tasks.length || reviewedText!==$('tasks').value || pt.tasks.some(function(r){return !r.task || names.concat(['NONE']).indexOf(r.expected)<0;})) {
+    showErr(t('review_required')); return;
+  }
+  var cfg=getCfg(), base=cfg.provider==='openai'?cfg.base:PROVIDER_BASE[cfg.provider];
+  if (!cfg.key || !cfg.model || !base || cfg.provider==='demo') { showErr(t('connection_config')); return; }
+  var samples=5, started=new Date().toISOString(), catalogs={baseline:buildCatalog(b.skills),candidate:buildCatalog(c.skills)};
+  var rows={baseline:[],candidate:[]}, diagnostics=[];
+  ['baseline','candidate'].forEach(function(arm){rows[arm]=pt.tasks.map(function(r){return {task:r.task,expected:r.expected,votes:[]};});});
+  beginOperation(); evalStopped=false; setRunning(true); window.__lastComparison=null;
+  window.__lastRender=null; window.__lastDemoRendered=false; window.__lastFixes=null; $('result').classList.add('hidden'); $('comparisonResult').classList.add('hidden');
+  $('bar').style.display='block'; $('barfill').style.width='0%';
+  try {
+    await connectionPreflight(cfg,base);
+    if (evalStopped) { showErr(t('run_stopped')); return; }
+    var jobs=[];
+    pt.tasks.forEach(function(task,ti){for(var si=0;si<samples;si++){
+      ((ti+si)%2?['candidate','baseline']:['baseline','candidate']).forEach(function(arm){
+        var sample=si;
+        jobs.push(async function(){
+          if(evalStopped){rows[arm][ti].votes[sample]='STOPPED';return;}
+          try { rows[arm][ti].votes[sample]=extractChosen(await chatCall(cfg,base,catalogs[arm],task.task),names); }
+          catch(e){rows[arm][ti].votes[sample]=evalStopped?'STOPPED':'ERROR'; if(!evalStopped)diagnostics.push(e.diagnostic || safeDiagnostic(e));}
+        });
+      });
+    }});
+    await pool(jobs,4,function(n){$('barfill').style.width=(100*n/jobs.length)+'%';});
+    var result=pairedComparison(rows.baseline,rows.candidate,names,samples);
+    if(evalStopped){result.exit_code=2;result.stopped=true;}
+    result.meta={schema_version:1,run_id:activeRunId,comparison_type:aa?'AA':'AB',mode:'web-comparison',provider:cfg.provider,model:cfg.model,samples:5,temperature:0.7,max_tokens:60,
+      consistency_min:0.8,started_at:started,finished_at:new Date().toISOString(),system_prompt:SYSTEM_PROMPT};
+    result.collections={baseline:b.skills,candidate:c.skills}; result.tasks=JSON.parse(reviewedText); result.coverage=taskCoverage(result.tasks,names); result.diagnostics=diagnostics;
+    result.arms={baseline:result.pairs.map(function(p){return p.baseline;}),candidate:result.pairs.map(function(p){return p.candidate;})};
+    result.changes=b.skills.map(function(s,i){return {name:s.name,before:s.description,after:c.skills[i].description};}).filter(function(s){return s.before!==s.after;});
+    window.__lastComparison=result;renderWebComparison(result);renderCoverage(result.coverage);
+    if(evalStopped)showErr(t('run_stopped'));
+  } catch(e) { showErr(diagnosticText(e.diagnostic || safeDiagnostic(e))); }
+  finally {setRunning(false);$('bar').style.display='none';}
+}
+function taskCoverage(tasks,names) {
+  var skills=Object.create(null), texts=new Map(), none=0;
+  names.forEach(function(n){skills[n]={positive:0,gray:0,other:0};});
+  tasks.forEach(function(r){
+    var text=r.t.trim(); texts.set(text,(texts.get(text)||0)+1);
+    if(r.e==='NONE')none++;
+    if(skills[r.e]){var kind=r.kind===undefined?'positive':r.kind; skills[r.e][kind==='positive'||kind==='gray'?kind:'other']++;}
+  });
+  return {skills:skills,none_tasks:none,uncovered:names.filter(function(n){var c=skills[n];return !(c.positive+c.gray+c.other);}),
+    duplicates:Array.from(texts).filter(function(r){return r[1]>1;}).map(function(r){return {text:r[0],count:r[1]};})};
+}
+function renderCoverage(coverage) {
+  window.__lastCoverage=coverage;
+  $('coverageResult').classList.remove('hidden');
+  $('coverageResult').innerHTML='<h2>'+esc(t('coverage_title'))+'</h2><table><thead><tr>'+t('coverage_headers').map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'</tr></thead><tbody>'+Object.keys(coverage.skills).map(function(n){
+    var c=coverage.skills[n];return '<tr><td>'+esc(n)+'</td><td>'+c.positive+'</td><td>'+c.gray+'</td><td>'+c.other+'</td></tr>';
+  }).join('')+'</tbody></table><p>'+esc(t('coverage_none'))+': '+coverage.none_tasks+' · '+esc(t('coverage_missing'))+': '+esc(coverage.uncovered.join(', ') || '—')+'</p><p>'+esc(t('coverage_duplicates'))+': '+coverage.duplicates.length+'</p>'+coverage.duplicates.map(function(r){return '<p>'+r.count+' × '+esc(r.text)+'</p>';}).join('');
+}
+function showCoverage() {
+  try {
+    var ps=parseSkills($('skills').value), pt=parseTasks($('tasks').value);
+    if(ps.errs.length || pt.errs.length || !ps.skills.length || !pt.tasks.length)throw new Error();
+    var tasks=$('tasks').value.trim().charAt(0)==='['?JSON.parse($('tasks').value):pt.tasks.map(function(r){return {t:r.task,e:r.expected};});
+    renderCoverage(taskCoverage(tasks,ps.skills.map(function(r){return r.name;})));
+  }catch(e){showErr(t('review_invalid'));}
+}
+function exportComparison() {
+  if(window.__lastComparison)downloadJSON('comparison.json',window.__lastComparison);
 }
 
 loadSaved();

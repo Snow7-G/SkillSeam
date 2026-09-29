@@ -166,6 +166,9 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   global.fetch = savedFetch3;
   p.catch(function() {});
 
+  const realPreflight = connectionPreflight;
+  connectionPreflight = () => Promise.resolve({ok:true});
+
   // ===== 完整流程测试 A/B 共用的内部状态捕获 =====
   const hookCalls = [];
   globalThis.__atlasHook = function(byTask, info) {
@@ -183,7 +186,7 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   global.fetch = function() { return Promise.reject(new Error("boom network")); };
   run();
   await new Promise(function(r) { setTimeout(r, 20); });
-  check("流程A：错误原因保留", els["errbox"].textContent.indexOf("boom network") >= 0);
+  check("流程A：错误原因保留", els["errbox"].textContent.indexOf("network") >= 0 && els["errbox"].textContent.indexOf("boom network") < 0);
   check("流程A：无 [object Object]", els["errbox"].textContent.indexOf("object Object") < 0);
   check("流程A：采样分类为 ERROR", hookCalls.length === 1 &&
     hookCalls[0].byTask.every(function(bt) { return bt.votes.join(",") === "ERROR"; }));
@@ -432,6 +435,113 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
     {path: "bad/SKILL.md", folder: "bad", text: "---\nname: bad\ndescription: >2\n  text\n---"}
   ]);
   check("invalid folder import blocks entire batch", rejected.rows.length === 0 && rejected.errors.length === 1);
+
+  connectionPreflight=realPreflight;
+  const featureFetch=global.fetch;
+  let probeCalls=0;
+  global.fetch=()=>{probeCalls++;return Promise.resolve({ok:false,status:401,text:()=>Promise.resolve('PRIVATE_VALUE')});};
+  let probeError;
+  try { await connectionPreflight({provider:'openai',key:'PRIVATE_VALUE',model:'test'},'https://x'); }
+  catch(e){probeError=e;}
+  check('preflight authentication sanitized',probeCalls===1 && probeError.diagnostic.code==='authentication' && !probeError.message.includes('PRIVATE_VALUE'));
+  check('browser network diagnosis honest',diagnosticText(safeDiagnostic(new TypeError('PRIVATE_VALUE'))).includes('CORS'));
+  global.fetch=()=>Promise.resolve({ok:true,json:()=>Promise.resolve({choices:[{message:{content:'not a choice'}}]})});
+  let invalidProbe=false;
+  try {await connectionPreflight({provider:'openai',key:'k',model:'m'},'https://x');}catch(e){invalidProbe=e.diagnostic.code==='invalid_response';}
+  check('unparseable preflight blocks',invalidProbe);
+  global.fetch=()=>Promise.resolve({ok:true,json:()=>Promise.resolve({wrong:'PRIVATE_VALUE'})});
+  let malformedProbe=false;
+  try{await connectionPreflight({provider:'openai',key:'k',model:'m'},'https://x');}
+  catch(e){malformedProbe=e.diagnostic.code==='invalid_response' && !e.message.includes('PRIVATE_VALUE');}
+  check('malformed response is not misclassified as network',malformedProbe);
+
+  const draft=parseTaskDraft([{t:'line 1\nline 2 => quoted',e:'a-b',hint:true,id:'case-17',kind:'gray',pair:['a-b','c-d']}]);
+  check('import never trusts suggested labels',draft[0].reviewed===false);
+  el('skills').value='a-b: candidate a\nc-d: candidate c';
+  reviewDraft=draft;
+  let unreviewed=false;try{reviewedTasks();}catch(e){unreviewed=true;}
+  check('unreviewed task blocked',unreviewed);
+  editReview(0,'reviewed',true);applyReviewedTasks();
+  check('multiline task survives review and JSON parsing',parseTasks(el('tasks').value).tasks[0].task===draft[0].t);
+  reviewCurrentTasks();editReview(0,'reviewed',true);applyReviewedTasks();
+  const retained=JSON.parse(el('tasks').value)[0];
+  check('review preserves task provenance',retained.id==='case-17' && retained.kind==='gray' && retained.pair.join(',')==='a-b,c-d' && retained.hint===true && !('reviewed' in retained));
+  editReview(0,'e','c-d');
+  check('editing invalidates confirmation',!reviewDraft[0].reviewed && reviewedText===null);
+  let refused=false;try{parseTaskDraft([null]);}catch(e){refused=true;}
+  check('invalid draft rejected',refused);
+  reviewDraft=[{t:'<img onerror=x>',e:'a-b',reviewed:false}];renderReview();
+  check('review display escapes imported task',!el('reviewTable').innerHTML.includes('<img'));
+  function bt(votes,expected){return {task:'test',expected:expected||'a-b',votes:votes};}
+  const five=x=>Array(5).fill(x);
+  [
+    [five('c-d'),five('a-b'),'improved',0],
+    [five('a-b'),five('c-d'),'regressed',1],
+    [five('a-b'),five('a-b'),'unchanged_correct',0],
+    [five('c-d'),five('NONE'),'persistent_error',0],
+    [['a-b','a-b','a-b','c-d','c-d'],five('a-b'),'review',3],
+    [['a-b','a-b','a-b','ERROR','ERROR'],five('a-b'),'failed',2]
+  ].forEach(function(c){const r=pairedComparison([bt(c[0])],[bt(c[1])],['a-b','c-d'],5);check('web paired '+c[2],r.pairs[0].status===c[2]&&r.exit_code===c[3]);});
+  check('web failure outranks regression',pairedComparison([bt(five('a-b')),bt(five('a-b'))],
+    [bt(five('c-d')),bt(five('ERROR'))],['a-b','c-d'],5).exit_code===2);
+  el('baselineSkills').value='c-d: baseline c\na-b: baseline a';
+  el('key').value='PRIVATE_VALUE';el('provider').value='openai';el('model').value='test';el('base').value='https://x';
+  reviewDraft=[{t:'first task',e:'a-b',reviewed:true},{t:'second task',e:'c-d',reviewed:true}];applyReviewedTasks();
+  let requests=[];
+  global.fetch=(url,opts)=>{
+    const body=JSON.parse(opts.body);requests.push(body);
+    const content=body.messages[1].content;
+    const chosen=content.includes('Connection test')?'NONE':content.includes('candidate')?'a-b':'c-d';
+    return Promise.resolve({ok:true,json:()=>Promise.resolve({choices:[{message:{content:chosen}}]})});
+  };
+  await runComparison();
+  check('full web comparison counts and preflight',requests.length===21 && window.__lastComparison.exit_code===1 &&
+    window.__lastComparison.counts.improved===1&&window.__lastComparison.counts.regressed===1);
+  check('comparison export excludes credentials',!JSON.stringify(window.__lastComparison).includes('PRIVATE_VALUE'));
+  check('fixed five samples despite selector',window.__lastComparison.meta.samples===5);
+  check('comparison shows description diff',window.__lastComparison.changes.length===2);
+  const previousRun=window.__lastComparison.meta.run_id;
+  el('baselineSkills').value='invalid baseline ignored for AA';requests=[];
+  await runComparison(true);
+  check('AA uses identical catalogs and independent calls',requests.length===21 && window.__lastComparison.meta.comparison_type==='AA' && window.__lastComparison.changes.length===0 && JSON.stringify(window.__lastComparison.collections.baseline)===JSON.stringify(window.__lastComparison.collections.candidate));
+  check('AA report labels variation and has new run identity',window.__lastComparison.meta.run_id!==previousRun && el('comparisonSummary').textContent.includes(t('aa_note')));
+  el('baselineSkills').value='c-d: baseline c\na-b: baseline a';
+  requests=[];el('tasks').value+=' ';
+  await runComparison();check('task edits require renewed review',requests.length===0);
+  applyReviewedTasks();el('baselineSkills').value='a-b: baseline';requests=[];
+  await runComparison();check('mismatched collections stop before network',requests.length===0);
+  el('baselineSkills').value='a-b: baseline a\nc-d: baseline c';
+  let failures=0;global.fetch=()=>{failures++;return Promise.reject(new TypeError('PRIVATE_VALUE'));};
+  await runComparison();
+  check('comparison preflight failure prevents batch',failures===1&&window.__lastComparison===null&&!el('errbox').textContent.includes('PRIVATE_VALUE'));
+  failures=0;await run();check('single evaluation preflight prevents batch',failures===1);
+  failures=0;await genTasks();check('generation preflight prevents batch',failures===1);
+  let pendingSignals=[];
+  global.fetch=(url,opts)=>{
+    if(JSON.parse(opts.body).messages[1].content.includes('Connection test'))
+      return Promise.resolve({ok:true,json:()=>Promise.resolve({choices:[{message:{content:'NONE'}}]})});
+    pendingSignals.push(opts.signal);
+    return new Promise((resolve,reject)=>opts.signal.addEventListener('abort',()=>{const e=new Error();e.name='AbortError';reject(e);}));
+  };
+  const stoppedComparison=runComparison();await new Promise(resolve=>setTimeout(resolve,20));stopEval();await stoppedComparison;
+  check('comparison stop aborts and marks incomplete',pendingSignals.length>0&&pendingSignals.every(x=>x.aborted)&&window.__lastComparison.stopped&&window.__lastComparison.exit_code===2);
+  global.fetch=featureFetch;
+
+  const cv=taskCoverage([{t:'x',e:'a-b'},{t:' x ',e:'a-b',kind:'gray'},{t:'n',e:'NONE'}],['a-b','c-d']);
+  check('coverage counts labels and kinds',cv.skills['a-b'].positive===1 && cv.skills['a-b'].gray===1 && cv.none_tasks===1);
+  check('coverage reports uncovered skills and duplicates',cv.uncovered.join(',')==='c-d' && cv.duplicates[0].count===2);
+  const originalGen=genFixes, originalRender=renderFixes;
+  let resolveOld, oldRenders=0;
+  genFixes=()=>new Promise(resolve=>{resolveOld=resolve;});
+  renderFixes=()=>{oldRenders++;};
+  evalStopped=false; beginOperation();
+  triggerFixGeneration([{expected:'a-b'}],{'a-b':{}},[],{},'https://example.invalid');
+  beginOperation(); resolveOld([]); await new Promise(resolve=>setTimeout(resolve,0));
+  check('late suggestion cannot overwrite a newer operation',oldRenders===0);
+  triggerFixGeneration([{expected:'a-b'}],{'a-b':{}},[],{},'https://example.invalid');
+  resolveOld([]); await new Promise(resolve=>setTimeout(resolve,0));
+  check('current suggestion still renders',oldRenders===1);
+  genFixes=originalGen;renderFixes=originalRender;
 
   // 文档自校验是元检查，不计入产品断言数；先冻结计数器，否则会出现「自己数自己」的循环
   const productTotal = pass + fail;

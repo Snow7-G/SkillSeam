@@ -30,6 +30,11 @@ import time
 import random
 import shutil
 import shlex
+import ssl
+import socket
+import uuid
+from contextlib import contextmanager
+import urllib.error
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -289,7 +294,7 @@ def scan_skills(root: Path):
             rejected.append((md, [i.replace("[fatal] ", "") for i in fatal]))
             continue
         if skill is None:
-            all_issues.append((md, issues))
+            rejected.append((md, issues))
             continue
         skills.append(skill)
         if issues:
@@ -402,16 +407,61 @@ def extract_chosen(content, valid_names):
     return "INVALID"
 
 
+def diagnose_error(error):
+    """只返回受控分类，不返回 URL、响应体、异常原文或凭据。"""
+    reason = getattr(error, "reason", error)
+    status = getattr(error, "code", None)
+    if status in (401, 403):
+        code, hint = "authentication", "检查 API Key 和访问权限。"
+    elif status == 429:
+        code, hint = "rate_limit", "额度不足或请求限流；检查额度并降低并发。"
+    elif status in (400, 404, 422):
+        code, hint = "endpoint_or_model", "检查端点、模型名及请求参数。"
+    elif isinstance(status, int):
+        code, hint = "http_error", "服务端返回 HTTP 错误，请稍后重试。"
+    elif isinstance(reason, ssl.SSLCertVerificationError) or "CERTIFICATE_VERIFY_FAILED" in str(reason):
+        code, hint = "tls_certificate", "CERTIFICATE_VERIFY_FAILED：检查本机根证书、代理证书；勿关闭证书校验。"
+    elif isinstance(reason, ssl.SSLError):
+        code, hint = "tls_handshake", "TLS 握手失败；检查端点与网络代理。"
+    elif isinstance(reason, (TimeoutError, socket.timeout)):
+        code, hint = "timeout", "请求超时；检查网络或稍后重试。"
+    elif isinstance(reason, socket.gaierror):
+        code, hint = "dns", "域名解析失败；检查端点与 DNS。"
+    elif isinstance(error, (ValueError, KeyError, TypeError, IndexError, AttributeError)):
+        code, hint = "invalid_response", "响应结构或选择格式不可解析；检查模型兼容性。"
+    else:
+        code, hint = "network", "网络连接失败；检查端点、代理和连通性。"
+    return {"code": code, "http_status": status if isinstance(status, int) else None, "hint": hint}
+
+
 def _err_text(e):
-    """把异常整理成可读原因；HTTPError 额外带上响应体（多数平台在 body 里说明原因）。"""
-    msg = f"{type(e).__name__}: {e}"
-    body = None
+    diagnostic = diagnose_error(e)
+    return f"{diagnostic['code']}: {diagnostic['hint']}"
+
+
+def preflight(cfg, out):
+    """一次固定探测，不含用户任务或技能；失败阻止批量请求。"""
+    print("连接预检中（固定探测，不发送用户任务）...", flush=True)
     try:
-        if hasattr(e, "read"):
-            body = (e.read() or b"").decode("utf-8", "ignore").strip()[:200]
-    except Exception:
-        body = None
-    return f"{msg} | {body}" if body else msg
+        result = chat_once(cfg, "1. name: connection-check\n   description: Reply to a connection test", "Connection test")
+        if extract_chosen(result, ["connection-check"]) == "INVALID":
+            raise ValueError("invalid selection")
+        diagnostic = {"code": "ok", "http_status": None, "hint": "连接及选择响应解析通过。"}
+    except Exception as e:
+        diagnostic = diagnose_error(e)
+    diagnostic.update({"phase": "preflight", "checked_at": datetime.now().isoformat(),
+                       "ok": diagnostic["code"] == "ok"})
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "preflight.json").write_text(json.dumps(diagnostic, ensure_ascii=False, indent=2), encoding="utf-8")
+    except OSError:
+        eprint("错误: 无法写入连接预检诊断。")
+        return False
+    if not diagnostic["ok"]:
+        eprint(f"评测失败（连接预检）: {diagnostic['code']} — {diagnostic['hint']}")
+    else:
+        print("连接与响应解析通过；仍需检查批量评测结果。")
+    return diagnostic["ok"]
 
 
 def select_sample(cfg, catalog, text, names, errors=None):
@@ -935,6 +985,7 @@ def render_report(rows, skills, meta):
 <div class="note">对角线 = 应选技能被正确选中；红色 = 被其他技能截胡，颜色越深次数越多。</div></section>
 <section><h2>冲突明细</h2>{conf_html}</section>
 {fix_section}
+<section>{render_coverage(meta.get("coverage"))}</section>
 <section><details><summary>全部 {len(rows)} 条任务的模拟明细</summary>
 <table><tr><th>任务</th><th>应选</th><th>实际选中</th><th>结果</th></tr>{trs}</table></details></section>
 <div class="note">SkillSeam · 仅注入 name+description 模拟 agent 技能选择 · 退出码 {"2(评测失败：有效采样不足，报告仅供诊断)" if meta.get("evaluation_failed") else "1(有冲突)" if conflicts else "0(无冲突)"}</div>
@@ -1293,26 +1344,89 @@ def render_comparison(data):
     changes = "".join("<tr><td>" + esc(c["name"]) + "</td><td>" + esc(c["before"]) +
                       "</td><td>" + esc(c["after"]) + "</td></tr>" for c in data["changes"])
     summary = " · ".join(labels[k] + ": " + str(v) for k, v in data["counts"].items())
+    coverage_html = render_coverage(data.get("coverage"))
+    note = "A/A：同一集合两组独立采样；变化用于观察背景波动，不代表修复有效。" if data["meta"].get("comparison_type") == "AA" else "A/B：修改前后对照。"
     return ("<!doctype html><html lang='zh'><meta charset='utf-8'><title>SkillSeam 对照报告</title>"
             "<style>body{font:16px sans-serif;max-width:1200px;margin:40px auto;padding:20px}"
             "table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:10px;"
             "text-align:left;white-space:pre-wrap;overflow-wrap:anywhere}</style>"
-            "<h1>SkillSeam 修改前后对照</h1><p>模式：" + esc(data["meta"]["mode"]) +
+            "<h1>SkillSeam 技能对照</h1><p>" + note + "</p><p>模式：" + esc(data["meta"]["mode"]) +
             " · 模型：" + esc(data["meta"]["model"]) +
             " · 退出码：" + str(data["exit_code"]) + "</p><p>" + esc(summary) +
             "</p><p>0 表示未发现稳定回归，不代表没有遗留冲突。待复核或失败不能视为通过。"
             "配对单位为任务；五次采样不构成显著性证明。NONE 表示不触发技能。"
             "预期为技能而选中 NONE 表示漏触发；预期 NONE 而选中技能表示过度触发。</p>"
-            "<h2>逐任务变化</h2><table><tr><th>任务</th><th>预期</th><th>变化</th>"
+            + coverage_html + "<h2>逐任务变化</h2><table><tr><th>任务</th><th>预期</th><th>变化</th>"
             "<th>基线选择与原始票数</th><th>候选选择与原始票数</th></tr>" + "".join(rows) +
             "</table><h2>Description 修改</h2><table><tr><th>技能</th><th>修改前</th>"
             "<th>修改后</th></tr>" + changes + "</table></html>")
 
 
+@contextmanager
+def evaluation_run(out):
+    """保留历史产物；根目录永远只代表当前运行。"""
+    out.mkdir(parents=True, exist_ok=True)
+    old = [out / name for name in ("run.json", "preflight.json", "comparison.json", "results.json",
+                                   "report.html", "tasks-generated.json") if (out / name).exists()]
+    if old:
+        history = out / "history" / uuid.uuid4().hex
+        history.mkdir(parents=True)
+        for path in old:
+            shutil.move(str(path), str(history / path.name))
+    run = {"run_id": uuid.uuid4().hex, "status": "running", "started_at": datetime.now().isoformat(), "exit_code": 2}
+    def save():
+        pending = out / "run.json.tmp"
+        pending.write_text(json.dumps(run, ensure_ascii=False, indent=2), encoding="utf-8")
+        pending.replace(out / "run.json")
+    save()
+    try:
+        yield run
+    except SystemExit as e:
+        run["exit_code"] = e.code if isinstance(e.code, int) else 2
+        raise
+    finally:
+        run["status"] = "failed" if run["exit_code"] == 2 else "review" if run["exit_code"] == 3 else "regressed" if run["exit_code"] == 1 else "completed"
+        run["finished_at"] = datetime.now().isoformat()
+        save()
+
+
+def task_coverage(tasks, names):
+    counts = {name: {"positive": 0, "gray": 0, "other": 0} for name in names}
+    texts = Counter(t["t"].strip() for t in tasks)
+    for task in tasks:
+        if task["e"] in counts:
+            kind = task.get("kind", "positive")
+            counts[task["e"]][kind if kind in ("positive", "gray") else "other"] += 1
+    return {"skills": counts, "none_tasks": sum(t["e"] == "NONE" for t in tasks),
+            "uncovered": [n for n, c in counts.items() if not sum(c.values())],
+            "duplicates": [{"text": text, "count": count} for text, count in texts.items() if count > 1]}
+
+
+def render_coverage(coverage):
+    if not coverage:
+        return ""
+    rows = "".join("<tr><td>" + esc(n) + "</td>" + "".join("<td>" + str(c[k]) + "</td>"
+                    for k in ("positive", "gray", "other")) + "</tr>" for n, c in coverage["skills"].items())
+    duplicates = "".join("<p>" + str(r["count"]) + " × " + esc(r["text"]) + "</p>" for r in coverage["duplicates"])
+    return ("<h2>任务覆盖</h2><table><tr><th>技能</th><th>正向</th><th>灰区</th><th>其他</th></tr>" + rows +
+            "</table><p>不触发任务：" + str(coverage["none_tasks"]) + "；尚无任务覆盖：" +
+            esc(", ".join(coverage["uncovered"]) or "—") + "</p><p>重复任务文本：" +
+            str(len(coverage["duplicates"])) + "</p>" + duplicates)
+
+
+def scan_inventory(root, skills):
+    included, skipped = _iter_skill_mds(root)
+    return {"discovered": len(included) + len(skipped), "included": [str(p.relative_to(root)) for p in included],
+            "excluded": [{"path": str(p.relative_to(root)), "reason": reason} for p, reason in skipped],
+            "skill_names": [s["name"] for s in skills]}
+
+
 def cmd_compare(argv):
     parser = argparse.ArgumentParser(description="固定任务集上的技能描述对照；退出码 0 无回归 / 1 回归 / 2 失败 / 3 待复核")
     parser.add_argument("skills", type=Path)
-    parser.add_argument("--baseline", type=Path, required=True)
+    arm = parser.add_mutually_exclusive_group(required=True)
+    arm.add_argument("--baseline", type=Path)
+    arm.add_argument("--aa", action="store_true", help="同一技能集的两组独立采样，观察背景波动")
     parser.add_argument("--tasks", type=Path, required=True)
     parser.add_argument("--out", type=Path, default=Path("output/comparison"))
     parser.add_argument("--workers", type=int, default=MAX_WORKERS)
@@ -1321,7 +1435,15 @@ def cmd_compare(argv):
     args = parser.parse_args(argv)
     if args.workers < 1:
         parser.error("--workers 必须大于 0")
+    if args.aa:
+        args.baseline = args.skills
+    with evaluation_run(args.out) as run:
+        return compare_collections(args, run)
+
+
+def compare_collections(args, run):
     collections = {}
+    inventory = {}
     try:
         for arm, root in (("baseline", args.baseline), ("candidate", args.skills)):
             if not root.is_dir():
@@ -1330,6 +1452,9 @@ def cmd_compare(argv):
             for path, messages in issues:
                 for message in messages:
                     eprint(f"[warn] {arm}: {path}: {message}")
+            if rejected:
+                for file, reasons in rejected:
+                    eprint(f"[rejected] {arm}: {file}: {'; '.join(reasons)}")
             if rejected or not skills:
                 raise ValueError(f"{arm}: 技能为空或存在无法解析的 frontmatter")
             names = [sk["name"] for sk in skills]
@@ -1338,6 +1463,7 @@ def cmd_compare(argv):
             if any(not sk["description"].strip() for sk in skills):
                 raise ValueError(f"{arm}: description 为空")
             collections[arm] = sorted(skills, key=lambda sk: sk["name"])
+            inventory[arm] = scan_inventory(root, collections[arm])
         names = [sk["name"] for sk in collections["baseline"]]
         if names != [sk["name"] for sk in collections["candidate"]]:
             raise ValueError("两组技能名称集合必须相同；第一版不支持新增、删除或重命名")
@@ -1356,9 +1482,12 @@ def cmd_compare(argv):
     if not args.mock and cfg is None:
         eprint("错误: 对照评测需要模型配置；离线管线验证请显式使用 --mock")
         return 2
+    if not args.mock and not preflight(cfg, args.out):
+        return 2
     started = datetime.now().isoformat()
     catalogs = {arm: build_catalog(skills) for arm, skills in collections.items()}
     votes = {arm: {} for arm in collections}
+    diagnostics = {arm: [] for arm in collections}
     print(f"对照评测: {len(tasks)} 任务 × {SAMPLES} 采样 × 2 组；不自动生成修复建议")
     if args.mock:
         votes = {arm: simulate_mock(skills, names, tasks) for arm, skills in collections.items()}
@@ -1368,7 +1497,7 @@ def cmd_compare(argv):
                 for arm in (("baseline", "candidate") if (ti + si) % 2 == 0 else ("candidate", "baseline"))]
         def work(job):
             arm, ti, si = job
-            return arm, ti, si, select_sample(cfg, catalogs[arm], tasks[ti]["t"], names)
+            return arm, ti, si, select_sample(cfg, catalogs[arm], tasks[ti]["t"], names, diagnostics[arm])
         with ThreadPoolExecutor(max_workers=args.workers) as executor:
             for done, (arm, ti, si, chosen) in enumerate(executor.map(work, jobs), 1):
                 votes[arm][ti, si] = chosen
@@ -1380,7 +1509,7 @@ def cmd_compare(argv):
         return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
     snapshots = {arm: [{"name": sk["name"], "description": sk["description"]} for sk in skills]
                  for arm, skills in collections.items()}
-    data = {"meta": {"schema_version": 1, "version": __version__, "started_at": started,
+    data = {"meta": {"schema_version": 1, "run_id": run["run_id"], "comparison_type": "AA" if args.aa else "AB", "version": __version__, "started_at": started,
                      "finished_at": datetime.now().isoformat(), "mode": "MOCK（仅验证管线）" if args.mock else "LLM selector simulation",
                      "model": "keyword-mock" if args.mock else cfg["model"], "samples": SAMPLES,
                      "temperature": 0.7, "max_tokens": 60, "consistency_min": CONSISTENCY_MIN,
@@ -1388,7 +1517,7 @@ def cmd_compare(argv):
                      "system_prompt_sha256": digest(SYSTEM_PROMPT),
                      "endpoint_sha256": None if args.mock else digest(cfg["base_url"]),
                      "tasks_sha256": digest(tasks), "collections_sha256": {a: digest(v) for a, v in snapshots.items()}},
-            "tasks": tasks, "collections": snapshots, "arms": arms, "pairs": pairs,
+            "tasks": tasks, "coverage": task_coverage(tasks, names), "scan": inventory, "collections": snapshots, "arms": arms, "pairs": pairs, "diagnostics": diagnostics,
             "counts": counts, "exit_code": code,
             "changes": [{"name": b["name"], "before": b["description"], "after": c["description"]}
                         for b, c in zip(snapshots["baseline"], snapshots["candidate"])
@@ -1400,6 +1529,7 @@ def cmd_compare(argv):
         eprint(f"错误: 无法写入对照报告: {e}")
         return 2
     print(f"对照结果: {counts}；退出码 {code}；报告 {args.out / 'report.html'}")
+    run["exit_code"] = code
     return code
 
 
@@ -1414,6 +1544,8 @@ HELP_TEXT = """SkillSeam {version} —— 模拟 agent 的 skill 选择过程，
   skill-seam export <skills目录>        输出网页版粘贴格式（name: description）
 
 检测选项:
+  --check-connection     单独预检连接；真实评测前也会自动预检
+  --aa                   同一技能集双组采样（需 --tasks），观察背景波动
   --baseline <目录>      修改前技能集（对照模式必须提供 --tasks；退出码 0/1/2/3）
   --tasks <file.json>    自定义任务清单（推荐：真实用户问法）
   --demo-tasks           内置 40 条眼科 demo 任务
@@ -1452,8 +1584,20 @@ def main():
         sys.exit(cmd_harvest(args[1:]))
     if args and args[0] == "export":
         sys.exit(cmd_export(args[1:]))
-    if any(a == "--baseline" or a.startswith("--baseline=") for a in args):
+    if "--aa" in args or any(a == "--baseline" or a.startswith("--baseline=") for a in args):
         sys.exit(cmd_compare(args))
+    if "--check-connection" in args:
+        parser = argparse.ArgumentParser(description="只预检连接，不评测用户技能")
+        parser.add_argument("--check-connection", action="store_true")
+        parser.add_argument("--out", type=Path, default=Path("output"))
+        options = parser.parse_args(args)
+        with evaluation_run(options.out):
+            cfg = load_config()
+            if cfg is None:
+                eprint("错误: 未配置模型。")
+                sys.exit(2)
+            sys.exit(0 if preflight(cfg, options.out) else 2)
+    checked = False
     mock = "--mock" in args
     task_file = None
     if "--tasks" in args:
@@ -1502,184 +1646,191 @@ def main():
     n_pos = int_opt("--gen-positive", 5)
     k_pairs = int_opt("--gray-pairs", 2, minimum=0)  # 0 = 不生成灰区任务
 
-    skills, issues, rejected = scan_skills(root)
-    if rejected:
-        for md, msgs in rejected:
-            for msg in msgs:
-                eprint(f"错误: {md}: {msg}")
-        eprint("错误: 存在无法可靠解析的 SKILL.md，评测中止（拒绝返回 0）。")
-        sys.exit(2)
-    if not skills:
-        eprint("错误: 未找到任何 SKILL.md")
-        sys.exit(2)
-    for p, iss in issues:
-        print(f"[warn] {p}: {'; '.join(iss)}")
-    valid_names = [s["name"] for s in skills]
-
     out = Path.cwd() / "output"
     if "--out" in args and args.index("--out") + 1 < len(args):
         out = Path(args[args.index("--out") + 1])
-    out.mkdir(exist_ok=True)
-    task_source = "user"
-    if task_file:
-        try:
-            loaded = json.loads(task_file.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as e:
-            eprint(f"错误: 任务文件不是合法 JSON: {e}")
+    with evaluation_run(out) as run:
+        skills, issues, rejected = scan_skills(root)
+        if rejected:
+            for md, msgs in rejected:
+                for msg in msgs:
+                    eprint(f"错误: {md}: {msg}")
+            eprint("错误: 存在无法可靠解析的 SKILL.md，评测中止（拒绝返回 0）。")
             sys.exit(2)
-        if not isinstance(loaded, list):
-            eprint("错误: 任务文件必须是 JSON 数组（元素含 t/e/kind/pair 字段）")
+        if not skills:
+            eprint("错误: 未找到任何 SKILL.md")
             sys.exit(2)
-        if not loaded:
-            eprint("错误: 任务文件必须至少包含一条任务")
-            sys.exit(2)
-        bad = []
-        for idx, item in enumerate(loaded):
-            if not isinstance(item, dict):
-                bad.append(f"第 {idx + 1} 条不是 JSON 对象")
-                continue
-            t, e = item.get("t"), item.get("e")
-            if not isinstance(t, str) or not t.strip():
-                bad.append(f"第 {idx + 1} 条的 t(任务文本) 必须是非空字符串")
-            elif not isinstance(e, str) or not e.strip():
-                bad.append(f"第 {idx + 1} 条的 e(应选技能) 必须是非空字符串（\'NONE\' 表示不应触发任何技能）")
-        if bad:
-            eprint(f"错误: 任务文件存在 {len(bad)} 条无效条目: " + "; ".join(bad[:5]))
-            sys.exit(2)
-        TASKS.clear()
-        TASKS.extend(loaded)
-    elif "--demo-tasks" in args:
-        task_source = "内置 demo"
-    else:
-        # 默认：自动生成任务（正向逐 skill + 灰区取相似度最高的 k 对）
-        cfg0 = None if mock else load_config()
-        if mock or cfg0 is None:
-            gen = generate_tasks_mock(skills, n_pos, k_pairs)
-            task_source = "auto(mock，仅验证管线)"
+        for p, iss in issues:
+            print(f"[warn] {p}: {'; '.join(iss)}")
+        valid_names = [s["name"] for s in skills]
+
+        task_source = "user"
+        if task_file:
+            try:
+                loaded = json.loads(task_file.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                eprint(f"错误: 任务文件不是合法 JSON: {e}")
+                sys.exit(2)
+            if not isinstance(loaded, list):
+                eprint("错误: 任务文件必须是 JSON 数组（元素含 t/e/kind/pair 字段）")
+                sys.exit(2)
+            if not loaded:
+                eprint("错误: 任务文件必须至少包含一条任务")
+                sys.exit(2)
+            bad = []
+            for idx, item in enumerate(loaded):
+                if not isinstance(item, dict):
+                    bad.append(f"第 {idx + 1} 条不是 JSON 对象")
+                    continue
+                t, e = item.get("t"), item.get("e")
+                if not isinstance(t, str) or not t.strip():
+                    bad.append(f"第 {idx + 1} 条的 t(任务文本) 必须是非空字符串")
+                elif not isinstance(e, str) or not e.strip():
+                    bad.append(f"第 {idx + 1} 条的 e(应选技能) 必须是非空字符串（\'NONE\' 表示不应触发任何技能）")
+            if bad:
+                eprint(f"错误: 任务文件存在 {len(bad)} 条无效条目: " + "; ".join(bad[:5]))
+                sys.exit(2)
+            TASKS.clear()
+            TASKS.extend(loaded)
+        elif "--demo-tasks" in args:
+            task_source = "内置 demo"
         else:
-            print(f"自动生成任务中（正向 {n_pos}/skill，灰区取相似度前 {k_pairs} 对）...")
-            gen, warns = generate_tasks_real(
-                cfg0, skills, n_pos, k_pairs,
-                marked_examples=[m["t"] for m in load_marked(marked_library_path(args))[:3]])
-            task_source = "auto(LLM)"
-            for w in warns:
-                print(f"[warn] {w}")
-        if not gen:
-            eprint("错误: 任务生成结果为空，无法继续")
-            sys.exit(2)
-        TASKS.clear()
-        TASKS.extend(gen)
-        (out / "tasks-generated.json").write_text(
-            json.dumps(gen, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    # 事故库合并（--with-marked）：只纳入应选技能存在于当前集合的条目
-    if "--with-marked" in args:
-        lib = marked_library_path(args)
-        marked = load_marked(lib)
-        existing_texts = {t["t"] for t in TASKS}
-        applicable, skipped = [], 0
-        for m in marked:
-            if m["e"] not in valid_names:
-                skipped += 1
-                continue
-            if m["t"] in existing_texts:
-                continue
-            existing_texts.add(m["t"])
-            applicable.append(m)
-        TASKS.extend(applicable)
-        if applicable or skipped:
-            print(f"事故库合并: 纳入 {len(applicable)} 条"
-                  + (f"（跳过 {skipped} 条：应选技能不在当前集合）" if skipped else ""))
-        if "--with-marked" in args and applicable:
-            task_source = f"{task_source} + 事故库"
-    else:
-        lib = None
-
-    unknown = sorted({t["e"] for t in TASKS if t["e"] != "NONE"} - set(valid_names))
-    if unknown:
-        eprint(f"错误: 任务清单中的应选技能不存在于 skill 目录: {unknown}")
-        sys.exit(2)
-    catalog = build_catalog(skills)
-    print(f"扫描到 {len(skills)} 个 skill；任务来源: {task_source}，共 {len(TASKS)} 条 × {SAMPLES} 采样 = {len(TASKS) * SAMPLES} 次选择")
-
-    cfg = None if mock else load_config()
-    if cfg is None and not mock:
-        eprint("错误: 未检测到模型配置（.atlasrc.json 或环境变量 DASHSCOPE_API_KEY / DEEPSEEK_API_KEY / OPENAI_API_KEY）。")
-        eprint("       若只想离线验证管线，请显式加 --mock。")
-        sys.exit(2)
-    if mock:
-        t0 = time.time()
-        votes = simulate_mock(skills, valid_names)
-        mode_label, model = "MOCK 模式（离线关键词打分，非真实模型）", "keyword-mock"
-    else:
-        print(f"provider: {cfg['base_url']}  model: {cfg['model']}")
-        t0 = time.time()
-        run_errors = []
-        votes = simulate_real(cfg, catalog, valid_names, errors=run_errors)
-        mode_label, model = "真实 LLM 模拟", cfg["model"]
-    print(f"模拟完成，耗时 {time.time() - t0:.1f}s")
-
-    rows = aggregate(votes, valid_names)
-    insufficient = [r for r in rows if sum(
-        v in valid_names or v == "NONE" for v in r["votes"]) / SAMPLES < CONSISTENCY_MIN]
-    conflicts = [r for r in rows if r["conflict"]]
-
-    fix_suggestions = []
-    if conflicts and not (mock or cfg is None or insufficient):
-        if no_fixes:
-            # 说清楚是「按参数跳过」而不是「生成失败」：否则会先打印「正在生成」再打印「生成 0 组」，观感像出错
-            print(f"\n检测到 {len(conflicts)} 个冲突；已按 --no-fixes 跳过修复建议生成。")
-        else:
-            print(f"为 {len(conflicts)} 个冲突生成修复建议...")
-            fix_suggestions = generate_fix_suggestions(
-                cfg, rows, {s["name"]: s for s in skills})
-            print(f"  生成 {len(fix_suggestions)} 组建议")
-            if not fix_suggestions:
-                print("  [warn] 未能生成任何建议（模型输出不可解析或请求失败）；"
-                      "可重跑，或按冲突明细的截胡关键词手动收紧边界。")
-    elif conflicts:
-        print("（采样不足，跳过修复建议生成）" if insufficient else "（mock 模式跳过修复建议生成）")
-
-    meta = {"mode_label": mode_label, "model": model, "samples": SAMPLES,
-            "consistency_min": CONSISTENCY_MIN, "skills": skills, "task_source": task_source,
-            "fix_suggestions": fix_suggestions,
-            "evaluation_failed": bool(insufficient) or not rows,
-            "generated_at": datetime.now().isoformat()}
-    (out / "results.json").write_text(
-        json.dumps({"meta": meta, "tasks": [{"text": t["t"], "expected": t["e"], "kind": t.get("kind", "positive")} for t in TASKS],
-                    "rows": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
-    (out / "report.html").write_text(render_report(rows, skills, meta), encoding="utf-8")
-
-    print(f"\n===== 摘要 =====")
-    hits = sum(1 for r in rows if r["chosen"] == r["expected"])
-    print(f"命中 {hits}/{len(rows)}  稳定冲突 {len(conflicts)}  不稳定 {sum(1 for r in rows if not r['stable'] and not r['conflict'])}")
-    for r in conflicts:
-        print(f"  [截胡] 「{r['task'][:28]}…」应选 {r['expected']} → 实际 {r['chosen']} ({int(r['consistency'] * SAMPLES)}/{SAMPLES})")
-    print(f"\n报告: {out / 'report.html'}")
-    if not any(v in valid_names or v == "NONE" for v in votes.values()):
-        eprint("错误: 评测失败，没有取得任何有效的选择结果；不能判定为无冲突。")
-        all_error = all(v == "ERROR" for v in votes.values())
-        if all_error:
-            if run_errors:
-                eprint(f"       首个失败原因: {run_errors[0]}")
-                if "CERTIFICATE_VERIFY_FAILED" in run_errors[0]:
-                    # python.org 版 Python 在 macOS 上常见的根证书缺失问题：所有 HTTPS 都会失败，
-                    # 换 provider 或 key 都没用，必须修解释器或用 SSL_CERT_FILE 指定证书包
-                    eprint("       → 这是本机 Python 的根证书问题，与 key/额度无关（任何 HTTPS 站点都会失败）。"
-                           "macOS 上可运行 \"/Applications/Python X.Y/Install Certificates.command\"，"
-                           "或设置环境变量 SSL_CERT_FILE 指向 certifi 的 cacert.pem，"
-                           "或改用另一个 Python 解释器。")
+            # 默认：自动生成任务（正向逐 skill + 灰区取相似度最高的 k 对）
+            cfg0 = None if mock else load_config()
+            if cfg0 is not None:
+                if not preflight(cfg0, out):
                     sys.exit(2)
-            eprint("       常见原因: key 或端点错误 · 额度用尽或触发限流（可加 --workers 2 降低并发）"
-                   " · 网络不通 · 模型名不存在")
+                checked = True
+            if mock or cfg0 is None:
+                gen = generate_tasks_mock(skills, n_pos, k_pairs)
+                task_source = "auto(mock，仅验证管线)"
+            else:
+                print(f"自动生成任务中（正向 {n_pos}/skill，灰区取相似度前 {k_pairs} 对）...")
+                gen, warns = generate_tasks_real(
+                    cfg0, skills, n_pos, k_pairs,
+                    marked_examples=[m["t"] for m in load_marked(marked_library_path(args))[:3]])
+                task_source = "auto(LLM)"
+                for w in warns:
+                    print(f"[warn] {w}")
+            if not gen:
+                eprint("错误: 任务生成结果为空，无法继续")
+                sys.exit(2)
+            TASKS.clear()
+            TASKS.extend(gen)
+            (out / "tasks-generated.json").write_text(
+                json.dumps(gen, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        # 事故库合并（--with-marked）：只纳入应选技能存在于当前集合的条目
+        if "--with-marked" in args:
+            lib = marked_library_path(args)
+            marked = load_marked(lib)
+            existing_texts = {t["t"] for t in TASKS}
+            applicable, skipped = [], 0
+            for m in marked:
+                if m["e"] not in valid_names:
+                    skipped += 1
+                    continue
+                if m["t"] in existing_texts:
+                    continue
+                existing_texts.add(m["t"])
+                applicable.append(m)
+            TASKS.extend(applicable)
+            if applicable or skipped:
+                print(f"事故库合并: 纳入 {len(applicable)} 条"
+                      + (f"（跳过 {skipped} 条：应选技能不在当前集合）" if skipped else ""))
+            if "--with-marked" in args and applicable:
+                task_source = f"{task_source} + 事故库"
         else:
-            eprint("       请求有响应，但没有一条能解析出选择结果（模型未按约定格式输出）。"
-                   "可换一个更强的模型重试。")
-        sys.exit(2)
-    if insufficient:
-        eprint(f"错误: 评测失败，{len(insufficient)} 条任务的有效采样不足 80%；请重试，诊断报告已保留。")
-        sys.exit(2)
-    sys.exit(1 if conflicts else 0)
+            lib = None
+
+        unknown = sorted({t["e"] for t in TASKS if t["e"] != "NONE"} - set(valid_names))
+        if unknown:
+            eprint(f"错误: 任务清单中的应选技能不存在于 skill 目录: {unknown}")
+            sys.exit(2)
+        catalog = build_catalog(skills)
+        print(f"扫描到 {len(skills)} 个 skill；任务来源: {task_source}，共 {len(TASKS)} 条 × {SAMPLES} 采样 = {len(TASKS) * SAMPLES} 次选择")
+
+        cfg = None if mock else load_config()
+        if cfg is None and not mock:
+            eprint("错误: 未检测到模型配置（.atlasrc.json 或环境变量 DASHSCOPE_API_KEY / DEEPSEEK_API_KEY / OPENAI_API_KEY）。")
+            eprint("       若只想离线验证管线，请显式加 --mock。")
+            sys.exit(2)
+        run_errors = []
+        if mock:
+            t0 = time.time()
+            votes = simulate_mock(skills, valid_names)
+            mode_label, model = "MOCK 模式（离线关键词打分，非真实模型）", "keyword-mock"
+        else:
+            if not checked and not preflight(cfg, out):
+                sys.exit(2)
+            print(f"model: {cfg['model']}")
+            t0 = time.time()
+            votes = simulate_real(cfg, catalog, valid_names, errors=run_errors)
+            mode_label, model = "真实 LLM 模拟", cfg["model"]
+        print(f"模拟完成，耗时 {time.time() - t0:.1f}s")
+
+        rows = aggregate(votes, valid_names)
+        insufficient = [r for r in rows if sum(
+            v in valid_names or v == "NONE" for v in r["votes"]) / SAMPLES < CONSISTENCY_MIN]
+        conflicts = [r for r in rows if r["conflict"]]
+
+        fix_suggestions = []
+        if conflicts and not (mock or cfg is None or insufficient):
+            if no_fixes:
+                # 说清楚是「按参数跳过」而不是「生成失败」：否则会先打印「正在生成」再打印「生成 0 组」，观感像出错
+                print(f"\n检测到 {len(conflicts)} 个冲突；已按 --no-fixes 跳过修复建议生成。")
+            else:
+                print(f"为 {len(conflicts)} 个冲突生成修复建议...")
+                fix_suggestions = generate_fix_suggestions(
+                    cfg, rows, {s["name"]: s for s in skills})
+                print(f"  生成 {len(fix_suggestions)} 组建议")
+                if not fix_suggestions:
+                    print("  [warn] 未能生成任何建议（模型输出不可解析或请求失败）；"
+                          "可重跑，或按冲突明细的截胡关键词手动收紧边界。")
+        elif conflicts:
+            print("（采样不足，跳过修复建议生成）" if insufficient else "（mock 模式跳过修复建议生成）")
+
+        meta = {"run_id": run["run_id"], "coverage": task_coverage(TASKS, valid_names), "mode_label": mode_label, "model": model, "samples": SAMPLES,
+                "consistency_min": CONSISTENCY_MIN, "skills": skills, "task_source": task_source,
+                "fix_suggestions": fix_suggestions,
+                "evaluation_failed": bool(insufficient) or not rows,
+                "request_errors": run_errors,
+                "generated_at": datetime.now().isoformat()}
+        (out / "results.json").write_text(
+            json.dumps({"meta": meta, "tasks": [{"text": t["t"], "expected": t["e"], "kind": t.get("kind", "positive")} for t in TASKS],
+                        "rows": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
+        (out / "report.html").write_text(render_report(rows, skills, meta), encoding="utf-8")
+
+        print(f"\n===== 摘要 =====")
+        hits = sum(1 for r in rows if r["chosen"] == r["expected"])
+        print(f"命中 {hits}/{len(rows)}  稳定冲突 {len(conflicts)}  不稳定 {sum(1 for r in rows if not r['stable'] and not r['conflict'])}")
+        for r in conflicts:
+            print(f"  [截胡] 「{r['task'][:28]}…」应选 {r['expected']} → 实际 {r['chosen']} ({int(r['consistency'] * SAMPLES)}/{SAMPLES})")
+        print(f"\n报告: {out / 'report.html'}")
+        if not any(v in valid_names or v == "NONE" for v in votes.values()):
+            eprint("错误: 评测失败，没有取得任何有效的选择结果；不能判定为无冲突。")
+            all_error = all(v == "ERROR" for v in votes.values())
+            if all_error:
+                if run_errors:
+                    eprint(f"       首个失败原因: {run_errors[0]}")
+                    if "CERTIFICATE_VERIFY_FAILED" in run_errors[0]:
+                        # python.org 版 Python 在 macOS 上常见的根证书缺失问题：所有 HTTPS 都会失败，
+                        # 换 provider 或 key 都没用，必须修解释器或用 SSL_CERT_FILE 指定证书包
+                        eprint("       → 这是本机 Python 的根证书问题，与 key/额度无关（任何 HTTPS 站点都会失败）。"
+                               "macOS 上可运行 \"/Applications/Python X.Y/Install Certificates.command\"，"
+                               "或设置环境变量 SSL_CERT_FILE 指向 certifi 的 cacert.pem，"
+                               "或改用另一个 Python 解释器。")
+                        sys.exit(2)
+                eprint("       常见原因: key 或端点错误 · 额度用尽或触发限流（可加 --workers 2 降低并发）"
+                       " · 网络不通 · 模型名不存在")
+            else:
+                eprint("       请求有响应，但没有一条能解析出选择结果（模型未按约定格式输出）。"
+                       "可换一个更强的模型重试。")
+            sys.exit(2)
+        if insufficient:
+            eprint(f"错误: 评测失败，{len(insufficient)} 条任务的有效采样不足 80%；请重试，诊断报告已保留。")
+            sys.exit(2)
+        sys.exit(1 if conflicts else 0)
 
 
 if __name__ == "__main__":

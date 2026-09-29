@@ -6,9 +6,15 @@
   <img src="assets/banner.svg" alt="SkillSeam" width="720">
 </p>
 
-[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-109%20passing-3b6d11.svg)](tests/test_atlas.py)
+[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-119%20passing-3b6d11.svg)](tests/test_atlas.py)
 
 模拟 agent 真实挑选 skill 的过程，找出哪个 skill 抢了谁的活。在用户发现问题之前。
+
+## 连接预检与网页审核
+
+真实评测会先做一次固定连接探测，失败后不发起批量调用。可用 `python3 skill_seam.py --check-connection --out output/connection` 单独诊断；失败退出 2，脱敏原因写入 `preflight.json`。
+
+网页现支持修改前后对照及任务审核：导入草稿 → 逐条确认标签 → 应用已审核任务 → 比较两组技能。[操作说明与诊断边界](docs/comparison.md#web-comparison-and-task-review)。
 
 ## 问题在哪
 
@@ -121,8 +127,8 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 开发
 
 ```bash
-python3 tests/test_atlas.py   # 109 项测试，纯标准库
-node tests/web_smoke.cjs      # 111 项网页断言，node >= 18
+python3 tests/test_atlas.py   # 119 项测试，纯标准库
+node tests/web_smoke.cjs      # 145 项网页断言，node >= 18
 ```
 
 CI 覆盖 Python 3.10 / 3.12 / 3.13。提 PR 前看 CONTRIBUTING.md。MIT 许可证。

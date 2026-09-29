@@ -677,6 +677,7 @@ class TestCLIExitCodes(unittest.TestCase):
                             patch.object(ad, "TASKS", []), \
                             patch.object(ad, "load_config", return_value={"base_url": "https://example.invalid", "model": "test"}), \
                             patch.object(ad, "simulate_real", return_value=votes), \
+                            patch.object(ad, "preflight", return_value=True), \
                             patch.object(sys, "stdout", new_callable=io.StringIO), \
                             patch.object(sys, "stderr", new_callable=io.StringIO):
                         with self.assertRaises(SystemExit) as result:
@@ -733,6 +734,7 @@ class TestCLIExitCodes(unittest.TestCase):
                             patch.object(ad, "TASKS", []), \
                             patch.object(ad, "load_config", return_value=cfg), \
                             patch.object(ad, "chat_once", side_effect=chat_once), \
+                            patch.object(ad, "preflight", return_value=True), \
                             patch.object(ad.time, "sleep"), \
                             patch.object(ad, "generate_fix_suggestions", return_value=[]), \
                             patch.object(sys, "stdout", new_callable=io.StringIO), \
@@ -775,6 +777,7 @@ class TestCLIExitCodes(unittest.TestCase):
                         patch.object(ad, "TASKS", []), \
                         patch.object(ad, "load_config", return_value=cfg), \
                         patch.object(ad, "chat_once", side_effect=chat_once), \
+                            patch.object(ad, "preflight", return_value=True), \
                         patch.object(ad, "_gen_call") as gen_mock, \
                         patch.object(ad.time, "sleep"), \
                         patch.object(sys, "stdout", new_callable=io.StringIO), \
@@ -824,7 +827,7 @@ class TestCLIExitCodes(unittest.TestCase):
     def test_all_requests_fail_reports_reason(self):
         """全部请求失败时必须给出具体原因与排查方向，而不是笼统的「评测失败」。"""
         def boom(cfg, catalog, task_text):
-            raise RuntimeError("simulated 429 too many requests")
+            raise ad.urllib.error.HTTPError("https://example.invalid", 429, "secret body", {}, None)
 
         with tempfile.TemporaryDirectory() as td:
             sdir, tfile = make_clean_fixture(Path(td))
@@ -842,8 +845,8 @@ class TestCLIExitCodes(unittest.TestCase):
                         ad.main()
                     err = stderr.getvalue()
                     self.assertEqual(result.exception.code, 2)
-                    self.assertIn("simulated 429", err)      # 原始异常原因透出
-                    self.assertIn("--workers", err)          # 给出降并发建议
+                    self.assertIn("rate_limit", err)      # 仅输出受控错误分类
+                    self.assertIn("并发", err)          # 给出降并发建议
             finally:
                 os.chdir(old_cwd)
 
@@ -886,8 +889,8 @@ class TestCLIExitCodes(unittest.TestCase):
                         ad.main()
                     err = stderr.getvalue()
                     self.assertEqual(result.exception.code, 2)
-                    self.assertIn("Install Certificates.command", err)
-                    self.assertIn("SSL_CERT_FILE", err)
+                    self.assertIn("tls_certificate", err)
+                    self.assertIn("根证书", err)
             finally:
                 os.chdir(old_cwd)
 
@@ -1038,6 +1041,7 @@ class TestOutputArtifacts(unittest.TestCase):
         second = json.loads((ROOT / "output" / "results.json").read_text(encoding="utf-8"))
         first["meta"].pop("generated_at")
         second["meta"].pop("generated_at")
+        self.assertNotEqual(first["meta"].pop("run_id"), second["meta"].pop("run_id"))
         self.assertEqual(first, second)
 
 
@@ -1165,7 +1169,7 @@ class TestComparison(unittest.TestCase):
                     ('c-d' if arm == 'before' else 'a-b') if task == 'task 1' else 'NONE')
             cfg = {'base_url': 'https://example.invalid', 'model': 'test', 'api_key': 'YOUR_API_KEY_HERE'}
             original = list(ad.TASKS)
-            with patch.object(ad, 'load_config', return_value=cfg), patch.object(ad, 'chat_once', side_effect=chat), \
+            with patch.object(ad, 'load_config', return_value=cfg), patch.object(ad, 'chat_once', side_effect=chat), patch.object(ad, 'preflight', return_value=True), \
                     patch.object(ad, 'generate_fix_suggestions') as fixes:
                 self.assertEqual(ad.cmd_compare(args), 1)
                 fixes.assert_not_called()
@@ -1231,7 +1235,7 @@ class TestComparison(unittest.TestCase):
                     counts[catalog, task] += 1
                     return 'a-b' if counts[catalog, task] <= 3 else 'c-d'
                 with patch.object(ad, 'load_config', return_value={'model':'test', 'base_url':'https://example.invalid'}), \
-                        patch.object(ad, 'chat_once', side_effect=chat), patch.object(ad.time, 'sleep'):
+                        patch.object(ad, 'chat_once', side_effect=chat), patch.object(ad, 'preflight', return_value=True), patch.object(ad.time, 'sleep'):
                     self.assertEqual(ad.cmd_compare(args), expected)
                 data = json.loads((root / 'out/comparison.json').read_text())
                 self.assertEqual(data['exit_code'], expected)
@@ -1265,7 +1269,7 @@ class TestComparison(unittest.TestCase):
                 data = json.loads((root / 'out/comparison.json').read_text())
                 self.assertEqual(data['counts']['persistent_error'], 2)
                 self.assertEqual(data['counts']['unchanged_correct'], 1)
-                self.assertEqual(len(requests), 30)
+                self.assertEqual(len(requests), 31)
                 self.assertTrue(all(path == '/v1/chat/completions' for path, _ in requests))
                 self.assertTrue(all(body['temperature'] == 0.7 and body['max_tokens'] == 60
                                     and body['messages'][0]['content'] == ad.SYSTEM_PROMPT for _, body in requests))
@@ -1284,6 +1288,143 @@ class TestComparison(unittest.TestCase):
             self.assertEqual(data['pairs'], again['pairs'])
             self.assertIn('MOCK', data['meta']['mode'])
 
+
+class TestPreflight(unittest.TestCase):
+    def test_safe_diagnostic_categories(self):
+        import ssl, socket, urllib.error
+        cases = [(urllib.error.HTTPError('https://secret.invalid',status,'PRIVATE_VALUE',{},None),code)
+                 for status,code in [(401,'authentication'),(403,'authentication'),(429,'rate_limit'),
+                                    (404,'endpoint_or_model'),(500,'http_error')]]
+        cases += [(urllib.error.URLError(ssl.SSLEOFError('PRIVATE_VALUE')),'tls_handshake'),
+                  (ssl.SSLCertVerificationError('PRIVATE_VALUE'),'tls_certificate'),
+                  (TimeoutError('PRIVATE_VALUE'),'timeout'),(socket.gaierror('PRIVATE_VALUE'),'dns'),
+                  (ValueError('PRIVATE_VALUE'),'invalid_response'),(OSError('PRIVATE_VALUE'),'network')]
+        for error,code in cases:
+            with self.subTest(code=code):
+                diagnostic=ad.diagnose_error(error)
+                self.assertEqual(diagnostic['code'],code)
+                self.assertNotIn('PRIVATE_VALUE',json.dumps(diagnostic)+ad._err_text(error))
+                self.assertNotIn('secret.invalid',json.dumps(diagnostic))
+
+    def test_preflight_single_call_safe_output(self):
+        for value,expected in [('NONE',True),('connection-check',True),('garbage',False)]:
+            with tempfile.TemporaryDirectory() as td, patch.object(ad,'chat_once',return_value=value) as chat:
+                self.assertEqual(ad.preflight({'api_key':'PRIVATE_VALUE'},Path(td)),expected)
+                chat.assert_called_once()
+                self.assertEqual(chat.call_args.args[2],'Connection test')
+                raw=(Path(td)/'preflight.json').read_text()
+                self.assertNotIn('PRIVATE_VALUE',raw)
+                self.assertEqual(json.loads(raw)['ok'],expected)
+
+    def test_failed_preflight_stops_comparison(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); args=TestComparison().fixture(root)
+            with patch.object(ad,'load_config',return_value={'model':'test'}), \
+                    patch.object(ad,'chat_once',side_effect=TimeoutError('PRIVATE_VALUE')) as chat, \
+                    patch.object(ad,'select_sample') as select:
+                self.assertEqual(ad.cmd_compare(args),2)
+                chat.assert_called_once(); select.assert_not_called()
+            self.assertEqual(json.loads((root/'out/preflight.json').read_text())['code'],'timeout')
+
+    def test_failed_preflight_stops_generation(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); skills,_=make_clean_fixture(root)
+            with patch.object(sys,'argv',[str(SCRIPT),str(skills),'--out',str(root/'out')]), \
+                    patch.object(ad,'load_config',return_value={'model':'test'}), \
+                    patch.object(ad,'chat_once',side_effect=TimeoutError()) as chat, \
+                    patch.object(ad,'generate_tasks_real') as generate:
+                with self.assertRaises(SystemExit) as result: ad.main()
+                self.assertEqual(result.exception.code,2)
+                chat.assert_called_once(); generate.assert_not_called()
+
+    def test_check_connection_cli(self):
+        with tempfile.TemporaryDirectory() as td:
+            with patch.object(sys,'argv',[str(SCRIPT),'--check-connection','--out',td]), \
+                    patch.object(ad,'load_config',return_value={'model':'test'}), \
+                    patch.object(ad,'chat_once',return_value='NONE'), \
+                    patch.object(ad,'simulate_real') as simulate:
+                with self.assertRaises(SystemExit) as result: ad.main()
+                self.assertEqual(result.exception.code,0); simulate.assert_not_called()
+            self.assertTrue((Path(td)/'preflight.json').exists())
+
+
+
+class TestAuditHardening(unittest.TestCase):
+    def test_missing_frontmatter_fails_in_both_arms(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); args=TestComparison().fixture(root)
+            for arm in ('before','after'):
+                (root/arm/'c-d/SKILL.md').write_text('# no frontmatter')
+            with patch.object(ad,'load_config') as config:
+                self.assertEqual(ad.cmd_compare(args+['--mock']),2)
+                config.assert_not_called()
+            self.assertFalse((root/'out/comparison.json').exists())
+            self.assertEqual(json.loads((root/'out/run.json').read_text())['status'],'failed')
+
+    def test_failed_rerun_archives_previous_success(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); args=TestComparison().fixture(root)
+            self.assertEqual(ad.cmd_compare(args+['--mock']),0)
+            old=json.loads((root/'out/run.json').read_text())
+            with patch.object(ad,'load_config',return_value={'model':'test'}), \
+                    patch.object(ad,'chat_once',side_effect=TimeoutError()), \
+                    patch.object(ad,'select_sample') as select:
+                self.assertEqual(ad.cmd_compare(args),2)
+                select.assert_not_called()
+            current=json.loads((root/'out/run.json').read_text())
+            self.assertNotEqual(old['run_id'],current['run_id'])
+            self.assertEqual(current['status'],'failed')
+            self.assertFalse((root/'out/comparison.json').exists())
+            self.assertFalse((root/'out/report.html').exists())
+            history=list((root/'out/history').glob('*/comparison.json'))
+            self.assertEqual(len(history),1)
+            self.assertEqual(json.loads(history[0].read_text())['meta']['run_id'],old['run_id'])
+
+    def test_aa_samples_identical_catalogs_independently(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); args=TestComparison().fixture(root)
+            args=[args[0],'--aa']+args[3:]
+            catalogs=[]
+            def select(cfg,catalog,*rest):
+                catalogs.append(catalog)
+                return 'a-b' if len(catalogs)%2 else 'c-d'
+            with patch.object(ad,'load_config',return_value={'model':'test','base_url':'https://example.invalid'}), \
+                    patch.object(ad,'preflight',return_value=True),patch.object(ad,'select_sample',side_effect=select):
+                self.assertIn(ad.cmd_compare(args),(0,1,3))
+            data=json.loads((root/'out/comparison.json').read_text())
+            self.assertEqual(len(catalogs),30)
+            self.assertEqual(len(set(catalogs)),1)
+            self.assertEqual(data['meta']['comparison_type'],'AA')
+            self.assertEqual(data['changes'],[])
+            self.assertEqual(data['meta']['collections_sha256']['baseline'],data['meta']['collections_sha256']['candidate'])
+            self.assertIn('背景波动',(root/'out/report.html').read_text())
+
+    def test_coverage_and_scan_inventory(self):
+        tasks=[{'t':'repeat','e':'a-b'}, {'t':' repeat ','e':'a-b','kind':'gray'},
+               {'t':'none','e':'NONE'},{'t':'unknown kind','e':'a-b','kind':{'custom':True}}]
+        coverage=ad.task_coverage(tasks,['a-b','c-d'])
+        self.assertEqual(coverage['skills']['a-b'],{'positive':1,'gray':1,'other':1})
+        self.assertEqual(coverage['none_tasks'],1)
+        self.assertEqual(coverage['uncovered'],['c-d'])
+        self.assertEqual(coverage['duplicates'],[{'text':'repeat','count':2}])
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); TestComparison().fixture(root)
+            (root/'after/.hidden').mkdir(); (root/'after/.hidden/SKILL.md').write_text('# excluded')
+            skills,_,_=ad.scan_skills(root/'after'); inventory=ad.scan_inventory(root/'after',skills)
+            self.assertEqual(inventory['discovered'],3)
+            self.assertEqual(len(inventory['included']),2)
+            self.assertEqual(inventory['excluded'],[{'path':'.hidden/SKILL.md','reason':'.hidden'}])
+
+    def test_single_scan_failure_invalidates_old_report(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); args=TestComparison().fixture(root)
+            out=root/'out';out.mkdir(); (out/'report.html').write_text('old success')
+            (root/'after/c-d/SKILL.md').write_text('# malformed')
+            with patch.object(sys,'argv',[str(SCRIPT),args[0],'--mock','--out',str(out)]):
+                with self.assertRaises(SystemExit) as result:ad.main()
+            self.assertEqual(result.exception.code,2)
+            self.assertFalse((out/'report.html').exists())
+            self.assertEqual(json.loads((out/'run.json').read_text())['status'],'failed')
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

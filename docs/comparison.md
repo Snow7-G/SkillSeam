@@ -53,3 +53,47 @@ The existing single-arm exit contract is unchanged. Use single-arm evaluation fo
 `--mock` verifies the pipeline offline. Its deterministic keyword scores are not model evidence. `--workers N` controls concurrency; `--no-fixes` is accepted for compatibility but comparison never generates fixes. Other single-arm generation options are rejected.
 
 This is a selector simulation, not a real-agent execution test. Five samples and a stability threshold are not a significance test. Report observations on the fixed suite and configuration, not a universal causal guarantee. Repeated questions or paraphrases are not necessarily independent observations.
+
+## Connection preflight and safe diagnostics
+
+Every real CLI evaluation (including task generation and comparison) now performs one fixed connection probe before batch work. This probe contains no user tasks or skill descriptions. It checks request/response compatibility, not the quality of routing; a successful probe cannot guarantee later calls will succeed. Mock mode makes no probe. The first comparison run therefore needs one probe plus `tasks × 5 × 2` selection calls before retries.
+
+```bash
+python3 skill_seam.py --check-connection --out output/connection
+```
+
+`preflight.json` contains a timestamp, success flag, controlled error category, HTTP status when available and a suggested action. Failure exits 2 and prevents the batch. Categories include authentication, rate limit/quota, endpoint/model/parameter errors, generic HTTP errors, certificate validation, TLS handshake, DNS, timeout, network and invalid response. HTTP status alone cannot reliably tell a bad model name from a bad endpoint. Responses and exception text are not copied into diagnostics. Do not disable certificate verification to resolve TLS errors.
+
+Batch diagnostics are also sanitized. Comparison JSON records each arm's limited diagnostic list; single-arm JSON records request errors. Existing votes still distinguish ERROR from INVALID. There is no automatic claim of success when coverage is insufficient.
+
+## Web comparison and task review
+
+1. Import or paste the candidate skills into the usual skill area.
+2. Expand **Baseline skills** and import/paste the original collection.
+3. Import a JSON task draft (including CLI harvest drafts), or choose **Review current tasks**.
+4. Edit each task and its expected skill name or `NONE`. Confirm each row, then choose **Apply reviewed tasks**. An imported model-suggested label is never automatically approved. Editing a row removes its confirmation; changing the applied task text requires review again.
+5. Configure a real provider and optionally choose **Test connection**. **Compare baseline and candidate** also performs the preflight automatically, then runs five samples per arm with interleaved requests.
+6. Inspect paired results and description changes; download comparison JSON or the reviewed task JSON.
+
+Task text may contain newlines or `=>`: applying reviewed rows uses JSON to preserve the text. The normal single-arm task area also accepts this JSON. Unknown expected labels and unequal skill-name sets are blocked before requests. Cancellation aborts in-flight requests and marks the comparison incomplete with result code 2. Comparison results are separate from the single-arm heatmap. No automatic description rewrite is performed.
+
+Browser diagnostics cannot distinguish CORS, TLS and some proxy failures because browsers hide those details; the UI says so instead of inventing a cause. It never displays raw HTTP response bodies. Browser downloads contain task/skill content and votes, not API credentials. Real browser visual/interaction acceptance remains separate from the Node simulated-DOM test suite.
+
+
+## A/A check and coverage
+
+Use the same reviewed tasks with two independent samples from the same catalog:
+
+```bash
+python3 skill_seam.py ./skills-candidate --aa --tasks ./regression-tasks.json --out ./output/aa
+```
+
+`--aa` and `--baseline` are mutually exclusive. The web **Run A/A noise check** uses the candidate catalog for both arms, regardless of the baseline field. The JSON marks `comparison_type: AA`; unchanged descriptions are expected. Transition labels and exit codes remain the same, but A/A changes measure background sampling variation and cannot establish repair effectiveness. Mock A/A is deterministic and only checks the pipeline. Five samples do not establish statistical significance.
+
+CLI JSON/HTML and web comparisons include task coverage: per-skill positive, gray and other tasks, NONE count, uncovered skills, and repeated text (trimmed exact matching). Missing `kind` means positive; an explicit unrecognized kind means other. These counts describe the supplied labels, not proof of task quality. The web **Task coverage** button can inspect tasks before making model calls. Review import, apply, re-review and export preserve `id`, `kind`, `pair` and other JSON metadata. Imported confirmation is never trusted.
+
+## Run identity and retained history
+
+Before an evaluation starts scanning skills or calling the model, known prior output artifacts are moved to `history/<unique-id>/` under the output directory. The current `run.json` records a unique run ID, start/end time, status and exit code. A failed preflight leaves no old comparison or report at the output root; consumers must check the current manifest. Dedicated connection checks also use this lifecycle. Command-line argument validation may exit before a run is created. Concurrent processes must use separate output directories.
+
+Malformed or missing frontmatter now rejects the collection rather than silently reducing its size. Successful comparison JSON includes scanned/included/excluded paths and exclusion reasons. Hidden and noise directories remain explicitly excluded. Background web fix suggestions are tied to the operation that requested them; starting another operation aborts old requests and discards late responses.
