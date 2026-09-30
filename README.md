@@ -20,6 +20,26 @@
 
 Simulate the way your agent picks skills, and find out which skill steals whose tasks. Before your users find out.
 
+<p align="center">
+  <a href="https://snow7-g.github.io/SkillSeam/?lang=en"><strong>Try the interactive example</strong></a> ·
+  <a href="#quick-start-web-no-install">Start with your skills</a> ·
+  <a href="docs/comparison.md">Comparison guide</a> ·
+  <a href="CONTRIBUTING.md">Contribute</a>
+</p>
+
+![Prepare reviewed tasks, inspect skill selections, then compare description edits.](assets/workflow-en.svg)
+
+### Choose your starting point
+
+| Your goal | Web entry | What you get |
+|---|---|---|
+| Understand the report | **Explore an example** | Historical results; no API key or model calls |
+| Find overlapping descriptions | **Check my skills** | Selection matrix, conflicts and a next-step summary |
+| Check whether an edit helps | **Validate description edits** | Reviewed tasks, paired A/B outcomes and description differences |
+
+The web page runs locally in your browser. Model requests go directly to the provider you configure; skill names, descriptions and task text are included in those requests. This is a **selection simulation**, not a run of the full agent or its tools.
+
+
 ## Connection checks and web review
 
 Real runs preflight the endpoint once before batch work. Run `python3 skill_seam.py --check-connection --out output/connection` to diagnose connectivity separately. Failures write sanitized `preflight.json` and exit 2 without evaluating tasks.
@@ -46,7 +66,12 @@ Both collections must have the same skill names. Comparison exits: 0 no stable r
 
 ## Quick start (web, no install)
 
-Open [https://snow7-g.github.io/SkillSeam/?lang=en](https://snow7-g.github.io/SkillSeam/?lang=en), click the demo button, and you get a real heatmap in ten seconds. Then paste your own skills, add an API key (it stays in your browser, requests go straight to your provider), and hit run.
+1. Open the [web app](https://snow7-g.github.io/SkillSeam/?lang=en) and choose **Explore an example** to inspect a historical result without a key.
+2. Choose **Check my skills** to import your own skills and supply tasks with expected labels. Visiting the example and returning restores your inputs.
+3. Review tasks: filter unreviewed, invalid or gray-zone rows; use the searchable skill suggestions; confirm each label. Editing a task clears its confirmation.
+4. Configure your provider and test the connection, then run the check. The report starts with a conclusion and a suggested next action.
+
+For before/after validation, choose **Validate description edits**, supply both catalogs and apply the reviewed tasks. **A/A** uses the same candidate catalog twice to inspect sampling variation; it is not evidence that an edit improved routing.
 
 Your skills live as SKILL.md files? Click the folder button (选择技能文件夹) and pick the directory — it is parsed inside your browser, nothing is uploaded. Or print them in paste-ready form:
 
@@ -68,7 +93,7 @@ python3 skill_seam.py demo-skills-en --tasks examples/tasks-demo-en.json
 
 ```bash
 git clone https://github.com/Snow7-G/SkillSeam && cd SkillSeam
-echo '{"base_url": "https://.../v1", "api_key": "sk-...", "model": "..."}' > .atlasrc.json
+echo '{"base_url": "https://.../v1", "api_key": "YOUR_API_KEY_HERE", "model": "..."}' > .atlasrc.json
 python3 skill_seam.py ~/.agents/skills
 open output/report.html
 ```
@@ -80,6 +105,30 @@ That's a CI gate in one line:
 ```bash
 python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
+
+## Read the result before accepting a change
+
+| Comparison outcome | What to do next |
+|---|---|
+| **Failed / stopped** | Check diagnostics and retry; incomplete samples cannot establish improvement |
+| **Regressed** | Inspect the affected task and description boundary; improvements do not cancel regressions |
+| **Needs review** | Check the labels and unstable selections before drawing a conclusion |
+| **Persistent errors** | Address remaining misrouting, even when no new regression appeared |
+| **No stable regressions** | Check remaining errors and uncovered skills before accepting the edit |
+
+Coverage shows positive, gray-zone and other tasks per skill, NONE tasks, uncovered skills and duplicate task text. It measures the supplied test set, not real-world completeness.
+
+<details>
+<summary><strong>Artifacts you can inspect and keep</strong></summary>
+
+- `run.json`: current CLI run ID, status, timestamps and exit code.
+- `preflight.json`: sanitized connection diagnosis for real runs.
+- `comparison.json` + `report.html`: paired votes, task snapshots, description changes and coverage.
+- `history/`: previous CLI artifacts; a task file reused as current input stays in place and is copied into history.
+
+Single checks produce `results.json` and `report.html`. Web task review exports JSON. API keys are not included in comparison exports; task text and descriptions are, so review the content before sharing it.
+
+</details>
 
 ## Real queries beat generated ones
 
@@ -146,10 +195,10 @@ Every description sings. Some songs lure your tasks onto the rocks.
 
 ```bash
 python3 tests/test_atlas.py   # 120 tests, stdlib only
-node tests/web_smoke.cjs      # 151 web assertions, node >= 18
+node tests/web_smoke.cjs      # 168 web assertions, node >= 18
 ```
 
-CI runs both on Python 3.10, 3.12 and 3.13. See CONTRIBUTING.md before opening a PR.
+CI tests the CLI on Python 3.10, 3.12 and 3.13, checks web logic on Node 20, and runs 268 YAML differential cases. See CONTRIBUTING.md before opening a PR.
 
 ## License
 

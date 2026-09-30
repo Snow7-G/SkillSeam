@@ -327,7 +327,7 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
     t("run_btn") === "Run simulation" && document.documentElement.lang === "en");
   check("切换到英文：写入 localStorage", localStorage.getItem("atlas_lang") === "en");
   setLang("zh");
-  check("切回中文", t("run_btn") === "开始模拟" && document.documentElement.lang === "zh-CN");
+  check("切回中文", t("run_btn") === "检查技能选择" && document.documentElement.lang === "zh-CN");
 
   // 演示数据按界面语言切换
   setLang("en");
@@ -559,6 +559,45 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
     check('generated gray coverage and existing tasks: '+prior,coverage.skills['a-b'].gray===1 && coverage.skills['a-b'].positive===0 && exported.length===(prior?2:1));
   }
   connectionPreflight=savedPreflight;genTasksAuto=savedAuto;
+
+  // Guided workflows preserve inputs when visiting the historical demo.
+  const panelIds=['inputPanel','modelPanel','baselinePanel','compareBtn','aaBtn','runBtn'];
+  const originalClasses=panelIds.map(id=>el(id).classList), hiddenPanels={};
+  panelIds.forEach(id=>{el(id).classList={toggle:(name,on)=>{hiddenPanels[id]=on;},add:()=>{},remove:()=>{}};});
+  workflow='start';updateWorkflow();
+  check('landing hides advanced inputs until a workflow is selected',hiddenPanels.inputPanel&&hiddenPanels.modelPanel);
+  chooseWorkflow('check');
+  check('check workflow hides comparison controls',!hiddenPanels.inputPanel&&hiddenPanels.baselinePanel&&hiddenPanels.compareBtn&&!hiddenPanels.runBtn);
+  el('skills').value='a-b: user draft\nc-d: calendar';el('tasks').value='Personal test => a-b';
+  const userSkills=el('skills').value,userTasks=el('tasks').value;
+  chooseWorkflow('demo');
+  check('demo workflow hides configuration',hiddenPanels.inputPanel&&hiddenPanels.modelPanel&&workflow==='demo');
+  chooseWorkflow('compare');
+  check('leaving demo restores inputs',el('skills').value===userSkills&&el('tasks').value===userTasks);
+  check('comparison workflow expands review and baseline',!hiddenPanels.baselinePanel&&!hiddenPanels.compareBtn&&hiddenPanels.runBtn&&el('reviewPanel').open);
+  panelIds.forEach((id,i)=>{el(id).classList=originalClasses[i];});
+  reviewDraft=[{id:'first',t:'one',e:'a-b',reviewed:true},{id:'second',t:'two',e:'c-d',kind:'gray',reviewed:false},{id:'third',t:'three',e:'missing',reviewed:true}];
+  el('reviewFilter').value='pending';renderReview();
+  check('pending filter preserves original row indices',reviewState().visible.length===1&&el('reviewTable').innerHTML.includes('editReview(1,'));
+  editReview(1,'e','a-b');
+  check('filtered edit changes the intended row only',reviewDraft[1].e==='a-b'&&reviewDraft[0].e==='a-b'&&reviewDraft[1].id==='second'&&!reviewDraft[1].reviewed);
+  el('reviewFilter').value='invalid';renderReview();
+  check('invalid filter and progress exclude invalid confirmations',reviewState().visible[0].index===2&&reviewState().done===1&&reviewState().invalid===1);
+  el('reviewFilter').value='gray';renderReview();
+  check('gray filter uses retained metadata',reviewState().visible.length===1&&reviewState().visible[0].row.id==='second');
+  check('review offers actual skill names and NONE',el('reviewSkills').innerHTML.includes('value="NONE"')&&el('reviewTable').innerHTML.includes('list="reviewSkills"'));
+  el('reviewFilter').value='all';
+  const blankCounts={regressed:0,improved:0,persistent_error:0,unchanged_correct:1,review:0,failed:0};
+  function actionFor(counts,exit,meta){return comparisonAction({counts:{...blankCounts,...counts},exit_code:exit,meta:meta||{},coverage:{uncovered:['c-d']}});}
+  check('failed result takes priority over apparent regressions',actionFor({regressed:1,failed:1},2).title==='action_failed');
+  check('regression remains visible with other improvements',actionFor({regressed:1,improved:4},1).title==='action_regressed');
+  check('persistent errors are not presented as all clear',actionFor({persistent_error:2},0).title==='action_errors');
+  check('unstable results request review',actionFor({review:1},3).target==='reviewPanel');
+  check('AA does not claim repair effectiveness',actionFor({regressed:1},1,{comparison_type:'AA'}).title==='action_aa');
+  renderAction(actionFor({},0));
+  check('summary exposes uncovered skills and next action',el('actionSummary').innerHTML.includes('c-d')===false&&el('actionSummary').innerHTML.includes('#comparisonResult')&&window.__lastAction.values.uncovered===1);
+  el('reviewPanel').open=false;openAction('reviewPanel');
+  check('review action expands task review',el('reviewPanel').open);
 
   // 文档自校验是元检查，不计入产品断言数；先冻结计数器，否则会出现「自己数自己」的循环
   const productTotal = pass + fail;

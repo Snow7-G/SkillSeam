@@ -10,6 +10,26 @@
 
 模拟 agent 真实挑选 skill 的过程，找出哪个 skill 抢了谁的活。在用户发现问题之前。
 
+<p align="center">
+  <a href="https://snow7-g.github.io/SkillSeam/?lang=zh"><strong>在线体验示例</strong></a> ·
+  <a href="#快速开始网页版零安装">检查自己的技能</a> ·
+  <a href="docs/comparison.md">对照指南</a> ·
+  <a href="CONTRIBUTING.md">参与贡献</a>
+</p>
+
+![准备并审核任务，检查技能选择，再对照验证描述修改。](assets/workflow-zh.svg)
+
+### 从你的目的开始
+
+| 想做什么 | 网页入口 | 可以得到什么 |
+|---|---|---|
+| 先看懂工具 | **体验示例** | 历史结果，无需密钥、不调用模型 |
+| 找出描述重叠 | **检查我的技能** | 选择矩阵、冲突明细和下一步建议 |
+| 确认修改有效 | **验证描述修改** | 任务审核、A/B 配对结果和描述差异 |
+
+网页在浏览器内运行，模型请求直接发送到你配置的服务商；请求包含技能名称、描述和任务文本。工具做的是**技能选择模拟**，不会实际执行完整 agent 或技能工具。
+
+
 ## 连接预检与网页审核
 
 真实评测会先做一次固定连接探测，失败后不发起批量调用。可用 `python3 skill_seam.py --check-connection --out output/connection` 单独诊断；失败退出 2，脱敏原因写入 `preflight.json`。
@@ -36,7 +56,14 @@ python3 skill_seam.py ./skills-candidate --baseline ./skills-baseline --tasks re
 
 ## 快速开始（网页版，零安装）
 
-打开 https://snow7-g.github.io/SkillSeam/?lang=zh ，点「看演示数据」，十秒出热力图。然后点「选择技能文件夹」直接选你的技能目录（浏览器内解析，不上传任何文件），或用 `python3 skill_seam.py export ~/.agents/skills` 拿到粘贴格式，填 API key（只存你的浏览器，请求直达端点），点「开始模拟」。
+1. 打开[网页工具](https://snow7-g.github.io/SkillSeam/?lang=zh)，选择「体验示例」，无需密钥即可查看历史结果。
+2. 选择「检查我的技能」，导入技能目录或粘贴清单，再添加任务及预期技能。进入示例后返回，会恢复你的输入。
+3. 在审核区筛选未审核、无效标签或灰区任务，通过可搜索候选填写技能名，逐条确认；修改任务后需重新确认。
+4. 配置模型并测试连接，再开始检查。结果先展示结论、关键计数和下一步操作。
+
+验证修改时，选择「验证描述修改」，填写基线和候选技能，应用同一批已审核任务，再运行 A/B。A/A 用同一候选集合进行两组独立采样，用于观察背景波动，不能证明修改有效。
+
+目录导入只在浏览器内解析；开始模型评测后，名称、描述和任务会发送至指定端点。也可先用 `python3 skill_seam.py export ~/.agents/skills` 生成粘贴格式。
 
 英文界面（`?lang=en`）配的是另一套英文 demo 数据集，也来自仓库内存档的真实运行。复现：
 
@@ -50,7 +77,7 @@ python3 skill_seam.py demo-skills-en --tasks examples/tasks-demo-en.json
 
 ```bash
 git clone https://github.com/Snow7-G/SkillSeam && cd SkillSeam
-echo '{"base_url": "https://.../v1", "api_key": "sk-...", "model": "..."}' > .atlasrc.json
+echo '{"base_url": "https://.../v1", "api_key": "YOUR_API_KEY_HERE", "model": "..."}' > .atlasrc.json
 python3 skill_seam.py ~/.agents/skills
 open output/report.html
 ```
@@ -60,6 +87,30 @@ open output/report.html
 ```bash
 python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
+
+## 看懂结果，再接受修改
+
+| 对照结果 | 下一步 |
+|---|---|
+| **失败 / 停止** | 检查诊断后重试；采样不完整不能证明改善 |
+| **发现回归** | 检查变差的任务和描述边界；改善不能抵消回归 |
+| **待复核** | 核对标签和不稳定选择，再做判断 |
+| **持续错误** | 即使没有新增回归，也需处理原有误选 |
+| **未发现稳定回归** | 继续检查遗留错误和未覆盖技能，再决定是否接受修改 |
+
+覆盖表展示各技能的正向、灰区及其他任务，以及 NONE、未覆盖技能和重复文本。覆盖数量只描述这份任务集，不代表真实场景已经测全。
+
+<details>
+<summary><strong>可检查、可保留的输出文件</strong></summary>
+
+- `run.json`：当前 CLI 运行编号、状态、时间和退出码。
+- `preflight.json`：真实运行的脱敏连接诊断。
+- `comparison.json` 与 `report.html`：双组票数、任务快照、描述差异和覆盖情况。
+- `history/`：CLI 历史产物；复用的任务输入保留原路径，并复制历史副本。
+
+单组检查生成 `results.json` 和 `report.html`，网页审核可导出任务 JSON。对照导出不包含 API Key，但包含任务文本与描述，分享前请检查内容。
+
+</details>
 
 ## 真实问法比生成的有用
 
@@ -106,7 +157,7 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 
 ## 几句实话
 
-模拟复现的是注入格式，没有驱动真实 agent 进程；跨运行时的行为差异（Codex 和 Claude 会不会选得不一样）在路线图上。Codex 会话解析是宽容抽取，工具输出可能混进收割候选，靠清洗规则缓解。网页界面目前是中文的。
+模拟复现的是注入格式，没有驱动真实 agent 进程；跨运行时的行为差异（Codex 和 Claude 会不会选得不一样）在路线图上。Codex 会话解析是宽容抽取，工具输出可能混进收割候选，靠清洗规则缓解。网页支持中文和英文。
 
 ## 名字的来历
 
@@ -128,7 +179,7 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 
 ```bash
 python3 tests/test_atlas.py   # 120 项测试，纯标准库
-node tests/web_smoke.cjs      # 151 项网页断言，node >= 18
+node tests/web_smoke.cjs      # 168 项网页断言，node >= 18
 ```
 
-CI 覆盖 Python 3.10 / 3.12 / 3.13。提 PR 前看 CONTRIBUTING.md。MIT 许可证。
+CI 覆盖 Python 3.10 / 3.12 / 3.13、Node 20 网页逻辑和 268 组 YAML 差分。提 PR 前看 CONTRIBUTING.md。MIT 许可证。

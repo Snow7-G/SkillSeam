@@ -110,7 +110,7 @@ open output/report.html
 skill-seam/
 ├── skill_seam.py          # 主脚本（scan → generate → simulate → report）
 ├── tests/test_atlas.py    # 120 项测试（unittest，纯标准库）
-├── tests/web_smoke.cjs    # 151 项网页断言（node，无需依赖）
+├── tests/web_smoke.cjs    # 168 项网页断言（node，无需依赖）
 ├── demo-skills/           # 眼科客服样例（中文），6 个 skill，埋 2 处撞车
 ├── demo-skills-en/        # 同一场景的英文样例，网页 ?lang=en 的演示数据来源
 ├── examples/              # 真实运行归档（报告/结果/任务，qwen3.8-flash；含英文 demo 一套）

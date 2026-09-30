@@ -106,6 +106,18 @@ svg text { font-family: inherit; }
 .hidden { display: none; }
 code { background: #efede7; border-radius: 4px; padding: 0 4px; font-size: 12px; }
 table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:top;padding:10px;border-bottom:1px solid #ddd;overflow-wrap:anywhere}details{margin:16px 0}summary{cursor:pointer;margin-bottom:12px}
+.journeys {display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.journeys button {margin:0;flex:1 1 180px;text-align:left}
+.journeys button[aria-pressed="true"] {background:var(--accent);color:white}
+button:focus-visible,a:focus-visible {outline:3px solid var(--accent);outline-offset:3px}
+.review-tools {display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:12px 0}
+.review-tools select {width:auto;min-width:180px}
+#actionSummary {border-left:4px solid var(--accent)}
+#actionSummary[data-state="failed"],#actionSummary[data-state="regressed"] {border-left-color:var(--danger)}
+#actionSummary a {color:var(--accent);display:inline-block;margin-top:12px}
+#reviewTable textarea {min-width:190px}
+#reviewTable input[list] {min-width:170px}
+#reviewTable input[aria-invalid="true"] {border-color:var(--danger)}
 </style>
 </head>
 <body>
@@ -117,7 +129,13 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:t
   </div>
   <div class="sub" data-i18n="sub"></div>
 
-  <div class="card">
+  <nav class="journeys" aria-label="Workflow">
+    <button id="journeyDemo" class="ghost" onclick="chooseWorkflow('demo')" data-i18n="journey_demo" aria-pressed="false"></button>
+    <button id="journeyCheck" class="ghost" onclick="chooseWorkflow('check')" data-i18n="journey_check" aria-pressed="true"></button>
+    <button id="journeyCompare" class="ghost" onclick="chooseWorkflow('compare')" data-i18n="journey_compare" aria-pressed="false"></button>
+  </nav>
+  <p id="journeyHint" class="sub"></p>
+  <div class="card" id="inputPanel">
     <h2 data-i18n="card1_title"></h2>
     <label data-i18n="skills_label"></label>
     <textarea id="skills" rows="6"></textarea>
@@ -126,7 +144,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:t
       <span class="hint" id="pickHint" data-i18n="pick_hint"></span>
     </div>
     <input type="file" id="folderInput" webkitdirectory multiple class="hidden">
-    <details><summary data-i18n="baseline_label"></summary>
+    <details id="baselinePanel" class="hidden"><summary data-i18n="baseline_label"></summary>
       <textarea id="baselineSkills" rows="6" aria-label="Baseline skills"></textarea>
       <button class="ghost" onclick="document.getElementById('baselineFolder').click()" data-i18n="pick_folder"></button>
       <input type="file" id="baselineFolder" webkitdirectory multiple class="hidden" onchange="handleFolderPicked(this,'baselineSkills')">
@@ -134,16 +152,25 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:t
     <label data-i18n="tasks_label"></label>
     <textarea id="tasks" rows="6"></textarea>
     <div class="hint" data-i18n="tasks_hint"></div>
-    <details open><summary data-i18n="review_title"></summary>
+    <details id="reviewPanel"><summary data-i18n="review_title"></summary>
       <input type="file" accept=".json,application/json" aria-label="Import task draft" onchange="importTaskDraft(this)">
       <button class="ghost" onclick="reviewCurrentTasks()" data-i18n="review_current"></button>
+      <div class="review-tools">
+        <label for="reviewFilter" data-i18n="review_filter"></label>
+        <select id="reviewFilter" onchange="renderReview()">
+          <option value="all" data-i18n="filter_all"></option><option value="pending" data-i18n="filter_pending"></option>
+          <option value="invalid" data-i18n="filter_invalid"></option><option value="gray" data-i18n="filter_gray"></option>
+        </select>
+        <span id="reviewProgress" role="status" aria-live="polite"></span>
+      </div>
+      <datalist id="reviewSkills"></datalist>
       <div style="overflow:auto"><table><thead><tr><th data-i18n="review_task"></th><th data-i18n="review_expected"></th><th data-i18n="review_confirm"></th></tr></thead><tbody id="reviewTable"></tbody></table></div>
       <button class="ghost" onclick="applyReviewedTasks()" data-i18n="review_apply"></button>
       <button class="ghost" onclick="exportReviewedTasks()" data-i18n="review_export"></button>
     </details>
   </div>
 
-  <div class="card">
+  <div class="card" id="modelPanel">
     <h2 data-i18n="card2_title"></h2>
     <div class="grid3">
       <div>
@@ -189,11 +216,11 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:t
         <select id="grayPairs"><option>0</option><option selected>2</option><option>3</option></select>
       </div>
     </div>
-    <button id="demoBtn" class="ghost" onclick="loadDemo()" data-i18n="demo_btn"></button>
+    <button id="demoBtn" class="ghost" onclick="chooseWorkflow('demo')" data-i18n="demo_btn"></button>
     <button id="genBtn" class="ghost" onclick="genTasks()" data-i18n="gen_btn"></button>
     <button class="ghost" onclick="checkConnection()" data-i18n="connection_btn"></button>
-    <button class="ghost" onclick="runComparison()" data-i18n="comparison_btn"></button>
-    <button class="ghost" onclick="runComparison(true)" data-i18n="aa_btn"></button>
+    <button id="compareBtn" class="hidden" onclick="runComparison()" data-i18n="comparison_btn"></button>
+    <button id="aaBtn" class="ghost hidden" onclick="runComparison(true)" data-i18n="aa_btn"></button>
     <button class="ghost" onclick="showCoverage()" data-i18n="coverage_btn"></button>
     <button id="runBtn" onclick="run()" data-i18n="run_btn"></button>
     <button id="stopBtn" class="ghost hidden" onclick="stopEval()" data-i18n="stop_btn"></button>
@@ -202,6 +229,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:t
     <div class="hint" data-i18n="run_hint"></div>
   </div>
 
+  <section id="actionSummary" class="card hidden" role="status" aria-live="polite"></section>
   <div id="coverageResult" class="card hidden"></div>
 <div id="comparisonResult" class="card hidden">
     <h2 data-i18n="comparison_btn"></h2><p id="comparisonSummary"></p><p data-i18n="comparison_note"></p>
@@ -232,6 +260,21 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;vertical-align:t
 // 语言解析优先级：?lang=xx → localStorage → 浏览器语言（zh* → 中文，其余 → 英文）
 var I18N = {
   zh: {
+    journey_hint_start: "选择你要做的事，再开始准备技能和任务。",
+    journey_demo: "体验示例", journey_check: "检查我的技能", journey_compare: "验证描述修改",
+    journey_hint_check: "导入技能 → 准备任务 → 配置连接 → 检查选择。任务可先审核，避免标签错误。",
+    journey_hint_compare: "填写修改前后技能 → 审核同一批任务 → 验证修改效果。A/A 可先观察同一集合的采样波动。",
+    journey_hint_demo: "这是内置的历史示例结果，不会发起模型请求。返回检查模式会恢复你的输入。",
+    review_filter: "筛选任务", filter_all: "全部", filter_pending: "未审核", filter_invalid: "无效标签或空文本", filter_gray: "灰区",
+    review_progress: "已核对 {done}/{total} · 无效 {invalid} · 当前显示 {shown}", review_empty: "没有符合筛选条件的任务。",
+    action_failed: "采样不足或已停止，暂不能判断", action_regressed: "发现回归，请先检查变差的任务",
+    action_review: "结果有波动，需要人工复核", action_clean: "未发现稳定回归", action_errors: "仍有持续错误需要处理",
+    action_conflict: "发现技能选择冲突", action_single_ok: "已标注任务未发现稳定冲突", action_unlabelled: "缺少预期标签，只能查看选择一致性",
+    action_demo: "历史示例，仅用于理解报告", action_aa: "同一集合的波动检查，不代表修改效果",
+    action_counts: "回归 {regressed} · 持续错误 {persistent_error} · 待复核 {review} · 失败 {failed} · 未覆盖技能 {uncovered}",
+    action_single_counts: "稳定冲突 {conflicts} · 不稳定 {unstable} · 未标注 {unlabelled}",
+    next_connection: "检查连接配置后重试", next_review: "核对任务与预期标签", next_results: "查看逐任务结果", next_skills: "检查技能描述边界",
+
     failed: "评测失败",
     review: "待复核",
     persistent_error: "持续错误",
@@ -249,7 +292,7 @@ var I18N = {
     coverage_title: "任务覆盖",
     coverage_headers: ["技能", "正向", "灰区", "其他"],
     coverage_none: "不触发任务", coverage_missing: "尚无任务覆盖", coverage_duplicates: "重复任务文本",
-    comparison_btn: "运行修改前后对照",
+    comparison_btn: "验证修改效果（A/B）",
     connection_ok: "连接与响应解析通过（不代表整批评测一定成功）。",
     connection_config: "请配置真实模型、端点和 API Key。",
     connection_btn: "测试连接",
@@ -286,7 +329,7 @@ var I18N = {
     graypairs_label: "自动生成：灰区技能对数（按语义重叠挑）",
     demo_btn: "看演示数据",
     gen_btn: "自动生成任务",
-    run_btn: "开始模拟",
+    run_btn: "检查技能选择",
     stop_btn: "停止评测",
     run_hint: "采样次数越多结论越稳，费用与耗时线性增加。判定规则：5 次采样至少 4 次同结果为「稳定」；应选标注的任务若稳定选中其他技能即「截胡」。自动生成会先让模型挑出最易混淆的技能对，再为每对双向生成边界问法——生成后建议人工过一遍再模拟。",
     stat_hit: "标注任务命中", stat_conf: "稳定冲突（截胡）",
@@ -348,6 +391,21 @@ var I18N = {
     prompt_fix: "你是 prompt 工程专家。技能 {thief} 的 description 截胡了本应属于技能 {victim} 的用户任务。\n\n技能 {victim}（应选）：\n{vdesc}\n\n技能 {thief}（实际被选中）：\n{tdesc}\n\n被截胡的任务：\n{tasks}\n\n请给出改写建议（1-2 条），通过修改其中一个或两个技能的 description 使边界清晰、截胡消失。优先改截胡方（加'仅限/不含'等边界词）。new_description 必须是完整可替换的 description，长度不超过 1024 字符，除边界外不得删减原职责。\n两条硬性要求：\n1) 语言必须与原描述一致——原描述是英文就用英文改写，是中文就用中文改写，绝不翻译、不改变语气风格；\n2) 尽量做最小改动：在原描述基础上追加/收紧边界短句即可，不要整段重写（便于人工 review 与 diff）。只输出 JSON：{\"changes\": [{\"skill\": \"技能名\", \"new_description\": \"改写后的完整描述\", \"reason\": \"一句话理由\"}]}"
   },
   en: {
+    journey_hint_start: "Choose a task to see the inputs you need.",
+    journey_demo: "Explore an example", journey_check: "Check my skills", journey_compare: "Validate description edits",
+    journey_hint_check: "Import skills → prepare tasks → configure connection → check selections. Review labels before running.",
+    journey_hint_compare: "Supply both catalogs → review the same tasks → compare edits. A/A checks sampling variation with one catalog.",
+    journey_hint_demo: "Historical example results; no model requests. Returning to a work mode restores your inputs.",
+    review_filter: "Filter tasks", filter_all: "All", filter_pending: "Unreviewed", filter_invalid: "Invalid label or empty text", filter_gray: "Gray-zone",
+    review_progress: "Reviewed {done}/{total} · Invalid {invalid} · Showing {shown}", review_empty: "No tasks match this filter.",
+    action_failed: "Insufficient samples or stopped; no conclusion yet", action_regressed: "Regressions found: inspect the affected tasks",
+    action_review: "Variable results need review", action_clean: "No stable regressions found", action_errors: "Persistent errors remain",
+    action_conflict: "Skill-selection conflicts found", action_single_ok: "No stable conflicts on labeled tasks", action_unlabelled: "Expected labels missing: consistency only",
+    action_demo: "Historical example for understanding the report", action_aa: "Same-catalog variation check, not evidence of improvement",
+    action_counts: "Regressed {regressed} · Persistent errors {persistent_error} · Review {review} · Failed {failed} · Uncovered skills {uncovered}",
+    action_single_counts: "Stable conflicts {conflicts} · Unstable {unstable} · Unlabeled {unlabelled}",
+    next_connection: "Check connection settings before retrying", next_review: "Review tasks and expected labels", next_results: "Inspect task results", next_skills: "Review skill description boundaries",
+
     failed: "Failed",
     review: "Needs review",
     persistent_error: "Persistent error",
@@ -526,6 +584,8 @@ function setLang(lang) {
     history.replaceState(null, "", u.toString());
   } catch (e) {}
   applyI18n();
+  updateWorkflow();
+  if(window.__lastAction)renderAction(window.__lastAction);
   if (window.__lastComparison) renderWebComparison(window.__lastComparison);
   if (reviewDraft.length) renderReview();
   if (window.__lastCoverage) renderCoverage(window.__lastCoverage);
@@ -819,6 +879,7 @@ function beginOperation() {
   activeCtrls.forEach(function(ctrl){ctrl.abort();});
   window.__lastFixes=null; window.__lastCoverage=null; $('coverageResult').classList.add('hidden');
   $('fixCard').classList.add('hidden');
+  window.__lastAction=null; $('actionSummary').classList.add('hidden');
   return activeRunId;
 }
 var activeCtrls = [];         // 在途请求的控制器，停止评测时统一 abort
@@ -1135,7 +1196,7 @@ function run() {
   var cfg = getCfg();
   var samples = parseInt($("samples").value, 10);
   if (!(samples >= 1)) { showErr(t("err_samples")); return; }
-  if (cfg.provider === "demo") { renderDemo(); return; }
+  if (cfg.provider === "demo") { chooseWorkflow("demo"); return; }
   if (!cfg.key) { showErr("请填写 API Key（或先选「演示模式」看效果）"); return; }
   if (cfg.provider === "openai" && !cfg.base) { showErr("OpenAI-compatible 需要填写 Base URL"); return; }
   if (!cfg.model) { showErr("请填写模型名"); return; }
@@ -1317,6 +1378,11 @@ function render(byTask, skills, samples, model) {
   var conflicts = tagged.filter(function(r) { return r.conflict; });
   var hits = tagged.filter(function(r) { return r.chosen === r.expected; }).length;
   var unstable = rows.filter(function(r) { return !r.stable; }).length;
+  var failed=hasInsufficientSamples(byTask,names,samples) || byTask.some(function(r){return r.votes.indexOf('STOPPED')>=0;}), unlabelled=rows.length-tagged.length;
+  renderAction({state:failed?'failed':conflicts.length?'regressed':unstable?'review':'complete',
+    title:failed?'action_failed':conflicts.length?'action_conflict':unstable?'action_review':unlabelled?'action_unlabelled':'action_single_ok',
+    detail:'action_single_counts',values:{conflicts:conflicts.length,unstable:unstable,unlabelled:unlabelled},
+    target:failed?'modelPanel':conflicts.length?'inputPanel':'reviewPanel',next:failed?'next_connection':conflicts.length?'next_skills':'next_review'});
 
   $("s-hit").textContent = hits + "/" + tagged.length;
   $("s-conf").textContent = conflicts.length;
@@ -1381,7 +1447,7 @@ function render(byTask, skills, samples, model) {
     '<div class="plain">' + t("no_plains") + '</div>';
 
   $("result").classList.remove("hidden");
-  $("result").scrollIntoView({ behavior: "smooth" });
+  $("actionSummary").scrollIntoView({ behavior: "auto" });
 }
 
 function loadDemo() {
@@ -1401,6 +1467,7 @@ function renderDemo() {
   hideErr();
   // 演示数据分语言内置（各语言配自己的技能集与真实运行结果）
   var D = demoFor(LANG);
+  renderAction({state:'demo',title:'action_demo',detail:'journey_hint_demo',values:{},target:'journeyCheck',next:'journey_check'});
   $("skills").value = D.skills.map(function(s) { return s.name + ": " + s.desc; }).join("\n");
   $("fixCard").classList.add("hidden");  // 演示模式无修复建议，清掉 BYOK 运行残留
   var skills = D.skills.map(function(s) { return { name: s.name, description: s.desc }; });
@@ -1422,7 +1489,7 @@ function renderDemo() {
   $("conflicts").innerHTML = ch;
   $("plains").innerHTML = '<div class="plain">' + esc(D.meta.note) + '</div>';
   $("result").classList.remove("hidden");
-  $("result").scrollIntoView({ behavior: "smooth" });
+  $("actionSummary").scrollIntoView({ behavior: "auto" });
 }
 
 // 估算文本宽度（CJK 与 ASCII 不同宽度）
@@ -1573,14 +1640,26 @@ function reviewCurrentTasks() {
 }
 function editReview(i, field, value) {
   reviewDraft[i][field]=value; reviewedText=null;
-  if (field!=='reviewed') { reviewDraft[i].reviewed=false; renderReview(); }
+  if (field!=='reviewed') reviewDraft[i].reviewed=false;
+  renderReview();
+}
+function reviewState() {
+  var names=parseSkills($('skills').value).skills.map(function(s){return s.name;}).concat(['NONE']);
+  var filter=$('reviewFilter').value || 'all';
+  var entries=reviewDraft.map(function(r,i){return {row:r,index:i,invalid:!r.t.trim() || names.indexOf(r.e)<0};});
+  return {names:names,total:entries.length,done:entries.filter(function(x){return x.row.reviewed && !x.invalid;}).length,
+    invalid:entries.filter(function(x){return x.invalid;}).length,
+    visible:entries.filter(function(x){return filter==='all' || filter==='pending' && !x.row.reviewed || filter==='invalid' && x.invalid || filter==='gray' && x.row.kind==='gray';})};
 }
 function renderReview() {
-  $('reviewTable').innerHTML=reviewDraft.map(function(r,i){
+  var state=reviewState();
+  $('reviewSkills').innerHTML=state.names.map(function(n){return '<option value="'+esc(n)+'"></option>';}).join('');
+  $('reviewProgress').textContent=t('review_progress',{done:state.done,total:state.total,invalid:state.invalid,shown:state.visible.length});
+  $('reviewTable').innerHTML=state.visible.map(function(entry){var r=entry.row,i=entry.index;
     return '<tr><td><textarea aria-label="'+esc(t('review_task'))+'" onchange="editReview('+i+',\'t\',this.value)">'+esc(r.t)+
-      '</textarea></td><td><input aria-label="'+esc(t('review_expected'))+'" value="'+esc(r.e)+'" onchange="editReview('+i+',\'e\',this.value)"></td>'+
+      '</textarea></td><td><input type="text" list="reviewSkills" aria-invalid="'+entry.invalid+'" aria-label="'+esc(t('review_expected'))+'" value="'+esc(r.e)+'" onchange="editReview('+i+',\'e\',this.value)"></td>'+
       '<td><label><input type="checkbox" '+(r.reviewed?'checked':'')+' onchange="editReview('+i+',\'reviewed\',this.checked)">'+esc(t('review_confirm'))+'</label></td></tr>';
-  }).join('');
+  }).join('') || '<tr><td colspan="3">'+esc(t('review_empty'))+'</td></tr>';
 }
 function reviewedTasks() {
   var ps=parseSkills($('skills').value), names=ps.skills.map(function(s){return s.name;});
@@ -1621,6 +1700,7 @@ function pairedComparison(before, after, names, samples) {
   return {pairs:pairs,counts:counts,exit_code:counts.failed?2:counts.regressed?1:counts.review?3:0};
 }
 function renderWebComparison(result) {
+  renderAction(comparisonAction(result));
   $('comparisonResult').classList.remove('hidden');
   if(result.diagnostics && result.diagnostics.length)showErr(diagnosticText(result.diagnostics[0]));
   else if(result.exit_code===2 && !result.stopped)showErr(t('insufficient_samples'));
@@ -1674,6 +1754,7 @@ async function runComparison(aa) {
     result.arms={baseline:result.pairs.map(function(p){return p.baseline;}),candidate:result.pairs.map(function(p){return p.candidate;})};
     result.changes=b.skills.map(function(s,i){return {name:s.name,before:s.description,after:c.skills[i].description};}).filter(function(s){return s.before!==s.after;});
     window.__lastComparison=result;renderWebComparison(result);renderCoverage(result.coverage);
+    $("actionSummary").scrollIntoView({behavior:"auto"});
     if(evalStopped)showErr(t('run_stopped'));
   } catch(e) { showErr(diagnosticText(e.diagnostic || safeDiagnostic(e))); }
   finally {setRunning(false);$('bar').style.display='none';}
@@ -1708,7 +1789,52 @@ function exportComparison() {
   if(window.__lastComparison)downloadJSON('comparison.json',window.__lastComparison);
 }
 
+var workflow='start', demoInputs=null;
+function updateWorkflow() {
+  ['demo','check','compare'].forEach(function(mode){$('journey'+mode.charAt(0).toUpperCase()+mode.slice(1)).setAttribute('aria-pressed',String(workflow===mode));});
+  $('journeyHint').textContent=t('journey_hint_'+workflow);
+  $('inputPanel').classList.toggle('hidden',workflow==='demo' || workflow==='start');
+  $('modelPanel').classList.toggle('hidden',workflow==='demo' || workflow==='start');
+  $('baselinePanel').classList.toggle('hidden',workflow!=='compare');
+  $('baselinePanel').open=workflow==='compare';
+  $('reviewPanel').open=workflow==='compare';
+  $('compareBtn').classList.toggle('hidden',workflow!=='compare');
+  $('aaBtn').classList.toggle('hidden',workflow!=='compare');
+  $('runBtn').classList.toggle('hidden',workflow!=='check');
+}
+function chooseWorkflow(mode) {
+  if(mode==='demo' && workflow==='demo')return;
+  if(mode==='demo') {
+    demoInputs={skills:$('skills').value,provider:$('provider').value};
+    window.__lastComparison=null; window.__lastRender=null; $('comparisonResult').classList.add('hidden');
+    loadDemo();
+  } else {
+    if(demoInputs){$('skills').value=demoInputs.skills;$('provider').value=demoInputs.provider;demoInputs=null;
+      window.__lastDemoRendered=false;$('result').classList.add('hidden');window.__lastAction=null;$('actionSummary').classList.add('hidden');}
+    if($('provider').value==='demo')$('provider').value='openai';
+    $('baseRow').classList.toggle('hidden',$('provider').value!=='openai');
+  }
+  workflow=mode;updateWorkflow();renderReview();
+}
+function renderAction(action) {
+  window.__lastAction=action;
+  $('actionSummary').classList.remove('hidden');$('actionSummary').setAttribute('data-state',action.state);
+  $('actionSummary').innerHTML='<h2>'+esc(t(action.title))+'</h2><p>'+esc(t(action.detail,action.values))+'</p><a href="#'+action.target+'" onclick="openAction(\''+action.target+'\')">'+esc(t(action.next))+'</a>';
+}
+function openAction(target) {
+  if(target==='journeyCheck')chooseWorkflow('check');
+  if(target==='reviewPanel')$('reviewPanel').open=true;
+}
+function comparisonAction(result) {
+  var c=result.counts, failed=result.exit_code===2, aa=result.meta && result.meta.comparison_type==='AA';
+  return {state:failed?'failed':c.regressed?'regressed':c.review?'review':'complete',
+    title:failed?'action_failed':aa?'action_aa':c.regressed?'action_regressed':c.review?'action_review':c.persistent_error?'action_errors':'action_clean',
+    detail:'action_counts',values:{...c,uncovered:result.coverage?result.coverage.uncovered.length:'—'},
+    target:failed?'modelPanel':c.review?'reviewPanel':'comparisonResult',next:failed?'next_connection':c.review?'next_review':'next_results'};
+}
 loadSaved();
+updateWorkflow();
+$('skills').addEventListener('input',function(){if(reviewDraft.length)renderReview();});
 </script>
 </body>
 </html>
