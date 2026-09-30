@@ -1003,15 +1003,11 @@ function genTasks() {
     hideStatus();
     if (!r.tasks.length) { showErr(t("gen_empty") + (r.warnings.length ? "：" + r.warnings.join("；") : "")); return; }
     // 追加而非覆盖：用户可能已手写任务
-    var generated = r.tasks.map(function(t) {
-      return t.t + " => " + t.e;
-    }).join("\n");
-    var existing = $("tasks").value.trim();
-    if (existing.charAt(0) === '[') {
-      var oldTasks=parseTasks(existing);
-      if(oldTasks.errs.length){showErr(t('review_invalid'));return;}
-      $("tasks").value=JSON.stringify(JSON.parse(existing).concat(r.tasks),null,2);
-    } else $("tasks").value = existing ? existing + "\n" + generated : generated;
+    var existing = $("tasks").value.trim(), oldTasks=parseTasks(existing);
+    if(oldTasks.errs.length){showErr(t('review_invalid'));return;}
+    var previous=existing.charAt(0)==='[' ? JSON.parse(existing) : oldTasks.tasks.map(function(r){return {t:r.task,e:r.expected || ''};});
+    $("tasks").value=JSON.stringify(previous.concat(r.tasks),null,2);
+    reviewedText=null;
     if (r.warnings.length) showErr(t("gen_partial", { w: r.warnings.join("；"), n: r.tasks.length }));
     else showStatus(t("gen_done", { n: r.tasks.length }));
   }).catch(function(e) { showErr(diagnosticText(e.diagnostic || safeDiagnostic(e))); })

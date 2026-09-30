@@ -1415,6 +1415,24 @@ class TestAuditHardening(unittest.TestCase):
             self.assertEqual(len(inventory['included']),2)
             self.assertEqual(inventory['excluded'],[{'path':'.hidden/SKILL.md','reason':'.hidden'}])
 
+    def test_generated_tasks_reusable_in_same_output(self):
+        for mode in ('single', 'aa', 'ab'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as td:
+                root=Path(td); args=TestComparison().fixture(root)
+                out=root/'out'
+                base=[args[0],'--mock','--out',str(out)]
+                generated=run_cli(base)
+                self.assertIn(generated.returncode,(0,1))
+                task_file=out/'tasks-generated.json'; original=task_file.read_bytes()
+                extra=[] if mode=='single' else ['--aa'] if mode=='aa' else ['--baseline',str(root/'before')]
+                for _ in range(2):
+                    result=run_cli(base+['--tasks',str(task_file)]+extra)
+                    self.assertIn(result.returncode,(0,1,3),result.stderr)
+                    self.assertNotIn('Traceback',result.stderr)
+                    self.assertEqual(task_file.read_bytes(),original)
+                    self.assertEqual(json.loads((out/'run.json').read_text())['exit_code'],result.returncode)
+                self.assertEqual(len(list((out/'history').glob('*/tasks-generated.json'))),2)
+
     def test_single_scan_failure_invalidates_old_report(self):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td); args=TestComparison().fixture(root)

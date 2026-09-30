@@ -15,7 +15,7 @@
   <a href="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml"><img src="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-0f6e56.svg" alt="License: MIT"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg" alt="Python 3.10+"></a>
-  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-119%20passing-3b6d11.svg" alt="Tests: 119 passing"></a>
+  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-120%20passing-3b6d11.svg" alt="Tests: 120 passing"></a>
 </p>
 
 Simulate the way your agent picks skills, and find out which skill steals whose tasks. Before your users find out.
@@ -145,8 +145,8 @@ Every description sings. Some songs lure your tasks onto the rocks.
 ## Development
 
 ```bash
-python3 tests/test_atlas.py   # 119 tests, stdlib only
-node tests/web_smoke.cjs      # 145 web assertions, node >= 18
+python3 tests/test_atlas.py   # 120 tests, stdlib only
+node tests/web_smoke.cjs      # 151 web assertions, node >= 18
 ```
 
 CI runs both on Python 3.10, 3.12 and 3.13. See CONTRIBUTING.md before opening a PR.

@@ -1363,7 +1363,7 @@ def render_comparison(data):
 
 
 @contextmanager
-def evaluation_run(out):
+def evaluation_run(out, task_file=None):
     """保留历史产物；根目录永远只代表当前运行。"""
     out.mkdir(parents=True, exist_ok=True)
     old = [out / name for name in ("run.json", "preflight.json", "comparison.json", "results.json",
@@ -1372,7 +1372,10 @@ def evaluation_run(out):
         history = out / "history" / uuid.uuid4().hex
         history.mkdir(parents=True)
         for path in old:
-            shutil.move(str(path), str(history / path.name))
+            if task_file is not None and path.resolve() == task_file.resolve():
+                shutil.copy2(path, history / path.name)
+            else:
+                shutil.move(str(path), str(history / path.name))
     run = {"run_id": uuid.uuid4().hex, "status": "running", "started_at": datetime.now().isoformat(), "exit_code": 2}
     def save():
         pending = out / "run.json.tmp"
@@ -1437,7 +1440,7 @@ def cmd_compare(argv):
         parser.error("--workers 必须大于 0")
     if args.aa:
         args.baseline = args.skills
-    with evaluation_run(args.out) as run:
+    with evaluation_run(args.out, args.tasks) as run:
         return compare_collections(args, run)
 
 
@@ -1649,7 +1652,7 @@ def main():
     out = Path.cwd() / "output"
     if "--out" in args and args.index("--out") + 1 < len(args):
         out = Path(args[args.index("--out") + 1])
-    with evaluation_run(out) as run:
+    with evaluation_run(out, task_file) as run:
         skills, issues, rejected = scan_skills(root)
         if rejected:
             for md, msgs in rejected:

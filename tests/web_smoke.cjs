@@ -543,6 +543,23 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   check('current suggestion still renders',oldRenders===1);
   genFixes=originalGen;renderFixes=originalRender;
 
+  const savedPreflight=connectionPreflight, savedAuto=genTasksAuto;
+  connectionPreflight=()=>Promise.resolve({ok:true});
+  const grayTask={id:'gray-1',t:'Boundary task',e:'a-b',kind:'gray',pair:'a-b↔c-d'};
+  genTasksAuto=()=>Promise.resolve({tasks:[grayTask],warnings:[]});
+  el('skills').value='a-b: Weather\nc-d: Calendar';
+  el('provider').value='openai';el('key').value='FAKE_TEST_KEY';el('model').value='test';el('base').value='https://example.invalid';
+  for(const prior of ['', 'Existing task => c-d', JSON.stringify([{id:'old-1',t:'Existing task',e:'c-d',kind:'positive'}])]) {
+    el('tasks').value=prior;
+    await genTasks();reviewCurrentTasks();
+    reviewDraft.forEach(r=>{r.reviewed=true;});applyReviewedTasks();
+    const exported=reviewedTasks(), row=exported[exported.length-1];
+    check('generated gray metadata survives review: '+prior,JSON.stringify(row)===JSON.stringify(grayTask));
+    const coverage=taskCoverage(exported,['a-b','c-d']);
+    check('generated gray coverage and existing tasks: '+prior,coverage.skills['a-b'].gray===1 && coverage.skills['a-b'].positive===0 && exported.length===(prior?2:1));
+  }
+  connectionPreflight=savedPreflight;genTasksAuto=savedAuto;
+
   // 文档自校验是元检查，不计入产品断言数；先冻结计数器，否则会出现「自己数自己」的循环
   const productTotal = pass + fail;
   const metaStart = pass + fail;
