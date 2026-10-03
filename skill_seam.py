@@ -279,9 +279,10 @@ def _iter_skill_mds(root: Path):
 
 
 def scan_skills(root: Path):
-    """返回 (skills, all_issues, rejected)。rejected 是含不可靠解析（[fatal]）的文件，
+    """返回 (skills, all_issues, rejected)。rejected 包括不可靠解析、无效名称、空描述和重复名称，
     调用方必须阻止评测而不是静默跳过。"""
     skills, all_issues, rejected = [], [], []
+    names = set()
     mds, skipped = _iter_skill_mds(root)
     if skipped:
         all_issues.append((root, [
@@ -296,6 +297,17 @@ def scan_skills(root: Path):
         if skill is None:
             rejected.append((md, issues))
             continue
+        invalid = []
+        if not NAME_RE.fullmatch(skill["name"]):
+            invalid.append("技能名称不合法")
+        if skill["name"] in names:
+            invalid.append(f"技能名称重复: {skill['name']}")
+        if not skill["description"].strip():
+            invalid.append("description 为空")
+        if invalid:
+            rejected.append((md, invalid))
+            continue
+        names.add(skill["name"])
         skills.append(skill)
         if issues:
             all_issues.append((md, issues))
@@ -1046,8 +1058,8 @@ def cmd_mark(argv):
     if not text:
         eprint("错误: 任务文本为空")
         return 2
-    if not NAME_RE.match(expected):
-        eprint(f"错误: 应选技能名不符合规范（小写字母/数字/连字符）: {expected}")
+    if expected != "NONE" and not NAME_RE.fullmatch(expected):
+        eprint(f"错误: 应选技能名不符合规范（小写字母/数字/连字符，或 NONE）: {expected}")
         return 2
     existing = load_marked(lib)
     for e in existing:
@@ -1294,7 +1306,7 @@ def cmd_export(argv):
         for m in msgs:
             eprint(f"[warn] {p}: {m}")
     if rejected:
-        eprint("错误: 以下 SKILL.md 存在无法可靠解析的语法，export 拒绝输出：")
+        eprint("错误: 以下 SKILL.md 无效或存在无法可靠解析的语法，export 拒绝输出：")
         for md, msgs in rejected:
             for msg in msgs:
                 eprint(f"  {md}: {msg}")
@@ -1460,11 +1472,6 @@ def compare_collections(args, run):
                     eprint(f"[rejected] {arm}: {file}: {'; '.join(reasons)}")
             if rejected or not skills:
                 raise ValueError(f"{arm}: 技能为空或存在无法解析的 frontmatter")
-            names = [sk["name"] for sk in skills]
-            if len(set(names)) != len(names) or any(not NAME_RE.fullmatch(n) for n in names):
-                raise ValueError(f"{arm}: 技能名称重复或不合法")
-            if any(not sk["description"].strip() for sk in skills):
-                raise ValueError(f"{arm}: description 为空")
             collections[arm] = sorted(skills, key=lambda sk: sk["name"])
             inventory[arm] = scan_inventory(root, collections[arm])
         names = [sk["name"] for sk in collections["baseline"]]
@@ -1609,9 +1616,6 @@ def main():
             eprint("错误: --tasks 需要一个 JSON 文件路径")
             sys.exit(2)
         task_file = Path(args[ti + 1])
-        if not task_file.exists():
-            eprint(f"错误: 任务文件不存在: {task_file}")
-            sys.exit(2)
     skip = {"--mock", "--demo-tasks", "--with-marked", "--tasks",
             str(task_file) if task_file else None,
             "--gen-positive", "--gray-pairs", "--workers", "--no-fixes"}
@@ -1633,9 +1637,6 @@ def main():
             skip.add(args[args.index(flag) + 1])
     paths = [a for a in args if a not in skip]
     root = Path(paths[0]) if paths else Path("./demo-skills")
-    if not root.exists():
-        eprint(f"错误: skill 目录不存在: {root}")
-        sys.exit(2)
 
     def int_opt(flag, default, minimum=1):
         if flag in args and args.index(flag) + 1 < len(args):
@@ -1646,19 +1647,24 @@ def main():
                 sys.exit(2)
         return default
 
-    n_pos = int_opt("--gen-positive", 5)
-    k_pairs = int_opt("--gray-pairs", 2, minimum=0)  # 0 = 不生成灰区任务
-
     out = Path.cwd() / "output"
     if "--out" in args and args.index("--out") + 1 < len(args):
         out = Path(args[args.index("--out") + 1])
     with evaluation_run(out, task_file) as run:
+        if task_file is not None and not task_file.is_file():
+            eprint(f"错误: 任务文件不存在或不是文件: {task_file}")
+            sys.exit(2)
+        if not root.is_dir():
+            eprint(f"错误: skill 目录不存在或不是目录: {root}")
+            sys.exit(2)
+        n_pos = int_opt("--gen-positive", 5)
+        k_pairs = int_opt("--gray-pairs", 2, minimum=0)  # 0 = 不生成灰区任务
         skills, issues, rejected = scan_skills(root)
         if rejected:
             for md, msgs in rejected:
                 for msg in msgs:
                     eprint(f"错误: {md}: {msg}")
-            eprint("错误: 存在无法可靠解析的 SKILL.md，评测中止（拒绝返回 0）。")
+            eprint("错误: 存在无效或无法可靠解析的 SKILL.md，评测中止（拒绝返回 0）。")
             sys.exit(2)
         if not skills:
             eprint("错误: 未找到任何 SKILL.md")
@@ -1730,7 +1736,7 @@ def main():
             existing_texts = {t["t"] for t in TASKS}
             applicable, skipped = [], 0
             for m in marked:
-                if m["e"] not in valid_names:
+                if m["e"] != "NONE" and m["e"] not in valid_names:
                     skipped += 1
                     continue
                 if m["t"] in existing_texts:

@@ -83,7 +83,7 @@ open output/report.html
 ```
 
 - `positive`：意图清晰、理应命中的任务；`gray`：两 skill 语义交界的灰区任务（冲突高发区，建议占 20-30%）。
-- `e` 必须是目录里真实存在的 skill name，否则工具报错退出（防呆）。
+- `e` 必须是目录里真实存在的 skill name，或表示不应触发任何技能的 `NONE`；其他值报错退出。`mark` 和 `--with-marked` 也支持 `NONE`。
 
 ---
 
@@ -93,12 +93,12 @@ open output/report.html
 
 **选择混淆矩阵**：行 = 应选技能，列 = agent 实际选中。对角线绿色是正确命中；行内出现红色数字 = 该 skill 的任务被列方向的 skill 抢走，颜色越深次数越多。
 
-**冲突明细**：每条冲突给出任务原文、应选 vs 实际、票数一致率，以及**截胡关键词**——截胡者 description 里命中任务文本的词，这就是你要改的地方。
+**冲突明细**：每条冲突给出任务原文、应选 vs 实际、票数一致率，以及**截胡关键词**——截胡者 description 里命中任务文本的词，这些词是排查线索，需要修改后的对照评测验证效果。
 
 **修复闭环（已自动化）**：真实模式下，报告会自动生成「修复建议」区块——对每个冲突对给出 description 改前/改后对照与理由（优先给截胡方加"仅限/不含"边界词）。照改 → 重跑 → 看冲突是否消失。demo 中两处撞车都如此可修。mock 模式跳过此区块。
 
 **三个判定规则**（方法学核心）：
-1. **一致率 ≥ 0.8 才算稳定冲突**（5 次采样至少 4 次同结果）。低于此值标"不稳定"——那是模型随机性，不是真冲突，不要据此改 description。
+1. **一致率 ≥ 0.8 才算稳定冲突**（5 次采样至少 4 次同结果）。低于此值标"不稳定"——证据不足以判定稳定冲突；需复核模型波动、任务歧义和技能边界。
 2. **正向任务全绿是底线**。正向任务出现冲突说明 description 问题严重；冲突集中在灰区属正常现象，灰区本来就是设计来逼出边界问题的。
 3. **NONE 也是信号**。agent 认为没有技能接得住——说明该能力缺 skill，或 description 没覆盖到这类问法。
 
@@ -109,14 +109,14 @@ open output/report.html
 ```
 skill-seam/
 ├── skill_seam.py          # 主脚本（scan → generate → simulate → report）
-├── tests/test_atlas.py    # 120 项测试（unittest，纯标准库）
+├── tests/test_atlas.py    # 123 项测试（unittest，纯标准库）
 ├── tests/web_smoke.cjs    # 168 项网页断言（node，无需依赖）
 ├── demo-skills/           # 眼科客服样例（中文），6 个 skill，埋 2 处撞车
 ├── demo-skills-en/        # 同一场景的英文样例，网页 ?lang=en 的演示数据来源
 ├── examples/              # 真实运行归档（报告/结果/任务，qwen3.8-flash；含英文 demo 一套）
 ├── research/              # 与同领域独立工作（arXiv:2609.13321）的协议对齐笔记
 ├── README.md              # 快速上手
-└── output/                # 每次运行覆盖写入 results.json + report.html
+└── output/                # 当前运行产物；旧结果归档到 history/，状态见 run.json
 ```
 
 ## 5. 已知局限（诚实清单）

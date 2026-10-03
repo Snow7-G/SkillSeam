@@ -6,7 +6,7 @@
   <img src="assets/banner.svg" alt="SkillSeam" width="720">
 </p>
 
-[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-120%20passing-3b6d11.svg)](tests/test_atlas.py)
+[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-123%20passing-3b6d11.svg)](tests/test_atlas.py)
 
 模拟 agent 真实挑选 skill 的过程，找出哪个 skill 抢了谁的活。在用户发现问题之前。
 
@@ -140,7 +140,7 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 1. 扫描 skill 目录，解析每个 SKILL.md 的 frontmatter，顺手做格式体检。
 2. 组任务集：每个 skill 几条意图明确的正向任务，再加一批故意模糊的灰区任务（专门压在两个 skill 的边界上）。
 3. 重演选择：模型只看 name 和 description，格式和 agent 真实注入时一样，给每条任务选一个技能。每条任务跑 5 次，temperature 0.7。
-4. 多数投票汇总。5 次里至少 4 次一致地选错才算真冲突；不到这个数标记为不稳定，那是模型噪声，不是 bug，不污染报告。
+4. 多数投票汇总。5 次里至少 4 次一致地选错才算真冲突；不到这个数标记为不稳定、待复核；模型波动、任务歧义或技能职责重叠都可能是原因。
 
 报告是单文件 HTML，带混淆矩阵热力图。有冲突时还会生成 description 改写建议（改前/改后对照），改完重跑验证。
 
@@ -178,7 +178,7 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 开发
 
 ```bash
-python3 tests/test_atlas.py   # 120 项测试，纯标准库
+python3 tests/test_atlas.py   # 123 项测试，纯标准库
 node tests/web_smoke.cjs      # 168 项网页断言，node >= 18
 ```
 

@@ -15,7 +15,7 @@
   <a href="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml"><img src="https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-0f6e56.svg" alt="License: MIT"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg" alt="Python 3.10+"></a>
-  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-120%20passing-3b6d11.svg" alt="Tests: 120 passing"></a>
+  <a href="tests/test_atlas.py"><img src="https://img.shields.io/badge/Tests-123%20passing-3b6d11.svg" alt="Tests: 123 passing"></a>
 </p>
 
 Simulate the way your agent picks skills, and find out which skill steals whose tasks. Before your users find out.
@@ -52,7 +52,7 @@ Agent runtimes like Claude Code and Codex load skills by reading one or two line
 
 That works fine until two descriptions overlap. In our hospital demo, a booking skill's description claimed it also handled "vision report inquiries". The report-reading skill owned that job. So a patient asks for a report reading, the booking skill answers, and then it makes things up. Nothing errors, and nothing gets logged. We only found out because patients complained.
 
-SkillSeam replays that selection process before you ship. Both bundled demos are real 40-task runs over 6 ophthalmology support skills: the Chinese set surfaces 4 boundary problems, the English set 6 — every one of them unanimous at 5/5, with no flaky rows. Each conflict report points at the exact keywords in the thief's description that caused the theft.
+SkillSeam replays that selection process before you ship. Both bundled demos are real 40-task runs over 6 ophthalmology support skills: the Chinese set surfaces 4 boundary problems, the English set 6 — every one of them unanimous at 5/5, with no flaky rows. Each conflict report highlights overlapping keywords as investigation clues; a controlled comparison is needed to test whether editing them improves selection.
 
 ## Before/after comparison
 
@@ -156,7 +156,7 @@ Generated tasks still have a use: smoke testing. Just don't trust them to prove 
 1. Scan the skill directory, parse each SKILL.md frontmatter, and lint the format.
 2. Build a task set: clear questions per skill, plus deliberately ambiguous ones at the boundaries where two skills overlap.
 3. Replay selection: the model sees only the names and descriptions, formatted the way agents inject them, and picks a skill for each task. Every task runs 5 times at temperature 0.7.
-4. Aggregate with majority vote. A task counts as a real conflict only when at least 4 of 5 runs agree on the wrong skill. Below that we mark it unstable, because that's model noise and it would pollute the report.
+4. Aggregate with majority vote. A task counts as a real conflict only when at least 4 of 5 runs agree on the wrong skill. Below that we mark it unstable and require review: model variation, task ambiguity, or overlapping skill boundaries may all contribute.
 
 The report ships as a single self-contained HTML page with a confusion matrix. If conflicts exist, it also generates description rewrites (before and after) that you can apply and re-test.
 
@@ -194,7 +194,7 @@ Every description sings. Some songs lure your tasks onto the rocks.
 ## Development
 
 ```bash
-python3 tests/test_atlas.py   # 120 tests, stdlib only
+python3 tests/test_atlas.py   # 123 tests, stdlib only
 node tests/web_smoke.cjs      # 168 web assertions, node >= 18
 ```
 

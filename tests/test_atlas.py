@@ -1444,5 +1444,74 @@ class TestAuditHardening(unittest.TestCase):
             self.assertFalse((out/'report.html').exists())
             self.assertEqual(json.loads((out/'run.json').read_text())['status'],'failed')
 
+class TestCompletenessRegression(unittest.TestCase):
+    def test_invalid_collections_rejected_by_all_entries(self):
+        for case in ("duplicate", "invalid_name", "empty_description"):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as td:
+                base = Path(td)
+                for folder, name, desc in ([('a', 'same-skill', 'weather'), ('b', 'same-skill', 'calendar')]
+                                          if case == 'duplicate' else
+                                          [('a', 'INVALID' if case == 'invalid_name' else 'a-b',
+                                            '' if case == 'empty_description' else 'weather')]):
+                    md = base / 'skills' / folder / 'SKILL.md'
+                    md.parent.mkdir(parents=True)
+                    md.write_text(TestParser.FM.format(name, desc), encoding='utf-8')
+                tasks = base / 'tasks.json'
+                tasks.write_text('[{"t":"hello","e":"NONE"}]')
+                for mode in ('single', 'aa', 'ab', 'export'):
+                    with self.subTest(mode=mode):
+                        args = (["export", str(base / 'skills')] if mode == 'export' else
+                                [str(base / 'skills'), '--tasks', str(tasks), '--mock', '--out', str(base / mode)] +
+                                (['--aa'] if mode == 'aa' else ['--baseline', str(base / 'skills')] if mode == 'ab' else []))
+                        result = run_cli(args)
+                        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                        self.assertNotIn('Traceback', result.stderr)
+                        self.assertFalse((base / mode / 'report.html').exists())
+                        if mode == 'export':
+                            self.assertEqual(result.stdout, '')
+
+    def test_missing_inputs_archive_previous_success(self):
+        for mode in ('single', 'aa', 'ab'):
+            for missing in ('tasks', 'skills'):
+                with self.subTest(mode=mode, missing=missing), tempfile.TemporaryDirectory() as td:
+                    base = Path(td)
+                    skills, tasks = make_clean_fixture(base)
+                    out = base / 'out'
+                    args = [str(skills), '--tasks', str(tasks), '--mock', '--out', str(out)]
+                    args += ['--aa'] if mode == 'aa' else ['--baseline', str(skills)] if mode == 'ab' else []
+                    self.assertEqual(run_cli(args).returncode, 0)
+                    previous = json.loads((out / 'run.json').read_text())
+                    if missing == 'tasks':
+                        tasks.unlink()
+                    else:
+                        shutil.rmtree(skills)
+                    result = run_cli(args)
+                    self.assertEqual(result.returncode, 2)
+                    self.assertNotIn('Traceback', result.stderr)
+                    current = json.loads((out / 'run.json').read_text())
+                    self.assertNotEqual(current['run_id'], previous['run_id'])
+                    self.assertEqual((current['status'], current['exit_code']), ('failed', 2))
+                    self.assertFalse((out / 'report.html').exists())
+                    self.assertEqual(len(list((out / 'history').glob('*/report.html'))), 1)
+
+    def test_none_mark_merge_roundtrip(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            skills, tasks = make_clean_fixture(base)
+            library, out = base / 'marked.jsonl', base / 'out'
+            text = '不要触发任何技能，仅回答你好'
+            args = ['mark', text, 'NONE', '--library', str(library)]
+            self.assertEqual(run_cli(args).returncode, 0)
+            self.assertEqual(run_cli(args).returncode, 0)
+            self.assertEqual(len(library.read_text().splitlines()), 1)
+            result = run_cli([str(skills), '--mock', '--tasks', str(tasks), '--with-marked',
+                              '--library', str(library), '--out', str(out)])
+            self.assertIn(result.returncode, (0, 1), result.stderr)
+            data = json.loads((out / 'results.json').read_text())
+            marked = [row for row in data['rows'] if row['task'] == text]
+            self.assertEqual(len(marked), 1)
+            self.assertEqual(marked[0]['expected'], 'NONE')
+            self.assertEqual(data['meta']['coverage']['none_tasks'], 1)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
