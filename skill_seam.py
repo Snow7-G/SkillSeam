@@ -289,7 +289,12 @@ def scan_skills(root: Path):
             f"跳过 {len(skipped)} 个隐藏/噪音目录中的 SKILL.md（如 {skipped[0][1]}/），"
             f"如需检测请把目录参数直接指向它"]))
     for md in mds:
-        skill, issues = parse_frontmatter(md.read_text(encoding="utf-8"), md)
+        try:
+            text = md.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            rejected.append((md, ["无法读取 SKILL.md；检查文件权限和 UTF-8 编码。"]))
+            continue
+        skill, issues = parse_frontmatter(text, md)
         fatal = [i for i in issues if i.startswith("[fatal]")]
         if fatal:
             rejected.append((md, [i.replace("[fatal] ", "") for i in fatal]))
@@ -1436,8 +1441,32 @@ def scan_inventory(root, skills):
             "skill_names": [s["name"] for s in skills]}
 
 
+def fail_arguments(argv, message, default_out="output"):
+    """参数解析失败也记录当前运行；只使用能明确识别的输出路径。"""
+    out, task_file = Path(default_out), None
+    for i, arg in enumerate(argv):
+        for flag in ("--out", "--tasks"):
+            value = None
+            if arg.startswith(flag + "="):
+                value = arg[len(flag) + 1:]
+            elif arg == flag and i + 1 < len(argv) and not argv[i + 1].startswith("--"):
+                value = argv[i + 1]
+            if value:
+                if flag == "--out":
+                    out = Path(value)
+                else:
+                    task_file = Path(value)
+    with evaluation_run(out, task_file):
+        eprint(f"错误: {message}")
+        sys.exit(2)
+
+
 def cmd_compare(argv):
-    parser = argparse.ArgumentParser(description="固定任务集上的技能描述对照；退出码 0 无回归 / 1 回归 / 2 失败 / 3 待复核")
+    class ComparisonParser(argparse.ArgumentParser):
+        def error(self, message):
+            fail_arguments(argv, message, "output/comparison")
+
+    parser = ComparisonParser(description="固定任务集上的技能描述对照；退出码 0 无回归 / 1 回归 / 2 失败 / 3 待复核")
     parser.add_argument("skills", type=Path)
     arm = parser.add_mutually_exclusive_group(required=True)
     arm.add_argument("--baseline", type=Path)
@@ -1612,9 +1641,8 @@ def main():
     task_file = None
     if "--tasks" in args:
         ti = args.index("--tasks")
-        if ti + 1 >= len(args):
-            eprint("错误: --tasks 需要一个 JSON 文件路径")
-            sys.exit(2)
+        if ti + 1 >= len(args) or args[ti + 1].startswith("--"):
+            fail_arguments(args, "--tasks 需要一个 JSON 文件路径")
         task_file = Path(args[ti + 1])
     skip = {"--mock", "--demo-tasks", "--with-marked", "--tasks",
             str(task_file) if task_file else None,
@@ -1627,10 +1655,11 @@ def main():
     no_fixes = "--no-fixes" in args
     if "--workers" in args:
         wi = args.index("--workers")
-        if wi + 1 < len(args) and args[wi + 1].isdigit():
-            skip.add(args[wi + 1])
-            global MAX_WORKERS
-            MAX_WORKERS = max(1, int(args[wi + 1]))
+        if wi + 1 >= len(args) or not re.fullmatch(r"[0-9]+", args[wi + 1]) or int(args[wi + 1]) < 1:
+            fail_arguments(args, "--workers 需要一个大于 0 的整数")
+        skip.add(args[wi + 1])
+        global MAX_WORKERS
+        MAX_WORKERS = int(args[wi + 1])
     # 数值型旗标的值也不算位置参数
     for flag in ("--gen-positive", "--gray-pairs"):
         if flag in args and args.index(flag) + 1 < len(args):

@@ -1513,5 +1513,46 @@ class TestCompletenessRegression(unittest.TestCase):
             self.assertEqual(marked[0]['expected'], 'NONE')
             self.assertEqual(data['meta']['coverage']['none_tasks'], 1)
 
+class TestArgumentFailureRegression(unittest.TestCase):
+    def test_argument_failures_replace_success(self):
+        for mode in ('single', 'aa'):
+            for bad in (['--tasks'], ['--workers', 'oops'], ['--workers', '-1'], ['--workers', '0'], ['--workers', '²'], ['--workers']):
+                with self.subTest(mode=mode, bad=bad), tempfile.TemporaryDirectory() as td:
+                    base = Path(td)
+                    skills, tasks = make_clean_fixture(base)
+                    out = base / 'out'
+                    common = [str(skills), '--mock', '--out', str(out)] + (['--aa'] if mode == 'aa' else [])
+                    self.assertEqual(run_cli(common + ['--tasks', str(tasks)]).returncode, 0)
+                    before = json.loads((out / 'run.json').read_text())
+                    args = common + ([] if bad == ['--tasks'] else ['--tasks', str(tasks)]) + bad
+                    result = run_cli(args)
+                    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                    self.assertNotIn('Traceback', result.stderr)
+                    after = json.loads((out / 'run.json').read_text())
+                    self.assertNotEqual(before['run_id'], after['run_id'])
+                    self.assertEqual((after['status'], after['exit_code']), ('failed', 2))
+                    self.assertFalse((out / 'report.html').exists())
+                    self.assertEqual(len(list((out / 'history').glob('*/report.html'))), 1)
+
+    def test_unreadable_utf8_is_input_failure(self):
+        for mode in ('single', 'aa', 'export'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as td:
+                base = Path(td)
+                skills, tasks = make_clean_fixture(base)
+                next(skills.rglob('SKILL.md')).write_bytes(b'---\nname: a-b\ndescription: \xff\n---\n')
+                args = ['export', str(skills)] if mode == 'export' else [
+                    str(skills), '--mock', '--tasks', str(tasks), '--out', str(base / 'out')]
+                if mode == 'aa':
+                    args += ['--aa']
+                result = run_cli(args)
+                self.assertEqual(result.returncode, 2)
+                self.assertNotIn('Traceback', result.stderr)
+                self.assertIn('UTF-8', result.stderr)
+                if mode == 'export':
+                    self.assertEqual(result.stdout, '')
+                else:
+                    state = json.loads((base / 'out/run.json').read_text())
+                    self.assertEqual((state['status'], state['exit_code']), ('failed', 2))
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
