@@ -1,0 +1,220 @@
+name: 'SkillSeam check'
+description: >
+  Simulate how your agent picks skills, right inside CI. Detects description
+  conflicts (detect mode) or validates description edits against a baseline
+  (compare mode). Exit codes map to CI results; a report is written to the job summary.
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  skills-path:
+    description: 'Directory containing the skill collection to check.'
+    required: true
+  mode:
+    description: 'detect = find conflicts. compare = validate edits against a baseline.'
+    required: false
+    default: 'detect'
+  baseline-path:
+    description: 'Baseline skill collection (compare mode only). Must contain the same skill names.'
+    required: false
+  tasks-path:
+    description: 'Task list JSON for compare mode, or custom tasks for detect. Optional.'
+    required: false
+  mock:
+    description: 'Offline keyword-scoring mode. No API key needed; validates the pipeline, but conclusions are not trustworthy. Default false.'
+    required: false
+    default: 'false'
+  dashscope-api-key:
+    description: 'DashScope API key. When omitted, an existing DASHSCOPE_API_KEY environment variable (set on the invoking step) is used as-is.'
+    required: false
+  deepseek-api-key:
+    description: 'DeepSeek API key. When omitted, an existing DEEPSEEK_API_KEY environment variable (set on the invoking step) is used as-is.'
+    required: false
+  openai-api-key:
+    description: 'OpenAI(-compatible) API key. When omitted, an existing OPENAI_API_KEY environment variable (set on the invoking step) is used as-is.'
+    required: false
+  workers:
+    description: 'Concurrent requests (default 8; lower it when the provider rate-limits).'
+    required: false
+    default: '8'
+  no-fixes:
+    description: 'Skip AI fix suggestions (faster and cheaper; recommended for CI). Default true.'
+    required: false
+    default: 'true'
+  fail-on-conflict:
+    description: 'detect mode: fail the step when a conflict is found (exit 1). Default true.'
+    required: false
+    default: 'true'
+  fail-on-regression:
+    description: 'compare mode: fail the step when a regression is found (exit 1). Default true.'
+    required: false
+    default: 'true'
+  fail-on-error:
+    description: 'Fail the step when evaluation fails (exit 2). Default true.'
+    required: false
+    default: 'true'
+  fail-on-unstable:
+    description: 'compare mode: fail the step on unstable pairs needing review (exit 3). Default false.'
+    required: false
+    default: 'false'
+  python-version:
+    description: 'Python version for the runner. Default 3.12.'
+    required: false
+    default: '3.12'
+  report-artifact-name:
+    description: 'Name for the uploaded report artifact. Default skillseam-report.'
+    required: false
+    default: 'skillseam-report'
+
+outputs:
+  exit-code:
+    description: 'Raw skill-seam exit code (0 ok, 1 conflict/regression, 2 error, 3 unstable).'
+    value: ${{ steps.run.outputs.exit-code }}
+  verdict:
+    description: 'One of: ok, conflict, regression, error, unstable.'
+    value: ${{ steps.run.outputs.verdict }}
+  report-dir:
+    description: 'Directory containing report.html, run.json and results.json / comparison.json.'
+    value: ${{ steps.run.outputs.report-dir }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install SkillSeam
+      shell: bash
+      run: python -m pip install "${{ github.action_path }}/.."
+
+    - name: Validate inputs
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        BASELINE: ${{ inputs.baseline-path }}
+        TASKS: ${{ inputs.tasks-path }}
+      run: |
+        set -euo pipefail
+        if [ ! -d "${{ inputs.skills-path }}" ]; then
+          echo "::error::skills-path not found: ${{ inputs.skills-path }}"
+          exit 2
+        fi
+        case "$MODE" in
+          detect|compare) ;;
+          *) echo "::error::mode must be 'detect' or 'compare', got: $MODE"; exit 2 ;;
+        esac
+        if [ "$MODE" = "compare" ]; then
+          if [ -z "$BASELINE" ]; then
+            echo "::error::compare mode requires baseline-path"; exit 2
+          fi
+          if [ ! -d "$BASELINE" ]; then
+            echo "::error::baseline-path not found: $BASELINE"; exit 2
+          fi
+          if [ -z "$TASKS" ]; then
+            echo "::error::compare mode requires tasks-path"; exit 2
+          fi
+          if [ ! -f "$TASKS" ]; then
+            echo "::error::tasks-path not found: $TASKS"; exit 2
+          fi
+        fi
+
+    - name: Run SkillSeam
+      id: run
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        SKILLS: ${{ inputs.skills-path }}
+        BASELINE: ${{ inputs.baseline-path }}
+        TASKS: ${{ inputs.tasks-path }}
+        MOCK: ${{ inputs.mock }}
+        WORKERS: ${{ inputs.workers }}
+        NO_FIXES: ${{ inputs.no-fixes }}
+        FAIL_CONFLICT: ${{ inputs.fail-on-conflict }}
+        FAIL_REGRESSION: ${{ inputs.fail-on-regression }}
+        FAIL_ERROR: ${{ inputs.fail-on-error }}
+        FAIL_UNSTABLE: ${{ inputs.fail-on-unstable }}
+        REPORT_DIR: ${{ runner.temp }}/skillseam-report
+        IN_DASHSCOPE: ${{ inputs.dashscope-api-key }}
+        IN_DEEPSEEK: ${{ inputs.deepseek-api-key }}
+        IN_OPENAI: ${{ inputs.openai-api-key }}
+      run: |
+        set -uo pipefail
+        # 仅当显式提供 input 时才覆盖环境变量（空值不遮蔽调用方通过 env 传入的密钥）
+        if [ -n "$IN_DASHSCOPE" ]; then export DASHSCOPE_API_KEY="$IN_DASHSCOPE"; fi
+        if [ -n "$IN_DEEPSEEK" ]; then export DEEPSEEK_API_KEY="$IN_DEEPSEEK"; fi
+        if [ -n "$IN_OPENAI" ]; then export OPENAI_API_KEY="$IN_OPENAI"; fi
+        mkdir -p "$REPORT_DIR"
+
+        ARGS=("$SKILLS" --out "$REPORT_DIR" --workers "$WORKERS")
+        if [ "$MODE" = "compare" ]; then
+          ARGS+=(--baseline "$BASELINE" --tasks "$TASKS")
+        elif [ -n "$TASKS" ]; then
+          ARGS+=(--tasks "$TASKS")
+        fi
+        if [ "$MOCK" = "true" ]; then
+          ARGS+=(--mock)
+        elif [ "$NO_FIXES" = "true" ]; then
+          ARGS+=(--no-fixes)
+        else
+          echo "::warning::no-fixes=false makes paid model calls for fix suggestions; not recommended in CI"
+        fi
+
+        set +e
+        skill-seam "${ARGS[@]}"
+        code=$?
+        set -e
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+
+        # 判定 verdict 与是否失败
+        verdict="ok"; fail="false"; reason=""
+        case "$code" in
+          0) verdict="ok" ;;
+          1)
+            if [ "$MODE" = "compare" ]; then
+              verdict="regression"
+              if [ "$FAIL_REGRESSION" = "true" ]; then fail="true"; reason="description edit introduced a routing regression"; fi
+            else
+              verdict="conflict"
+              if [ "$FAIL_CONFLICT" = "true" ]; then fail="true"; reason="skill description conflict detected"; fi
+            fi
+            ;;
+          2) verdict="error"; if [ "$FAIL_ERROR" = "true" ]; then fail="true"; reason="evaluation failed (check provider key / inputs)"; fi ;;
+          3) verdict="unstable"; if [ "$FAIL_UNSTABLE" = "true" ]; then fail="true"; reason="unstable pairs need manual review"; fi ;;
+          *) verdict="error"; fail="true"; reason="unexpected exit code $code" ;;
+        esac
+        echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+        echo "report-dir=$REPORT_DIR" >> "$GITHUB_OUTPUT"
+
+        # Job summary
+        {
+          echo "## SkillSeam report ($MODE mode)"
+          echo ""
+          echo "| item | value |"
+          echo "|---|---|"
+          echo "| verdict | **$verdict** |"
+          echo "| exit code | $code |"
+          echo "| skills | \`$SKILLS\` |"
+          if [ "$MODE" = "compare" ]; then echo "| baseline | \`$BASELINE\` |"; fi
+          echo "| mock | $MOCK |"
+          echo ""
+          if [ -f "$REPORT_DIR/report.html" ]; then
+            echo "Full interactive report: \`$REPORT_DIR/report.html\` (download the \`skillseam-report\` artifact if uploaded)."
+          fi
+          [ -n "$reason" ] && echo "" && echo "**Reason:** $reason"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        if [ "$fail" = "true" ]; then
+          echo "::error::SkillSeam: $reason (exit $code)"
+          exit 1
+        fi
+        exit 0
+
+    - name: Upload report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.report-artifact-name }}
+        path: ${{ steps.run.outputs.report-dir }}
+        if-no-files-found: ignore

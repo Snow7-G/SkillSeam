@@ -46,6 +46,19 @@ Real runs preflight the endpoint once before batch work. Run `python3 skill_seam
 
 The web UI now supports baseline/candidate comparison and a task-review table: import a draft, confirm each label, apply reviewed tasks, then compare. [Instructions and diagnostic limits](docs/comparison.md#web-comparison-and-task-review).
 
+## Use it in CI
+
+Turn SkillSeam into a merge gate: when a pull request edits skill descriptions,
+the [official GitHub Action](action/README.md) replays selection and fails on
+conflicts or routing regressions.
+
+```yaml
+- uses: Snow7-G/SkillSeam/action@main
+  with:
+    skills-path: ./skills
+    tasks-path: ./tests/skill-tasks.json
+```
+
 ## The problem
 
 Agent runtimes like Claude Code and Codex load skills by reading one or two lines of description. When a task comes in, the agent picks whichever skill sounds closest.

@@ -1,0 +1,101 @@
+name: Action self-test
+
+# Dogfoods the composite action in this repo (./action) so that a broken
+# action.yml cannot ship silently. Runs entirely offline (mock mode):
+# no API keys, no network model calls.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "action/**"
+      - "skill_seam.py"
+      - "demo-skills/**"
+      - ".github/workflows/action-selftest.yml"
+  pull_request:
+    paths:
+      - "action/**"
+      - "skill_seam.py"
+      - "demo-skills/**"
+      - ".github/workflows/action-selftest.yml"
+  workflow_dispatch:
+
+jobs:
+  detect-ok:
+    name: self-test · detect mode passes on clean demo set
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./action
+        with:
+          skills-path: demo-skills
+          mock: true
+          report-artifact-name: selftest-detect-ok
+
+  detect-conflict-fails:
+    name: self-test · detect mode fails on routing regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build regression fixture
+        run: |
+          set -euo pipefail
+          # 1) 基准任务集：对原始 demo 技能集跑一次 mock，得到固定预期标签
+          python -m pip install .
+          python skill_seam.py demo-skills --mock --out /tmp/baseline-run
+          # 2) 夹具：把 baogao-jiedu 的描述改坏（报告/解读关键词替换为营销关键词）
+          cp -r demo-skills /tmp/regression-skills
+          cat > /tmp/regression-skills/baogao-jiedu/SKILL.md <<'EOF'
+          ---
+          name: baogao-jiedu
+          description: 处理会员营销活动策划、优惠方案设计与推广文案撰写。用户提到活动、优惠、推广时由本技能回答。
+          ---
+
+          # 会员营销
+
+          策划眼科门诊的会员营销活动与优惠方案。
+          EOF
+      - name: Run action on regression fixture (expected to fail)
+        id: broken
+        uses: ./action
+        continue-on-error: true
+        with:
+          skills-path: /tmp/regression-skills
+          tasks-path: /tmp/baseline-run/tasks-generated.json
+          mock: true
+          fail-on-conflict: true
+          report-artifact-name: selftest-detect-conflict
+      - name: Assert the failure was detected and mapped
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.broken.outputs.exit-code }}" != "1" ]; then
+            echo "::error::expected exit-code 1 (conflict), got: ${{ steps.broken.outputs.exit-code }}"
+            exit 1
+          fi
+          if [ "${{ steps.broken.outputs.verdict }}" != "conflict" ]; then
+            echo "::error::expected verdict 'conflict', got: ${{ steps.broken.outputs.verdict }}"
+            exit 1
+          fi
+          if [ "${{ steps.broken.outcome }}" != "failure" ]; then
+            echo "::error::expected step outcome 'failure' (fail-on-conflict=true), got: ${{ steps.broken.outcome }}"
+            exit 1
+          fi
+          echo "conflict correctly failed the step with verdict=conflict"
+
+  compare-aa:
+    name: self-test · compare mode passes on A/A
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate fixed task set
+        run: |
+          python -m pip install .
+          python skill_seam.py demo-skills --mock --out /tmp/taskgen
+      - uses: ./action
+        with:
+          mode: compare
+          skills-path: demo-skills
+          baseline-path: demo-skills
+          tasks-path: /tmp/taskgen/tasks-generated.json
+          mock: true
+          report-artifact-name: selftest-compare-aa

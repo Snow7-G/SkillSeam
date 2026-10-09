@@ -7,6 +7,9 @@
 ## [Unreleased]
 
 ### Added
+- 官方 GitHub Action（`action/`）：把技能路由检查接进 CI。支持 detect（冲突检测）与 compare（基线回归比对）两种模式；退出码 0/1/2/3 映射为 CI 结果（fail-on-conflict / fail-on-regression / fail-on-error / fail-on-unstable 均可配置）；报告写入 Job Summary 并以产物上传；`mock` 模式免密钥冒烟。配套自测工作流（正常路径、回归失败路径、A/A 对照）与使用文档（action/README.md）。
+
+### Added
 - 网页按示例、技能检查、描述对照提供用途入口；新增结论与下一步摘要、审核筛选和进度、可搜索的技能候选列表。示例模式往返保留用户技能与任务输入。
 - CLI `--aa` 和网页 A/A 入口：同一技能集两组独立采样，并明确标注背景波动；新增任务覆盖表、NONE 计数、缺失覆盖与重复文本提示。
 - CLI 运行清单与历史归档，当前结果可通过 run_id 追溯；对照结果包含扫描清单。
