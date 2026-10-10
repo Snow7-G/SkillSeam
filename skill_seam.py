@@ -1712,6 +1712,9 @@ def main():
             except json.JSONDecodeError as e:
                 eprint(f"错误: 任务文件不是合法 JSON: {e}")
                 sys.exit(2)
+            except (OSError, UnicodeError):
+                eprint("错误: 无法读取任务文件；检查文件权限和 UTF-8 编码。")
+                sys.exit(2)
             if not isinstance(loaded, list):
                 eprint("错误: 任务文件必须是 JSON 数组（元素含 t/e/kind/pair 字段）")
                 sys.exit(2)

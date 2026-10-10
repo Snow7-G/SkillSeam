@@ -1513,6 +1513,48 @@ class TestCompletenessRegression(unittest.TestCase):
             self.assertEqual(marked[0]['expected'], 'NONE')
             self.assertEqual(data['meta']['coverage']['none_tasks'], 1)
 
+class TestTaskReadFailures(unittest.TestCase):
+    def test_invalid_utf8_task_archives_previous_result(self):
+        for mode in ('single', 'aa'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as td:
+                base = Path(td)
+                skills, tasks = make_clean_fixture(base)
+                out = base / 'out'
+                args = [str(skills), '--mock', '--tasks', str(tasks), '--out', str(out)]
+                if mode == 'aa':
+                    args += ['--aa']
+                self.assertEqual(run_cli(args).returncode, 0)
+                tasks.write_bytes(b'[{"t":"\xff","e":"NONE"}]')
+                result = run_cli(args)
+                self.assertEqual(result.returncode, 2)
+                self.assertNotIn('Traceback', result.stderr)
+                state = json.loads((out / 'run.json').read_text())
+                self.assertEqual((state['status'], state['exit_code']), ('failed', 2))
+                self.assertFalse((out / 'report.html').exists())
+                self.assertEqual(len(list((out / 'history').glob('*/report.html'))), 1)
+
+    def test_task_read_oserror_is_sanitized_before_model_calls(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            skills, tasks = make_clean_fixture(base)
+            original_read = Path.read_text
+            def read_text(path, *args, **kwargs):
+                if path == tasks:
+                    raise PermissionError('PRIVATE_ERROR_DETAIL')
+                return original_read(path, *args, **kwargs)
+            with patch.object(sys, 'argv', [str(SCRIPT), str(skills), '--tasks', str(tasks), '--out', str(base / 'out')]), \
+                    patch.object(Path, 'read_text', read_text), \
+                    patch.object(ad, 'load_config') as config, \
+                    patch.object(sys, 'stderr', new_callable=io.StringIO) as stderr:
+                with self.assertRaises(SystemExit) as result:
+                    ad.main()
+                self.assertEqual(result.exception.code, 2)
+                config.assert_not_called()
+                self.assertNotIn('PRIVATE_ERROR_DETAIL', stderr.getvalue())
+                self.assertIn('UTF-8', stderr.getvalue())
+            self.assertEqual(json.loads((base / 'out/run.json').read_text())['exit_code'], 2)
+
+
 class TestWorkersEquals(unittest.TestCase):
     def test_equals_syntax_matches_space(self):
         with tempfile.TemporaryDirectory() as td:
