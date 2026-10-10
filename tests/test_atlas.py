@@ -1513,6 +1513,18 @@ class TestCompletenessRegression(unittest.TestCase):
             self.assertEqual(marked[0]['expected'], 'NONE')
             self.assertEqual(data['meta']['coverage']['none_tasks'], 1)
 
+class TestWorkersEquals(unittest.TestCase):
+    def test_equals_syntax_matches_space(self):
+        with tempfile.TemporaryDirectory() as td:
+            skills, tasks = make_clean_fixture(Path(td))
+            for value in ('0', '-1', 'oops', '', '2'):
+                with self.subTest(value=value):
+                    result = run_cli([str(skills), '--mock', '--tasks', str(tasks),
+                                      '--out', str(Path(td) / 'out'), '--workers=' + value])
+                    self.assertEqual(result.returncode, 0 if value == '2' else 2)
+                    self.assertNotIn('Traceback', result.stderr)
+
+
 class TestArgumentFailureRegression(unittest.TestCase):
     def test_argument_failures_replace_success(self):
         for mode in ('single', 'aa'):

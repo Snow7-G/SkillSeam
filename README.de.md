@@ -105,8 +105,8 @@ Jede Description singt. Manche Lieder locken deine Aufgaben auf die Klippen.
 ## Entwicklung
 
 ```bash
-python3 tests/test_atlas.py   # 125 Tests, nur Stdlib
-node tests/web_smoke.cjs      # 168 Web-Assertions, node >= 18
+python3 tests/test_atlas.py   # 126 Tests, nur Stdlib
+node tests/web_smoke.cjs      # 178 Web-Assertions, node >= 18
 ```
 
 CI läuft beides auf Python 3.10, 3.12 und 3.13. Vor einem PR bitte CONTRIBUTING.md lesen.

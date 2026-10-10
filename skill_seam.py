@@ -1623,6 +1623,9 @@ def main():
         sys.exit(cmd_harvest(args[1:]))
     if args and args[0] == "export":
         sys.exit(cmd_export(args[1:]))
+    # 同时接受 --workers N 与 --workers=N，沿用同一校验路径。
+    args = [part for arg in args for part in
+            (arg.split("=", 1) if arg.startswith("--workers=") else [arg])]
     if "--aa" in args or any(a == "--baseline" or a.startswith("--baseline=") for a in args):
         sys.exit(cmd_compare(args))
     if "--check-connection" in args:

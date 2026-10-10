@@ -236,6 +236,8 @@ button:focus-visible,a:focus-visible {outline:3px solid var(--accent);outline-of
     <div style="overflow:auto"><table><thead><tr><th data-i18n="review_task"></th><th data-i18n="review_expected"></th><th data-i18n="comparison_change"></th><th data-i18n="baseline_label"></th><th data-i18n="candidate_label"></th></tr></thead><tbody id="comparisonRows"></tbody></table></div>
     <h3>Description</h3><div style="overflow:auto"><table><tbody id="comparisonChanges"></tbody></table></div>
     <button class="ghost" onclick="exportComparison()" data-i18n="comparison_export"></button>
+    <button id="exportProblemTasksBtn" class="ghost" onclick="exportProblemTasks()" data-i18n="problem_export" disabled></button>
+    <p data-i18n="problem_export_note"></p>
   </div>
   <div id="result" class="hidden">
     <div class="cards">
@@ -286,6 +288,8 @@ var I18N = {
     comparison_code: "结果码",
     comparison_names: "两组必须具有相同且合法的技能名称集合。",
     comparison_export: "下载对照 JSON",
+    problem_export: "导出问题任务",
+    problem_export_note: "导出回归、持续错误、待复核和失败任务，保留原始标签与元数据。可用于快速复测；最终验收仍需运行完整任务集。",
     aa_btn: "运行 A/A 波动检查",
     aa_note: "A/A 同一集合独立采样；变化仅反映背景波动，不能证明修复有效",
     coverage_btn: "查看任务覆盖",
@@ -417,6 +421,8 @@ var I18N = {
     comparison_code: "Result code",
     comparison_names: "Both arms must have the same valid skill names.",
     comparison_export: "Download comparison JSON",
+    problem_export: "Export problem tasks",
+    problem_export_note: "Export regressed, persistent-error, pending-review and failed tasks with their original labels and metadata. Use for focused retesting; run the full task set for final validation.",
     aa_btn: "Run A/A noise check",
     aa_note: "A/A samples the same catalog independently; changes indicate background variation, not repair effectiveness",
     coverage_btn: "Task coverage",
@@ -1702,6 +1708,7 @@ function pairedComparison(before, after, names, samples) {
 function renderWebComparison(result) {
   renderAction(comparisonAction(result));
   $('comparisonResult').classList.remove('hidden');
+  $('exportProblemTasksBtn').disabled=problemTasks(result).length===0;
   if(result.diagnostics && result.diagnostics.length)showErr(diagnosticText(result.diagnostics[0]));
   else if(result.exit_code===2 && !result.stopped)showErr(t('insufficient_samples'));
   $('comparisonSummary').textContent=(result.meta && result.meta.comparison_type==='AA'?t('aa_note')+' · ':'')+t('comparison_code')+' '+result.exit_code+' · '+Object.keys(result.counts).map(function(k){return t(k)+': '+result.counts[k];}).join(' · ');
@@ -1784,6 +1791,17 @@ function showCoverage() {
     var tasks=$('tasks').value.trim().charAt(0)==='['?JSON.parse($('tasks').value):pt.tasks.map(function(r){return {t:r.task,e:r.expected};});
     renderCoverage(taskCoverage(tasks,ps.skills.map(function(r){return r.name;})));
   }catch(e){showErr(t('review_invalid'));}
+}
+function problemTasks(result) {
+  if(!result || !result.tasks)return [];
+  return result.tasks.filter(function(task,i){
+    var pair=result.pairs[i];
+    return pair && ['regressed','persistent_error','review','failed'].indexOf(pair.status)>=0;
+  }).map(function(task){return JSON.parse(JSON.stringify(task));});
+}
+function exportProblemTasks() {
+  var tasks=problemTasks(window.__lastComparison);
+  if(tasks.length)downloadJSON('problem-tasks.json',tasks);
 }
 function exportComparison() {
   if(window.__lastComparison)downloadJSON('comparison.json',window.__lastComparison);

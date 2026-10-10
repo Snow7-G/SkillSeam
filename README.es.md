@@ -105,8 +105,8 @@ Cada description canta. Algunas canciones llevan tus tareas contra las rocas.
 ## Desarrollo
 
 ```bash
-python3 tests/test_atlas.py   # 125 tests, solo stdlib
-node tests/web_smoke.cjs      # 168 aserciones web, node >= 18
+python3 tests/test_atlas.py   # 126 tests, solo stdlib
+node tests/web_smoke.cjs      # 178 aserciones web, node >= 18
 ```
 
 CI ejecuta ambos en Python 3.10, 3.12 y 3.13. Lee CONTRIBUTING.md antes de abrir un PR.

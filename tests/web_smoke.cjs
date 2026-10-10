@@ -599,6 +599,32 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   el('reviewPanel').open=false;openAction('reviewPanel');
   check('review action expands task review',el('reviewPanel').open);
 
+  // 问题任务导出使用原始位置，不能用可能重复或自定义的 id 匹配。
+  var problemFixture={tasks:['improved','regressed','unchanged_correct','persistent_error','review','failed'].map(function(status,i){
+    return {t:'任务'+i,e:i===5?'NONE':'a-b',id:'duplicate-id',kind:'gray',pair:'a-b↔c-d',custom:{source:i}};
+  }),pairs:['improved','regressed','unchanged_correct','persistent_error','review','failed'].map(function(status){return {status:status};})};
+  var subset=problemTasks(problemFixture);
+  check('problem export selects all four problem categories',subset.map(r=>r.t).join(',')==='任务1,任务3,任务4,任务5');
+  check('problem export keeps NONE and metadata',subset[3].e==='NONE' && subset[0].id==='duplicate-id' && subset[0].kind==='gray' && subset[0].pair==='a-b↔c-d');
+  check('problem export can be reimported',parseTasks(JSON.stringify(subset)).errs.length===0 && parseTasks(JSON.stringify(subset)).tasks.length===4);
+  subset[0].custom.source=99;
+  check('problem export does not mutate original snapshot',problemFixture.tasks[1].custom.source===1);
+  check('problem export without result is empty',problemTasks(null).length===0);
+  check('problem export clean result is empty',problemTasks({tasks:[{t:'ok',e:'a-b'}],pairs:[{status:'unchanged_correct'}]}).length===0);
+  var savedDownload=downloadJSON, downloads=[];
+  downloadJSON=function(name,data){downloads.push({name:name,data:data});};
+  window.__lastComparison=problemFixture;exportProblemTasks();
+  check('problem export downloads reusable JSON',downloads.length===1 && downloads[0].name==='problem-tasks.json' && downloads[0].data.length===4);
+  window.__lastComparison=null;exportProblemTasks();
+  check('problem export no result makes no download',downloads.length===1);
+  downloadJSON=savedDownload;
+  var cleanResult={counts:{improved:0,regressed:0,unchanged_correct:0,persistent_error:0,review:0,failed:0},exit_code:0,pairs:[],tasks:[],changes:[]};
+  renderWebComparison(cleanResult);
+  check('problem export button disabled for clean result',el('exportProblemTasksBtn').disabled);
+  var failedRow={task:'failed',expected:'NONE',chosen:'ERROR',votes:['ERROR']};
+  renderWebComparison(Object.assign({},cleanResult,{exit_code:2,tasks:[{t:'failed',e:'NONE'}],pairs:[{status:'failed',baseline:failedRow,candidate:failedRow}]}));
+  check('problem export button enabled for failed tasks',!el('exportProblemTasksBtn').disabled);
+
   // 文档自校验是元检查，不计入产品断言数；先冻结计数器，否则会出现「自己数自己」的循环
   const productTotal = pass + fail;
   const metaStart = pass + fail;

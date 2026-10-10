@@ -6,7 +6,7 @@
   <img src="assets/banner.svg" alt="SkillSeam" width="720">
 </p>
 
-[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-125%20passing-3b6d11.svg)](tests/test_atlas.py)
+[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-126%20passing-3b6d11.svg)](tests/test_atlas.py)
 
 模拟 agent 真实挑选 skill 的过程，找出哪个 skill 抢了谁的活。在用户发现问题之前。
 
@@ -53,6 +53,8 @@ python3 skill_seam.py ./skills-candidate --baseline ./skills-baseline --tasks re
 ```
 
 两组技能名称集合必须相同。对照退出码：0 无稳定回归，1 有回归，2 输入或评测失败，3 存在不稳定任务待复核。改善不抵消回归，0 不代表没有遗留冲突。[完整协议与输出说明](docs/comparison.md)。
+
+网页对照结果支持“导出问题任务”，保留原始标签与元数据，方便针对性复测；最终验收仍需运行完整任务集。
 
 ## 快速开始（网页版，零安装）
 
@@ -178,8 +180,8 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 开发
 
 ```bash
-python3 tests/test_atlas.py   # 125 项测试，纯标准库
-node tests/web_smoke.cjs      # 168 项网页断言，node >= 18
+python3 tests/test_atlas.py   # 126 项测试，纯标准库
+node tests/web_smoke.cjs      # 178 项网页断言，node >= 18
 ```
 
 CI 覆盖 Python 3.10 / 3.12 / 3.13、Node 20 网页逻辑和 268 组 YAML 差分。提 PR 前看 CONTRIBUTING.md。MIT 许可证。

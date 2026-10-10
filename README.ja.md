@@ -105,8 +105,8 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 開発
 
 ```bash
-python3 tests/test_atlas.py   # 125 テスト、標準ライブラリのみ
-node tests/web_smoke.cjs      # 168 web アサーション、node >= 18
+python3 tests/test_atlas.py   # 126 テスト、標準ライブラリのみ
+node tests/web_smoke.cjs      # 178 web アサーション、node >= 18
 ```
 
 CI は Python 3.10 / 3.12 / 3.13 で両方を実行します。PR の前に CONTRIBUTING.md をご覧ください。
