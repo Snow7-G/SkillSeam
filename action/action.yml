@@ -93,12 +93,13 @@ runs:
       shell: bash
       env:
         MODE: ${{ inputs.mode }}
+        SKILLS: ${{ inputs.skills-path }}
         BASELINE: ${{ inputs.baseline-path }}
         TASKS: ${{ inputs.tasks-path }}
       run: |
         set -euo pipefail
-        if [ ! -d "${{ inputs.skills-path }}" ]; then
-          echo "::error::skills-path not found: ${{ inputs.skills-path }}"
+        if [ ! -d "$SKILLS" ]; then
+          echo "::error::skills-path not found: $SKILLS"
           exit 2
         fi
         case "$MODE" in

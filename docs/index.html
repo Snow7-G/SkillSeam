@@ -1185,6 +1185,7 @@ function stopEval() {
 function setRunning(on) {
   document.querySelectorAll("button, input, textarea, select").forEach(function(el) { el.disabled = on; });
   $("runBtn").disabled = on; $("demoBtn").disabled = on; $("genBtn").disabled = on;
+  if (!on) $('exportProblemTasksBtn').disabled = problemTasks(window.__lastComparison).length === 0;
   var sb = $("stopBtn");
   sb.classList.toggle("hidden", !on);
   sb.disabled = false;

@@ -621,9 +621,16 @@ check("DEMO 无隐私泄漏", html.indexOf("/Users/") < 0);
   var cleanResult={counts:{improved:0,regressed:0,unchanged_correct:0,persistent_error:0,review:0,failed:0},exit_code:0,pairs:[],tasks:[],changes:[]};
   renderWebComparison(cleanResult);
   check('problem export button disabled for clean result',el('exportProblemTasksBtn').disabled);
+  var savedQuery=document.querySelectorAll;
+  document.querySelectorAll=()=>[el('exportProblemTasksBtn')];
+  window.__lastComparison=cleanResult;setRunning(false);
+  check('problem export stays disabled after run unlocks controls',el('exportProblemTasksBtn').disabled);
   var failedRow={task:'failed',expected:'NONE',chosen:'ERROR',votes:['ERROR']};
-  renderWebComparison(Object.assign({},cleanResult,{exit_code:2,tasks:[{t:'failed',e:'NONE'}],pairs:[{status:'failed',baseline:failedRow,candidate:failedRow}]}));
+  var failedResult=Object.assign({},cleanResult,{exit_code:2,tasks:[{t:'failed',e:'NONE'}],pairs:[{status:'failed',baseline:failedRow,candidate:failedRow}]});
+  renderWebComparison(failedResult);
+  window.__lastComparison=failedResult;setRunning(false);
   check('problem export button enabled for failed tasks',!el('exportProblemTasksBtn').disabled);
+  document.querySelectorAll=savedQuery;
 
   // 文档自校验是元检查，不计入产品断言数；先冻结计数器，否则会出现「自己数自己」的循环
   const productTotal = pass + fail;

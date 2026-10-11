@@ -1567,6 +1567,26 @@ class TestWorkersEquals(unittest.TestCase):
                     self.assertNotIn('Traceback', result.stderr)
 
 
+class TestActionInputs(unittest.TestCase):
+    def test_skills_path_is_data_in_validation_step(self):
+        action = (ROOT / 'action/action.yml').read_text(encoding='utf-8')
+        step = action.split('    - name: Validate inputs\n', 1)[1].split(
+            '    - name: Run SkillSeam\n', 1)[0]
+        script = step.split('      run: |\n', 1)[1]
+        script = '\n'.join(line[8:] for line in script.splitlines())
+        with tempfile.TemporaryDirectory() as td:
+            marker = Path(td) / 'executed'
+            payload = '$(printf unsafe > ' + str(marker) + ')'
+            # Model the GitHub expression expansion before bash reads the script.
+            script = script.replace('${{ inputs.skills-path }}', payload)
+            env = {'PATH': os.environ.get('PATH', '/usr/bin:/bin'),
+                   'MODE': 'detect', 'BASELINE': '', 'TASKS': '', 'SKILLS': payload}
+            result = subprocess.run(['bash', '-c', script], env=env,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertFalse(marker.exists(), 'skills-path executed as shell code')
+
+
 class TestArgumentFailureRegression(unittest.TestCase):
     def test_argument_failures_replace_success(self):
         for mode in ('single', 'aa'):
