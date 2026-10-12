@@ -1587,6 +1587,23 @@ class TestActionInputs(unittest.TestCase):
             self.assertFalse(marker.exists(), 'skills-path executed as shell code')
 
 
+class TestMarkLibraryArgument(unittest.TestCase):
+    def test_missing_library_value_does_not_write_default_library(self):
+        with tempfile.TemporaryDirectory() as td:
+            default_library = Path(td) / '.skill-seam/marked.jsonl'
+            for args in (['mark', '一次事故', 'NONE', '--library'],
+                         ['mark', '--list', '--library'],
+                         ['mark', '一次事故', 'NONE', '--library', '--list']):
+                with self.subTest(args=args), patch.object(Path, 'home', return_value=Path(td)), \
+                        patch.object(sys, 'argv', [str(SCRIPT)] + args), \
+                        patch.object(sys, 'stdout', new_callable=io.StringIO), \
+                        patch.object(sys, 'stderr', new_callable=io.StringIO):
+                    with self.assertRaises(SystemExit) as result:
+                        ad.main()
+                    self.assertEqual(result.exception.code, 2)
+                    self.assertFalse(default_library.exists())
+
+
 class TestArgumentFailureRegression(unittest.TestCase):
     def test_argument_failures_replace_success(self):
         for mode in ('single', 'aa'):

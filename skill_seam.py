@@ -1037,6 +1037,11 @@ def load_marked(lib: Path):
 
 def cmd_mark(argv):
     """skill-seam mark [--list] [--library PATH] "任务文本" 应选技能名"""
+    if "--library" in argv:
+        i = argv.index("--library")
+        if i + 1 >= len(argv) or argv[i + 1].startswith("--"):
+            eprint("错误: --library 需要一个文件路径")
+            return 2
     lib = marked_library_path(argv)
     if "--list" in argv:
         entries = load_marked(lib)
