@@ -267,6 +267,14 @@ class TestCaptureHarvest(unittest.TestCase):
         ups2 = data2["hooks"]["UserPromptSubmit"]
         self.assertEqual(len(ups2), 2)
 
+    def test_install_claude_hook_rejects_invalid_settings(self):
+        settings = Path(self.td.name) / "settings.json"
+        settings.write_text("{invalid json", encoding="utf-8")
+        r = run_cli(["capture", "--install-claude", "--settings", str(settings)])
+        self.assertEqual(r.returncode, 2, msg=r.stdout + r.stderr)
+        self.assertIn("settings", r.stderr)
+        self.assertEqual(settings.read_text(encoding="utf-8"), "{invalid json")
+
     def test_hook_quoted_path_executes(self):
         import shlex
         with tempfile.TemporaryDirectory(prefix="skill seam ' ") as td:

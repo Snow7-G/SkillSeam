@@ -1098,10 +1098,14 @@ def cmd_capture(argv):
     无参数模式：从 stdin 读一条用户 prompt（Claude Code hook 传入的 JSON 或纯文本），
     追加到本地问法库。任何异常都不抛出——捕获永远不能打断用户会话。
     """
+    if "--install-claude" in argv:
+        try:
+            return install_claude_hook(argv)
+        except (OSError, ValueError, TypeError, AttributeError):
+            eprint("错误: Claude Code hook 安装失败；检查 settings JSON 格式和读写权限。")
+            return 2
     try:
         lib = queries_path(argv)
-        if "--install-claude" in argv:
-            return install_claude_hook(argv)
         if sys.stdin.isatty():
             # 交互式终端直跑会挂起等 EOF——捕获只能由 hook 管道调用
             print("capture 从 stdin 读取 prompt（由 Claude Code hook 调用，不用于交互）。\n"
