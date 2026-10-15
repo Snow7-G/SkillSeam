@@ -107,7 +107,7 @@ Cada description canta. Algunas canciones llevan tus tareas contra las rocas.
 ## Desarrollo
 
 ```bash
-python3 tests/test_atlas.py   # 132 tests, solo stdlib
+python3 tests/test_atlas.py   # 133 tests, solo stdlib
 node tests/web_smoke.cjs      # 179 aserciones web, node >= 18
 ```
 

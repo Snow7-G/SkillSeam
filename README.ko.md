@@ -107,7 +107,7 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 개발
 
 ```bash
-python3 tests/test_atlas.py   # 132 테스트, 표준 라이브러리만 사용
+python3 tests/test_atlas.py   # 133 테스트, 표준 라이브러리만 사용
 node tests/web_smoke.cjs      # 179 웹 어설션, node >= 18
 ```
 

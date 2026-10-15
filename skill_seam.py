@@ -1666,8 +1666,9 @@ def main():
     if "--out" in args:
         skip.add("--out")
         oi = args.index("--out")
-        if oi + 1 < len(args):
-            skip.add(args[oi + 1])
+        if oi + 1 >= len(args) or not args[oi + 1] or args[oi + 1].startswith("--"):
+            fail_arguments(args, "--out 需要一个输出目录", default_out)
+        skip.add(args[oi + 1])
     no_fixes = "--no-fixes" in args
     if "--workers" in args:
         wi = args.index("--workers")
@@ -1693,7 +1694,7 @@ def main():
         return default
 
     out = Path.cwd() / default_out
-    if "--out" in args and args.index("--out") + 1 < len(args):
+    if "--out" in args:
         out = Path(args[args.index("--out") + 1])
     with evaluation_run(out, task_file) as run:
         if task_file is not None and not task_file.is_file():

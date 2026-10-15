@@ -1646,6 +1646,27 @@ class TestMarkLibraryArgument(unittest.TestCase):
 
 
 class TestArgumentFailureRegression(unittest.TestCase):
+    def test_missing_out_value_fails_without_reusing_success(self):
+        for mode in ("single", "validate"):
+            for bad in (["--out"], ["--out", "--no-fixes"], ["--out", ""]):
+                with self.subTest(mode=mode, bad=bad), tempfile.TemporaryDirectory() as td:
+                    base = Path(td)
+                    skills, tasks = make_clean_fixture(base)
+                    args = [str(skills), "--tasks", str(tasks)] + (
+                        ["--mock"] if mode == "single" else ["--validate-only"])
+                    out = base / ("output" if mode == "single" else "output/validation")
+                    self.assertEqual(run_cli(args, cwd=td).returncode, 0)
+                    result = run_cli(args + bad, cwd=td)
+                    self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                    self.assertIn("--out", result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+                    run = json.loads((out / "run.json").read_text(encoding="utf-8"))
+                    self.assertEqual((run["status"], run["exit_code"]), ("failed", 2))
+                    self.assertFalse((out / "report.html").exists())
+                    self.assertEqual(len(list((out / "history").glob("*/run.json"))), 1)
+                    if mode == "single":
+                        self.assertEqual(len(list((out / "history").glob("*/report.html"))), 1)
+
     def test_argument_failures_replace_success(self):
         for mode in ('single', 'aa'):
             for bad in (['--tasks'], ['--workers', 'oops'], ['--workers', '-1'], ['--workers', '0'], ['--workers', '²'], ['--workers']):
