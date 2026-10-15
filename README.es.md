@@ -41,6 +41,8 @@ Códigos de salida: 0 sin conflictos, 1 conflictos encontrados, 2 configuración
 python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
 
+Para validar skills y tareas sin llamar al modelo, ejecuta `python3 skill_seam.py ./skills --tasks ci-tasks.json --validate-only`. El código 0 solo confirma que las entradas son válidas, no que la evaluación de enrutamiento haya pasado. También muestra skills sin cobertura y tareas duplicadas.
+
 ## Las preguntas reales ganan a las generadas
 
 Primero, una limitación honesta: las tareas de prueba generadas por LLM tienen sesgo. El modelo que las escribe sabe qué skill debería ganar, así que suelen pasar. En nuestra demo, las tareas generadas encontraron 0 conflictos y las preguntas reales de usuarios encontraron 4. Mismos skills, mismo modelo.
@@ -105,7 +107,7 @@ Cada description canta. Algunas canciones llevan tus tareas contra las rocas.
 ## Desarrollo
 
 ```bash
-python3 tests/test_atlas.py   # 131 tests, solo stdlib
+python3 tests/test_atlas.py   # 132 tests, solo stdlib
 node tests/web_smoke.cjs      # 179 aserciones web, node >= 18
 ```
 

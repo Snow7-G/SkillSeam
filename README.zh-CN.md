@@ -6,7 +6,7 @@
   <img src="assets/banner.svg" alt="SkillSeam" width="720">
 </p>
 
-[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-131%20passing-3b6d11.svg)](tests/test_atlas.py)
+[![CI](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml/badge.svg)](https://github.com/Snow7-G/SkillSeam/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f6e56.svg)](LICENSE) [![Python](https://img.shields.io/badge/Python-3.10%2B-0f6e56.svg)](pyproject.toml) [![Tests](https://img.shields.io/badge/Tests-132%20passing-3b6d11.svg)](tests/test_atlas.py)
 
 模拟 agent 真实挑选 skill 的过程，找出哪个 skill 抢了谁的活。在用户发现问题之前。
 
@@ -89,6 +89,14 @@ open output/report.html
 ```bash
 python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
+
+正式评测前可只检查技能与已审核任务集：
+
+```bash
+python3 skill_seam.py ./skills --tasks ci-tasks.json --validate-only
+```
+
+该命令不调用模型，打印各技能任务覆盖、NONE 与重复文本；输入有效返回 0，无效返回 2。0 仅表示输入通过检查，**不是路由评测通过**。运行记录默认写入 `output/validation/run.json`，不会覆盖常规报告。
 
 ## 看懂结果，再接受修改
 
@@ -180,7 +188,7 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 开发
 
 ```bash
-python3 tests/test_atlas.py   # 131 项测试，纯标准库
+python3 tests/test_atlas.py   # 132 项测试，纯标准库
 node tests/web_smoke.cjs      # 179 项网页断言，node >= 18
 ```
 

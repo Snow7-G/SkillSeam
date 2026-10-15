@@ -41,6 +41,8 @@ open output/report.html
 python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
 
+モデルを呼ばずにタスクとスキルの入力を検証するには `python3 skill_seam.py ./skills --tasks ci-tasks.json --validate-only` を実行します。終了コード 0 は入力が有効という意味で、ルーティング評価の合格ではありません。未網羅のスキルと重複タスクも表示します。
+
 ## 本物の問い合わせは生成より強い
 
 最初に正直な限界を: LLM が生成するテストタスクには偏りがあります。生成するモデルはどちらのスキルが勝つべきかを知っているので、簡単に通ってしまうのです。デモでは、生成タスクは競合 0 件、本物のユーザーの問い合わせは 4 件でした。同じスキル、同じモデルです。
@@ -105,7 +107,7 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 開発
 
 ```bash
-python3 tests/test_atlas.py   # 131 テスト、標準ライブラリのみ
+python3 tests/test_atlas.py   # 132 テスト、標準ライブラリのみ
 node tests/web_smoke.cjs      # 179 web アサーション、node >= 18
 ```
 

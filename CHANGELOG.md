@@ -7,6 +7,7 @@
 ## [Unreleased]
 
 ### Added
+- CLI `--validate-only`：对已审核的 `--tasks` 文件与技能集合做离线输入校验，打印覆盖、NONE 和重复任务摘要；不调用模型，默认写入独立的 `output/validation/run.json`。
 - 官方 GitHub Action（`action/`）：把技能路由检查接进 CI。支持 detect（冲突检测）与 compare（基线回归比对）两种模式；退出码 0/1/2/3 映射为 CI 结果（fail-on-conflict / fail-on-regression / fail-on-error / fail-on-unstable 均可配置）；报告写入 Job Summary 并以产物上传；`mock` 模式免密钥冒烟。配套自测工作流（正常路径、回归失败路径、A/A 对照）与使用文档（action/README.md）。
 
 ### Added

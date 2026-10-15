@@ -41,6 +41,8 @@ open output/report.html
 python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
 
+모델 호출 없이 태스크와 스킬 입력을 확인하려면 `python3 skill_seam.py ./skills --tasks ci-tasks.json --validate-only`를 실행하세요. 종료 코드 0은 입력이 유효하다는 뜻이며 라우팅 평가 통과를 의미하지 않습니다. 미포함 스킬과 중복 태스크도 표시합니다.
+
 ## 생성된 질문보다 실제 질문이 강합니다
 
 먼저 솔직한 한계부터: LLM이 생성하는 테스트 태스크에는 편향이 있습니다. 문제를 만드는 모델은 어느 스킬이 이겨야 하는지 알기 때문에 쉽게 통과합니다. 데모에서 생성 태스크는 충돌 0건, 실제 사용자 질문은 4건을 찾아냈습니다. 같은 스킬, 같은 모델.
@@ -105,7 +107,7 @@ python3 skill_seam.py harvest ./skills --codex --label --out tasks-draft.json
 ## 개발
 
 ```bash
-python3 tests/test_atlas.py   # 131 테스트, 표준 라이브러리만 사용
+python3 tests/test_atlas.py   # 132 테스트, 표준 라이브러리만 사용
 node tests/web_smoke.cjs      # 179 웹 어설션, node >= 18
 ```
 

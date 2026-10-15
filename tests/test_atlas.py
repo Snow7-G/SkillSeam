@@ -663,6 +663,39 @@ def make_clean_fixture(base: Path):
 
 
 class TestCLIExitCodes(unittest.TestCase):
+    def test_validate_only_checks_task_coverage_without_model(self):
+        with tempfile.TemporaryDirectory() as td:
+            sdir, tfile = make_clean_fixture(Path(td))
+            tasks = json.loads(tfile.read_text(encoding="utf-8"))[:1]
+            tfile.write_text(json.dumps(tasks * 2, ensure_ascii=False), encoding="utf-8")
+            out = Path(td) / "out"
+            args = [str(sdir), "--validate-only", "--tasks", str(tfile), "--out", str(out)]
+            result = run_cli(args, cwd=td)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("未覆盖技能: canting-yuding", result.stdout)
+            self.assertIn("重复任务文本: 1", result.stdout)
+            self.assertFalse((out / "results.json").exists())
+            self.assertFalse((out / "preflight.json").exists())
+            self.assertEqual(json.loads((out / "run.json").read_text())["exit_code"], 0)
+
+            old_report = Path(td) / "output/report.html"
+            old_report.parent.mkdir()
+            old_report.write_text("previous report", encoding="utf-8")
+            default_out = run_cli([str(sdir), "--validate-only", "--tasks", str(tfile)], cwd=td)
+            self.assertEqual(default_out.returncode, 0, default_out.stdout + default_out.stderr)
+            self.assertEqual(old_report.read_text(encoding="utf-8"), "previous report")
+            self.assertTrue((Path(td) / "output/validation/run.json").exists())
+
+            tasks[0]["e"] = "missing-skill"
+            tfile.write_text(json.dumps(tasks, ensure_ascii=False), encoding="utf-8")
+            rejected = run_cli(args, cwd=td)
+            self.assertEqual(rejected.returncode, 2, rejected.stdout + rejected.stderr)
+            self.assertIn("应选技能不存在", rejected.stderr)
+
+            missing = run_cli([str(sdir), "--validate-only", "--out", str(out)], cwd=td)
+            self.assertEqual(missing.returncode, 2, missing.stdout + missing.stderr)
+            self.assertIn("--tasks", missing.stderr)
+
     def test_empty_task_array_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             sdir, tfile = make_clean_fixture(Path(td))

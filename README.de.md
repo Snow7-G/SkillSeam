@@ -41,6 +41,8 @@ Exit-Codes: 0 heißt keine Konflikte, 1 heißt Konflikte gefunden, 2 heißt Fehl
 python3 skill_seam.py ./skills --tasks ci-tasks.json
 ```
 
+Mit `python3 skill_seam.py ./skills --tasks ci-tasks.json --validate-only` lassen sich Skills und Aufgaben ohne Modellaufruf prüfen. Exit-Code 0 bestätigt nur gültige Eingaben, keine bestandene Routing-Prüfung. Fehlende Skill-Abdeckung und doppelte Aufgaben werden ebenfalls angezeigt.
+
 ## Echte Fragen schlagen generierte
 
 Zuerst eine ehrliche Grenze: Die generierten Testaufgaben sind verzerrt. Das Modell, das sie schreibt, weiß, welcher Skill gewinnen sollte, also fallen sie leicht durch. In unserer Demo fanden generierte Aufgaben 0 Konflikte, echte Nutzerfragen fanden 4. Gleicher Skill-Satz, gleiches Modell.
@@ -105,7 +107,7 @@ Jede Description singt. Manche Lieder locken deine Aufgaben auf die Klippen.
 ## Entwicklung
 
 ```bash
-python3 tests/test_atlas.py   # 131 Tests, nur Stdlib
+python3 tests/test_atlas.py   # 132 Tests, nur Stdlib
 node tests/web_smoke.cjs      # 179 Web-Assertions, node >= 18
 ```
 

@@ -1596,6 +1596,7 @@ HELP_TEXT = """SkillSeam {version} —— 模拟 agent 的 skill 选择过程，
   --aa                   同一技能集双组采样（需 --tasks），观察背景波动
   --baseline <目录>      修改前技能集（对照模式必须提供 --tasks；退出码 0/1/2/3）
   --tasks <file.json>    自定义任务清单（推荐：真实用户问法）
+  --validate-only        只检查技能与 --tasks 任务集、打印覆盖情况，不调用模型
   --demo-tasks           内置 40 条眼科 demo 任务
   --gen-positive <N>     自动生成时每技能正向任务数（默认 5）
   --gray-pairs <K>       自动生成时灰区技能对数（默认 2，0=不生成）
@@ -1650,15 +1651,18 @@ def main():
             sys.exit(0 if preflight(cfg, options.out) else 2)
     checked = False
     mock = "--mock" in args
+    default_out = "output/validation" if "--validate-only" in args else "output"
     task_file = None
     if "--tasks" in args:
         ti = args.index("--tasks")
         if ti + 1 >= len(args) or args[ti + 1].startswith("--"):
-            fail_arguments(args, "--tasks 需要一个 JSON 文件路径")
+            fail_arguments(args, "--tasks 需要一个 JSON 文件路径", default_out)
         task_file = Path(args[ti + 1])
+    if "--validate-only" in args and task_file is None:
+        fail_arguments(args, "--validate-only 需要 --tasks 指定任务文件", default_out)
     skip = {"--mock", "--demo-tasks", "--with-marked", "--tasks",
             str(task_file) if task_file else None,
-            "--gen-positive", "--gray-pairs", "--workers", "--no-fixes"}
+            "--gen-positive", "--gray-pairs", "--workers", "--no-fixes", "--validate-only"}
     if "--out" in args:
         skip.add("--out")
         oi = args.index("--out")
@@ -1668,7 +1672,7 @@ def main():
     if "--workers" in args:
         wi = args.index("--workers")
         if wi + 1 >= len(args) or not re.fullmatch(r"[0-9]+", args[wi + 1]) or int(args[wi + 1]) < 1:
-            fail_arguments(args, "--workers 需要一个大于 0 的整数")
+            fail_arguments(args, "--workers 需要一个大于 0 的整数", default_out)
         skip.add(args[wi + 1])
         global MAX_WORKERS
         MAX_WORKERS = int(args[wi + 1])
@@ -1688,7 +1692,7 @@ def main():
                 sys.exit(2)
         return default
 
-    out = Path.cwd() / "output"
+    out = Path.cwd() / default_out
     if "--out" in args and args.index("--out") + 1 < len(args):
         out = Path(args[args.index("--out") + 1])
     with evaluation_run(out, task_file) as run:
@@ -1800,6 +1804,17 @@ def main():
         if unknown:
             eprint(f"错误: 任务清单中的应选技能不存在于 skill 目录: {unknown}")
             sys.exit(2)
+        if "--validate-only" in args:
+            coverage = task_coverage(TASKS, valid_names)
+            print(f"任务预检通过：{len(skills)} 个技能，{len(TASKS)} 条任务；未调用模型。")
+            print("技能覆盖（正向 / 灰区 / 其他）：")
+            for name, counts in coverage["skills"].items():
+                print(f"  {name}: {counts['positive']} / {counts['gray']} / {counts['other']}")
+            print(f"NONE 任务: {coverage['none_tasks']}")
+            print("未覆盖技能: " + (", ".join(coverage["uncovered"]) or "无"))
+            print(f"重复任务文本: {len(coverage['duplicates'])}")
+            run["exit_code"] = 0
+            sys.exit(0)
         catalog = build_catalog(skills)
         print(f"扫描到 {len(skills)} 个 skill；任务来源: {task_source}，共 {len(TASKS)} 条 × {SAMPLES} 采样 = {len(TASKS) * SAMPLES} 次选择")
 
